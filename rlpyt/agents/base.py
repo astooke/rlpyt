@@ -2,7 +2,7 @@
 from rlpyt.utils.quick_args import save_args
 
 
-class BasePolicy(object):
+class BaseAgent(object):
 
     def __init__(self, NetworkCls, network_kwargs, initial_state_dict=None):
         save_args(locals(), underscore=True)
@@ -13,7 +13,13 @@ class BasePolicy(object):
         if self._initial_state_dict is not None:
             self.load_state_dict(self._initial_state_dict)
 
-    def get_actions(self, observations, prev_actions, prev_rewards):
+    def sample_actions(self, observations, prev_actions, prev_rewards):
+        raise NotImplementedError
+
+    def sample_action(self, observation, prev_action, prev_reward):
+        raise NotImplementedError
+
+    def forward(self, agent_samples, env_samples):
         raise NotImplementedError
 
     def reset(self):
@@ -25,6 +31,9 @@ class BasePolicy(object):
     @property
     def recurrent(self):
         return False
+
+    def parameters(self):
+        return self.network.parameters()
 
     def load_state_dict(self, state_dict):
         self.network.load_state_dict(state_dict)
@@ -51,12 +60,11 @@ class BasePolicy(object):
         self.network = self.network_shared  # Drops any GPU network.
 
 
-class BaseRecurrentPolicy(BasePolicy):
+class BaseRecurrentAgent(BaseAgent):
 
     def initialize(self, env_spec):
         super().initialize(env_spec)
         self._prev_rnn_state = None
-        self._prev_action = None
 
     @property
     def recurrent(self):
@@ -69,12 +77,12 @@ class BaseRecurrentPolicy(BasePolicy):
         self._reset_one(idx, self._prev_rnn_state)
 
     def _reset_one(self, idx, prev_rnn_state):
-        # Assume each state is of shape: [B, H], but can be nested list/tuple.
+        # Assume each state is of shape: [N, B, H], but can be nested list/tuple.
         if isinstance(prev_rnn_state, (list, tuple)):
             for prev_state in prev_rnn_state:
                 self._reset_one(prev_rnn_state)
         elif prev_rnn_state is not None:
-            prev_rnn_state[idx] = 0.
+            prev_rnn_state[:, idx] = 0.
 
     def advance_rnn_state(self, new_rnn_state):
         self._prev_rnn_state = new_rnn_state
@@ -82,10 +90,3 @@ class BaseRecurrentPolicy(BasePolicy):
     @property
     def prev_rnn_state(self):
         return self._prev_rnn_state
-
-    def advance_action(self, new_action):
-        self._prev_action = new_action
-
-    @property
-    def prev_action(self):
-        return self._prev_action

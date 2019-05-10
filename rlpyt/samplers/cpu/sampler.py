@@ -1,51 +1,50 @@
 
-from rlpyt.utils.quick_Args import save_args
-from rlpyt.samplers.base import BaseSampler
+import multiprocessing as mp
 
-from collections import namedtuple
 
-Samples = namedtuple("samples", ["agent", "env"])
-
+from rlpyt.samplers.base import BaseSampler, Samples
+from rlpyt.samplers.utils import build_samples_buffers, build_par_objs, assemble_workers_kwargs
+from rlpyt.samplers.cpu.worker import sampling_process
 
 
 class CpuSampler(BaseSampler):
 
-    def __init__(
-            self,
-            EnvCls,
-            env_kwargs,
-            batch_spec,
-            max_path_length=int(1e6),
-            max_decorrelation_steps=100,
-            ):
-        save_args(locals())
-
-    def initialize(self, agent, affinities, seed, discount=1):
-        n_parallel = len(affinities.cores)
+    def initialize(self, agent, affinities, seed, traj_info_kwargs=None):
+        n_parallel = len(affinities.worker_cpus)
         assert self.batch_spec.B % n_parallel == 0  # Same num envs per worker.
         example_env = self.EnvCls(**self.env_args)
         agent.initialize(example_env.spec)
         agent.share_memory()  # TODO: maybe combine into agent?
-        agent_buf, env_buf = build_buffers(agent, example_env, self.batch_spec)
+        agent_buf, env_buf = build_samples_buffers(agent, example_env, self.batch_spec)
         del example_env
-        par_objs = build_par_objs(n_parallel)
+        ctrl, traj_infos_queue = build_par_objs(n_parallel)
+
+        if traj_info_kwargs:
+            for k, v in traj_info_kwargs.items():
+                setattr(self.TrajInfoCls, "_" + k, v)
+
         common_kwargs = dict(
             EnvCls=self.EnvCls,
             env_kwargs=self.env_kwargs,
+            n_envs=self.batch_spec.B // n_parallel,  # Per worker.
             agent=agent,
-            discount=discount,
-            n_envs=self.batch_spec.B // n_parallel,
-            include_bootstrap=self.batch_spec.include_bootstrap,
-            )
-        workers_kwargs = assemble_workers_kwargs(n_parallel, agent_buf, env_buf,
-            par_objs, common_kwargs, affinities, seed)
+            TrajInfoCls=self.TrajInfoCls,
+            traj_infos_queue=traj_infos_queue,
+            ctrl=ctrl,
+            max_path_length=self.batch_spec.max_path_length,
+            max_decorrelation_steps=self.max_decorrelation_steps,
+        )
 
-        workers = [mp.Process(target=sampling_process, kwargs=w_kwargs)
+        workers_kwargs = assemble_workers_kwargs(affinities, seed, env_buf, agent_buf)
+
+        workers = [mp.Process(target=sampling_process,
+            kwargs=dict(common_kwargs=common_kwargs, worker_kwargs=w_kwargs))
             for w_kwargs in workers_kwargs]
         for w in workers:
             w.start()
 
-        self.ctrl, self.traj_infos_queue = par_objs
+        self.ctrl = ctrl
+        self.traj_infos_queue = traj_infos_queue
         self.agent_buf = agent_buf
         self.env_buf = env_buf
         self.agent = agent
@@ -53,32 +52,12 @@ class CpuSampler(BaseSampler):
         self.ctrl.barrier.wait()  # Wait for workers to decorrelate envs.
 
     def obtain_samples(self, itr):
-        self.agent.sync_shared_memory()  # Appears in workers.
+        self.agent.sync_shared_memory()  # Weight values appear in workers.
         self.ctrl.barrier_in.wait()
+        # Workers collect samples here.
         self.ctrl.barrier_out.wait()
         traj_infos = list()
         while self.traj_infos_queue.qsize():
             traj_infos.apppend(self.traj_infos_queue.get())
         return Samples(self.agent_buf, self.env_buf), traj_infos
-
-    def shutdown(self):
-        self.ctrl.quit.value = True
-        self.ctrl.barrier_in.wait()
-        for w in self.workers:
-            w.join()
-
-
-def build_buffers(agent, env, batch_spec):
-    o = env.reset()
-    a = env.action_space.sample()
-    r = np.array(0., dtype=np.float32).reshape(1, 1)  # [B=1, d=1] but no T.
-    a, agent_info = agent.get_actions(o[None], a[None], r)
-    o, r, d, env_info = env.step(a)
-    examples = dict(
-        observations=o,
-        rewards=r,
-        dones=d,
-        env_infos=dict(**env_info),
-        actions=a)
-
 

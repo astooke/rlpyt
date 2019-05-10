@@ -10,25 +10,46 @@ class AtariLstmPgAgent(BaseRecurrentPolicy):
     def __init__(self, NetworkCls=AtariLstmNetwork, **kwargs):
         super().__init__(NetworkCls=NetworkCls, **kwargs)
 
-    def get_actions(self, observations, prev_actions, prev_rewards):
+    def sample_actions(self, observations, prev_actions, prev_rewards):
         # Expecting inputs to already be torch tensors?
         # Should already have leading batch dim, even if B=1.
         # First, add leading dim to inputs as if T=1.
         observations = observations.unsqueeze(0)
         prev_rewards = prev_rewards.unsqueeze(0)
         prev_actions = self.prev_action.unsqueeze(0)
-        prev_rnn_states = self.prev_rnn_state.unsqueeze(0)
         with torch.no_grad():
             pi_logits, values, rnn_states = self.network(observations,
-                prev_actions, prev_rewards, prev_rnn_states)
+                prev_actions, prev_rewards, self.prev_rnn_states)
         probs = F.softmax(pi_logits.squeeze(0), dim=1)  # remove T=1 dim.
         actions = torch.multinomial(probs, num_samples=1)
         agent_info = dict(prob=probs,
                           value=values.squeeze(0),  # remove T=1 dim.
-                          prev_rnn_state=self.prev_rnn_state)
-        self.advance_action(actions)
-        self.advance_rnn_state(rnn_states.squeeze(0))  # remove T=1 dim
-        return actions, agent_info
+                          prev_rnn_state=self.prev_rnn_states)
+        self.advance_rnn_state(rnn_states)
+        return actions, agent_infos
+
+    def sample_action(self, observation, prev_action, prev_reward):
+        # No time or batch dimension on inputs nor outputs, but network still
+        # expects them.
+        observations = observations.unsqueeze(0)
+        prev_actions = prev_action.unsqueeze(0)
+        prev_rewards = prev_reward.unsqueeze(0)
+        actions, agent_info = self.get_actions(observations,
+            prev_actions, prev_rewards)
+        action = actions.squeeze(0)
+        agent_info["prob"] = agent_info["prob"].squeeze(0)
+        agent_info["value"] = agent_info["value"].squeeze(0)
+        agent_info["prev_rnn_state"] = agent_info["prev_rnn_state"].squeeze(1)
+        return action, agent_info
+
+    def forward(self, agent_samples, env_samples):
+        observations = env_samples.observations
+        prev_actions = agent_samples.prev_actions
+        prev_rewards = env_samples.prev_rewards
+        init_rnn_states = agent_samples.agent_infos.prev_rnn_states[0]
+        pi_out, v_out, _ = self.network(observations, prev_actions,
+            prev_rewards, init_rnn_states)
+        return pi_out, v_out
 
 
 class AtariLstmNetwork(torch.nn.Module):
