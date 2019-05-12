@@ -1,8 +1,22 @@
 
 
 from collections import namedtuple
+
+from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save_args
 from rlpyt.utils.struct import Struct
+
+
+class BatchSpec(namedtuple("BatchSpec", "T E")):
+    """
+    T: int  Number of time steps.
+    E: int  Number of environment instances (a.k.a. B).
+    """
+    __slots__ = ()
+
+    @property
+    def size(self):
+        return self.T * self.E
 
 
 class TrajInfo(Struct):
@@ -43,9 +57,11 @@ class BaseSampler(object):
             EnvCls,
             env_kwargs,
             batch_spec,
+            max_path_length=int(1e6),
             max_decorrelation_steps=100,
             TrajInfoCls=TrajInfo,
             ):
+        assert isinstance(batch_spec, BatchSpec)
         save_args(locals())
 
     def initialize(self, **kwargs):
@@ -61,10 +77,10 @@ class BaseSampler(object):
             w.join()
 
 
-Samples = namedtuple("samples", ["agent", "env"])
+Samples = namedtuple("Samples", ["agent", "env"])
 
 
-AgentInputs = namedtuple("agent_inputs",
+AgentInputs = namedarraytuple("AgentInputs",
     ["observations", "actions", "rewards"])
 
 
@@ -94,7 +110,7 @@ class BaseCollector(object):
         rewards = np.array(rewards)
         if self.rank == 0:
             logger.log(
-                f"Sampler decorrelating envs, max steps: "
+                "Sampler decorrelating envs, max steps: "
                 f"{max_decorrelation_steps}"
             )
         if max_decorrelation_steps == 0:

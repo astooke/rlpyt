@@ -1,25 +1,43 @@
 
+import torch
+
 from rlpyt.utils.quick_args import save_args
 
 
 class BaseAgent(object):
 
-    def __init__(self, NetworkCls, network_kwargs, initial_state_dict=None):
+    model = None  # type: torch.nn.Module
+    _shared_model = None
+
+    def __init__(self, ModelCls, model_kwargs, initial_state_dict=None):
         save_args(locals(), underscore=True)
 
-    def initialize(self, env_spec):
+    def initialize(self, env_spec, share_memory=False):
         self._env_spec = env_spec
-        self.network = self._NetworkCls(env_spec, **self._network_kwargs)
+        self.model = self._ModelCls(env_spec, **self._model_kwargs)
+        if share_memory:
+            self.model.share_memory()
+            self._shared_memory = share_memory
         if self._initial_state_dict is not None:
-            self.load_state_dict(self._initial_state_dict)
+            self.model.load_state_dict(self._initial_state_dict)
 
+    def intialize_cuda(self, cuda_idx=None):
+        """Call after initialize and after forking sampler workers."""
+        self._cuda_idx = cuda_idx
+        if cuda_idx is None:
+            return   # CPU
+        if self._shared_memory:
+            self._shared_model = self.model
+            self.model = self._ModelCls(self._env_spec, **self._model_kwargs)
+            self.model.load_state_dict(self._shared_model.state_dict())
+        self.model.to("cuda:" + str(cuda_idx))
+
+    @torch.no_grad()  # Hint: apply this decorator on overriding method.
     def sample_actions(self, observations, prev_actions, prev_rewards):
         raise NotImplementedError
 
+    @torch.no_grad()
     def sample_action(self, observation, prev_action, prev_reward):
-        raise NotImplementedError
-
-    def forward(self, agent_samples, env_samples):
         raise NotImplementedError
 
     def reset(self):
@@ -32,39 +50,15 @@ class BaseAgent(object):
     def recurrent(self):
         return False
 
-    def parameters(self):
-        return self.network.parameters()
-
-    def load_state_dict(self, state_dict):
-        self.network.load_state_dict(state_dict)
-
-    def state_dict(self):
-        return self.network.state_dict()
-
-    def share_memory(self):
-        """Call after initialize, by sampler master."""
-        if self._device is not None and self._device.type == "cuda":
-            self.network_shared = self._NetworkCls(self._env_spec,
-                **self._network_kwargs).share_memory()
-        else:
-            self.network_shared = self.network.share_memory()  # same object
-        self.sync_shared_memory()
-
     def sync_shared_memory(self):
-        """Call in sampler master, must call share_memory() before fork."""
-        if self.network_shared is not self.network:
-            self.network_shared.load_state_dict(self.network.state_dict())
-
-    def swap_worker_network(self):
-        """Call in sampler worker, to make shared network the main one."""
-        self.network = self.network_shared  # Drops any GPU network.
+        """Call in sampler master, after share_memory=True to initialize()."""
+        if self._shared_model is not None:
+            self._shared_model.load_state_dict(self.model.state_dict())
 
 
 class BaseRecurrentAgent(BaseAgent):
 
-    def initialize(self, env_spec):
-        super().initialize(env_spec)
-        self._prev_rnn_state = None
+    _prev_rnn_state = None
 
     @property
     def recurrent(self):

@@ -29,13 +29,13 @@ def build_samples_buffers(agent, env, batch_spec, agent_shared=True, env_shared=
     o, r, d, env_info = env.step(a)
     agent_examples = dict(  # One example: no T or B dimension.
         actions=a,
-        agent_infos=dict(**agent_info),
+        agent_infos=agent_info,
     )
     env_examples = dict(
         observations=o,
         rewards=r,
         dones=d,
-        env_infos=dict(**env_info),
+        env_infos=env_info,
     )
     agent_buf = build_buffer_from_examples(agent_examples, batch_spec,
         shared=agent_shared)

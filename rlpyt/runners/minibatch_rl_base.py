@@ -1,10 +1,10 @@
 
-import numpy as np
 import psutil
+import time
 
 from rlpyt.utils.quick_args import save_args
 from rlpyt.utils.seed import set_seed, make_seed
-from rlpyt.utils import logger
+from rlpyt.utils.logging import logger
 from rlpyt.utils.prog_bar import ProgBarCounter
 
 from rlpyt.runners.base import BaseRunner
@@ -20,7 +20,7 @@ class MinibatchRlBase(BaseRunner):
             n_steps,
             seed=None,
             affinities=None,
-            cuda=None,
+            cuda_idx=None,
             ):
         n_steps = int(n_steps)
         save_args(locals())
@@ -30,24 +30,65 @@ class MinibatchRlBase(BaseRunner):
         p.cpu_affinity(self.affinities.get("master_cpus"), p.cpu_affinity())
         if self.seed is None:
             self.seed = make_seed()
-        set_seed(self.seed)  # TODO
+        set_seed(self.seed)
         self.sampler.initialize(
-            agent=self.agent,
+            agent=self.agent,  # Agent gets intialized in sampler.
             affinities=self.affinities,
             seed=self.seed + 1,
             traj_info_kwargs=self.get_traj_info_kwargs(),
         )
-        # Agent initialized in sampler?
-
-
-        self.algo.initialize(self.agent)
         n_itr = self.get_n_itr(self.sampler.batch_spec)
-        self.algo.set_n_itr(n_itr)
-        self.initialize_logger()
+        self.agent.initialize_cuda(self.cuda_idx)
+        self.algo.initialize(self.agent, n_itr)
+        self.initialize_logging()
         return n_itr
 
     def get_traj_info_kwargs(self):
         return dict(discount=self.algo.get("discount", 1))
 
+    def get_n_itr(self, batch_spec):
+        n_itr = (self.n_steps + self.log_interval_steps) // batch_spec.size + 1
+        self.n_itr = n_itr
+        return n_itr
+
+    def initialize_logging(self):
+        self._opt_infos = {k: list() for k in self.algo.opt_info_keys}
+        self._start_time = self._last_time = time.time()
+        self.pbar = ProgBarCounter(self.log_interval_itrs)
+
+    def shutdown(self):
+        self.finish_logging()
+        self.sampler.shutdown()
+
+    def finish_logging(self):
+        logger.log("Training complete.")
+        self.pbar.stop()
+
+    def get_itr_snapshot(self, itr):
+        return dict(
+            itr=itr,
+            cum_samples=itr * self.sampler.batch_spec.size,
+            agent_params=self.agent.state_dict(),
+        )
+
+    def save_itr_snapshot(self, itr):
+        logger.log("saving snapshot...")
+        params = self.get_itr_snapshot(itr)
+        logger.save_itr_params(itr, params)
+        logger.log("saved")
+
+    def _log_infos(self, traj_infos=None):
+        if traj_infos is None:
+            traj_infos = self._traj_infos
+        if traj_infos:
+            for k in traj_infos[0]:
+                if not k.startswith("_"):
+                    logger.record_tabular_misc_stat(k,
+                        [info[k] for info in traj_infos])
+
+        if self._opt_infos:
+            for k, v in self._opt_infos.items():
+                logger.record_tabular_misc_stat(k, v)
+        self._opt_infos = {k: list() for k in self._opt_infos}  # (reset)
 
 

@@ -12,16 +12,22 @@ class Distribution(object):
         """
         raise NotImplementedError
 
-    def likelihood_ratio(self, x_var, old_dist_info, new_dist_info):
+    def log_likelihood(self, x, dist_info):
+        raise NotImplementedError
+
+    def likelihood_ratio(self, x, old_dist_info, new_dist_info):
         raise NotImplementedError
 
     def entropy(self, dist_info):
         raise NotImplementedError
 
-    def log_likelihood(self, x, dist_info):
+    def perplexity(self, dist_info):
         raise NotImplementedError
 
-    def likelihood(self, x, dist_info):
+    def mean_entropy(self, dist_info):
+        raise NotImplementedError
+
+    def mean_perplexity(self, dist_info):
         raise NotImplementedError
 
     @property

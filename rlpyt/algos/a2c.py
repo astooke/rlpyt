@@ -10,7 +10,7 @@ from rlpyt.algos.utils import discount_returns, valids_mean
 class A2C(RlAlgorithm):
 
     def __init__(
-            self, 
+            self,
             discount=0.99,
             learning_rate=0.001,
             value_loss_coeff=0.5,
@@ -23,11 +23,10 @@ class A2C(RlAlgorithm):
             optim_kwargs = dict()
         save_args(locals())
 
-    def initialize(self, agent):
-        # Put agent on GPU before making optimizer.
-        self.optimizer = self.OptimCls(agent.parameters(), lr=self.learning_rate,
-            **self.optim_kwargs)
-        self.agent = agent  # any initialize?
+    def initialize(self, agent, n_itr):
+        save_args(locals())
+        self.optimizer = self.OptimCls(agent.parameters(),
+            lr=self.learning_rate, **self.optim_kwargs)
 
     def loss(self, agent_samples, env_samples):
         returns, advantages, valids = self.process_samples(agent_samples, env_samples)
@@ -51,7 +50,8 @@ class A2C(RlAlgorithm):
         loss = self.loss(*samples)
         loss.backward()
         if self.clip_grad_norm:
-            torch.nn.utils.clip_grad_norm_(self.agent.parameters(), self.clip_grad_norm)
+            torch.nn.utils.clip_grad_norm_(self.agent.parameters(),
+                self.clip_grad_norm)
         self.optimizer.step()
         # return diagnostics?
 

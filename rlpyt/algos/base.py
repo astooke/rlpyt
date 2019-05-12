@@ -2,7 +2,7 @@
 
 class RlAlgorithm(object):
 
-    def initialize(self):
+    def initialize(self, agent, n_itr):
         raise NotImplementedError
 
     def optimize_agent(self, itr, samples):
@@ -11,4 +11,3 @@ class RlAlgorithm(object):
     @property
     def opt_info_keys(self):
         return []
-    

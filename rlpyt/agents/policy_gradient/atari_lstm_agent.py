@@ -10,6 +10,7 @@ class AtariLstmPgAgent(BaseRecurrentPolicy):
     def __init__(self, NetworkCls=AtariLstmNetwork, **kwargs):
         super().__init__(NetworkCls=NetworkCls, **kwargs)
 
+    @torch.no_grad()
     def sample_actions(self, observations, prev_actions, prev_rewards):
         # Expecting inputs to already be torch tensors?
         # Should already have leading batch dim, even if B=1.
@@ -28,6 +29,7 @@ class AtariLstmPgAgent(BaseRecurrentPolicy):
         self.advance_rnn_state(rnn_states)
         return actions, agent_infos
 
+    @torch.no_grad()
     def sample_action(self, observation, prev_action, prev_reward):
         # No time or batch dimension on inputs nor outputs, but network still
         # expects them.
@@ -52,22 +54,22 @@ class AtariLstmPgAgent(BaseRecurrentPolicy):
         return pi_out, v_out
 
 
-class AtariLstmNetwork(torch.nn.Module):
+class AtariLstmModel(torch.nn.Module):
 
     def __init__(
-        self,
-        env_spec,
-        # conv_channels,
-        # conv_sizes,
-        # conv_strides,
-        # conv_pads,
-        # pool_sizes,
-        # hidden_size=256,
-        lstm_size=256,
-        lstm_layers=1,
-        # name="atari_cnn_lstm",
-        ):
-
+            self,
+            env_spec,
+            # conv_channels,
+            # conv_sizes,
+            # conv_strides,
+            # conv_pads,
+            # pool_sizes,
+            # hidden_size=256,
+            lstm_size=256,
+            lstm_layers=1,
+            # name="atari_cnn_lstm",
+            ):
+        super().__init__()
         image_shape = env_spec.observation_space.shape
         action_size = env_spec.action_space.size
 

@@ -11,10 +11,9 @@ class CpuSampler(BaseSampler):
 
     def initialize(self, agent, affinities, seed, traj_info_kwargs=None):
         n_parallel = len(affinities.worker_cpus)
-        assert self.batch_spec.B % n_parallel == 0  # Same num envs per worker.
+        assert self.batch_spec.E % n_parallel == 0  # Same num envs per worker.
         example_env = self.EnvCls(**self.env_args)
-        agent.initialize(example_env.spec)
-        agent.share_memory()  # TODO: maybe combine into agent?
+        agent.initialize(example_env.spec, share_memory=True)
         agent_buf, env_buf = build_samples_buffers(agent, example_env, self.batch_spec)
         del example_env
         ctrl, traj_infos_queue = build_par_objs(n_parallel)
@@ -26,12 +25,12 @@ class CpuSampler(BaseSampler):
         common_kwargs = dict(
             EnvCls=self.EnvCls,
             env_kwargs=self.env_kwargs,
-            n_envs=self.batch_spec.B // n_parallel,  # Per worker.
+            n_envs=self.batch_spec.E // n_parallel,  # Per worker.
             agent=agent,
             TrajInfoCls=self.TrajInfoCls,
             traj_infos_queue=traj_infos_queue,
             ctrl=ctrl,
-            max_path_length=self.batch_spec.max_path_length,
+            max_path_length=self.max_path_length,
             max_decorrelation_steps=self.max_decorrelation_steps,
         )
 
