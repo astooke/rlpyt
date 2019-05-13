@@ -2,15 +2,26 @@
 import torch
 
 from rlpyt.utils.quick_args import save_args
+from rlpyt.uitls.collections import namedarraytuple
+
+
+AgentStep = namedarraytuple("AgentStep",
+    ["action", "dist_info", "value"])
+AgentTrain = namedarraytuple("AgentTrain",
+    ["dist_info", "value"])
 
 
 class BaseAgent(object):
 
     model = None  # type: torch.nn.Module
     _shared_model = None
+    distribution = None  # type: Distribution
 
     def __init__(self, ModelCls, model_kwargs, initial_state_dict=None):
         save_args(locals(), underscore=True)
+
+    def __call__(self, samples):
+        raise NotImplementedError  # return type: AgentTrain
 
     def initialize(self, env_spec, share_memory=False):
         self._env_spec = env_spec
@@ -33,12 +44,8 @@ class BaseAgent(object):
         self.model.to("cuda:" + str(cuda_idx))
 
     @torch.no_grad()  # Hint: apply this decorator on overriding method.
-    def sample_actions(self, observations, prev_actions, prev_rewards):
-        raise NotImplementedError
-
-    @torch.no_grad()
     def sample_action(self, observation, prev_action, prev_reward):
-        raise NotImplementedError
+        raise NotImplementedError  # return types: AgentStep
 
     def reset(self):
         pass
@@ -56,6 +63,10 @@ class BaseAgent(object):
             self._shared_model.load_state_dict(self.model.state_dict())
 
 
+RecurrentAgentStep = namedarraytuple("AgentStep",
+    ["action", "dist_info", "value", "prev_rnn_state"])
+
+
 class BaseRecurrentAgent(BaseAgent):
 
     _prev_rnn_state = None
@@ -71,7 +82,8 @@ class BaseRecurrentAgent(BaseAgent):
         self._reset_one(idx, self._prev_rnn_state)
 
     def _reset_one(self, idx, prev_rnn_state):
-        # Assume each state is of shape: [N, B, H], but can be nested list/tuple.
+        """Assume each state is of shape: [N, B, H], but can be nested
+        list/tuple. Reset chosen index in the B dimension."""
         if isinstance(prev_rnn_state, (list, tuple)):
             for prev_state in prev_rnn_state:
                 self._reset_one(prev_rnn_state)

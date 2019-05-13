@@ -45,8 +45,10 @@ def from_onehot(onehot, dtype=None):
     return indexes
 
 
-def valids_mean(array_or_tensor, valids):
-    return (array_or_tensor * valids).sum() / valids.sum()
+def valid_mean(array_or_tensor, valid=None):
+    if valid is None:
+        return array_or_tensor.mean()
+    return (array_or_tensor * valid).sum() / valid.sum()
 
 
 def unsqueeze_nat(nat, dim=0):
@@ -61,3 +63,16 @@ def squeeze_nat(nat, dim=None):
         return nat.squeeze(dim)
     else:
         return type(nat)(unsqueeze_nat(n, dim) for n in nat)
+
+
+def infer_leading_dims(tensor, dim):
+    shape = tensor.shape[dim:]
+    T = B = 1
+    _T = _B = False
+    if tensor.dim() == dim + 2:
+        T, B = tensor.shape[:2]
+        _T = _B = True  # Might have T=1 or B=1.
+    elif tensor.dim() == dim + 1:
+        B = tensor.shape[0]
+        _B = True
+    return T, B, shape, _T, _B

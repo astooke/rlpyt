@@ -3,10 +3,14 @@ import numpy as np
 import torch
 
 from rlpyt.distributions.base import Distribution
+from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes
 from rlpyt.utils.tensor import valids_mean
 
 EPS = 1e-8
+
+
+DistInfo = namedarraytuple("DistInfo", ["prob"])
 
 
 class Categorical(Distribution):
@@ -32,29 +36,20 @@ class Categorical(Distribution):
         else:
             return torch.exp(entropy)
 
-    def mean_entropy(self, dist_info, opt_info=None):
-        entropy = self.entropy(dist_info)
-        if opt_info is not None and "valids" in opt_info:
-            return valids_mean(entropy, opt_info.valids)
-        return entropy.mean()
+    def mean_entropy(self, dist_info, valids=None):
+        return valids_mean(self.entropy(dist_info), valids)
 
-    def mean_perplexity(self, dist_info, opt_info=None):
-        perplexity = self.perplexity(dist_info)
-        if opt_info is not None and "valids" in opt_info:
-            return valids_mean(perplexity, opt_info.valids)
-        return perplexity.mean()
+    def mean_perplexity(self, dist_info, valids=None):
+        return valids_mean(self.perplexity(dist_info, valids))
 
     def log_likelihood(self, indexes, dist_info):
-        selected = select_at_indexes(indexes, dist_info.prob)
-        if isinstance(selected, np.ndarray):
-            return np.log(selected + EPS)
+        selected_likelihood = select_at_indexes(indexes, dist_info.prob)
+        if isinstance(selected_likelihood, np.ndarray):
+            return np.log(selected_likelihood + EPS)
         else:
-            return torch.log(selected + EPS)
+            return torch.log(selected_likelihood + EPS)
 
     def likelihood_ratio(self, indexes, old_dist_info, new_dist_info):
         num = select_at_indexes(indexes, new_dist_info.prob)
         den = select_at_indexes(indexes, old_dist_info.prob)
         return (num + EPS) / (den + EPS)
-
-
-

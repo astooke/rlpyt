@@ -7,6 +7,11 @@ from rlpyt.utils.quick_args import save_args
 from rlpyt.utils.struct import Struct
 
 
+# TODO: figure out how to do AgentSamples, EnvSamples
+# AgentSamples: AgentStep._fields + bootstrap_value
+# EnvSamples: observation, reward, done, env_info
+
+
 class BatchSpec(namedtuple("BatchSpec", "T E")):
     """
     T: int  Number of time steps.

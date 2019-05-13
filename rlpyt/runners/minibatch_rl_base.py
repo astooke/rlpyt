@@ -37,7 +37,7 @@ class MinibatchRlBase(BaseRunner):
             seed=self.seed + 1,
             traj_info_kwargs=self.get_traj_info_kwargs(),
         )
-        n_itr = self.get_n_itr(self.sampler.batch_spec)
+        n_itr = self.get_n_itr(self.sampler.batch_spec.size)
         self.agent.initialize_cuda(self.cuda_idx)
         self.algo.initialize(self.agent, n_itr)
         self.initialize_logging()
@@ -46,13 +46,13 @@ class MinibatchRlBase(BaseRunner):
     def get_traj_info_kwargs(self):
         return dict(discount=self.algo.get("discount", 1))
 
-    def get_n_itr(self, batch_spec):
-        n_itr = (self.n_steps + self.log_interval_steps) // batch_spec.size + 1
+    def get_n_itr(self, batch_size):
+        n_itr = (self.n_steps + self.log_interval_steps) // batch_size + 1
         self.n_itr = n_itr
         return n_itr
 
     def initialize_logging(self):
-        self._opt_infos = {k: list() for k in self.algo.opt_info_keys}
+        self._opt_infos = {k: list() for k in self.algo.opt_info_fields}
         self._start_time = self._last_time = time.time()
         self.pbar = ProgBarCounter(self.log_interval_itrs)
 
