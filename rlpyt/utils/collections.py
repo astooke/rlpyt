@@ -10,9 +10,9 @@ def tuple_itemgetter(i):
 
 def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
     """
-    Returns a new subclass of a namedtuple which allows indexing / slicing
+    Returns a new subclass of a namedtuple which exposes indexing / slicing
     reads and writes of the contained values, intended to be numpy arrays which
-    share some dimensions.
+    share leading dimensions.
     (Code follows pattern of collections.namedtuple.)
 
     >>> PointsCls = namedarraytuple('Points', ['x', 'y'])
@@ -43,7 +43,7 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
     NtCls = namedtuple(typename, field_names)
 
     def __getitem__(self, loc):
-        return self.__class__(*(s[loc] for s in self))
+        return type(self)(*(s[loc] for s in self))
 
     __getitem__.__doc__ = (f"Return a new {typename} instance containing the "
         "selected index or slice from each field.")
@@ -64,18 +64,23 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
                 raise Exception(f"Occured at item index {j}.") from e
 
     def __contains__(self, key):
-        """Unlike a tuple, but like a dict, checks presence of field name."""
+        """Checks presence of field name (unlike tuple; like dict)."""
         return key in self._fields
 
-    def get(self, loc):
+    def get_index(self, index):
         "Retrieve value as if indexing into regular tuple."
-        return tuple.__getitem__(self, loc)
+        return tuple.__getitem__(self, index)
 
-    def get_field(self, field_name):
-        "Retrieve value by field name."
+    def get(self, field_name, default=None):
+        "Retrieve value by field name (like dict.get())."
         if field_name not in self._fields:
-            raise KeyError(f"Unrecognized field '{field}'.")
+            return default
         return getattr(self, field_name)
+
+    def items(self):
+        """Iterate like a dict."""
+        for k, v in zip(self._fields, self):
+            yield k, v
 
     for method in (__getitem__, __setitem__, get, get_field):
         method.__qualname__ = f'{typename}.{method.__name__}'
@@ -87,8 +92,9 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
         '__getitem__': __getitem__,
         '__setitem__': __setitem__,
         '__contains__': __contains__,
+        'get_index': get_index,
         'get': get,
-        'get_field': get_field,
+        'items': items,
     }
 
     for index, name in enumerate(NtCls._fields):

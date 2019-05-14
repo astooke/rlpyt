@@ -9,7 +9,7 @@ from rlpyt.utils import tensor
 class Discrete(Space):
     """ {0,1,...,n-1}"""
 
-    def __init__(self, n, dtype="int32", onehot_dtype=None):
+    def __init__(self, n, dtype="int32", onehot_dtype=None, null_value=0):
         self.n = n
         # self._items = np.arange(n)
         self.dtype = np.dtype(dtype)
@@ -19,9 +19,13 @@ class Discrete(Space):
             np.zeros(1, dtype=self.onehot_dtype)).dtype
         assert np.issubdtype(self.dtype, np.integer)
         assert np.issubdtype(self.onhot_dtype, np.integer)
+        self.null_value = null_value
 
-    def sample(self, size=None):
-        return np.random.randint(low=0, high=self.n, size=size, dtype=dtype)
+    def sample(self, size=None, null=False):
+        sample = np.random.randint(low=0, high=self.n, size=size, dtype=dtype)
+        if null:
+            sample.fill(null_value)
+        return sample
 
     def __repr__(self):
         return f"Discrete({self.n})"

@@ -35,6 +35,7 @@ class MinibatchRlBase(BaseRunner):
             agent=self.agent,  # Agent gets intialized in sampler.
             affinities=self.affinities,
             seed=self.seed + 1,
+            bootstrap_value=getattr(self.algo, "bootstrap_value", False),
             traj_info_kwargs=self.get_traj_info_kwargs(),
         )
         n_itr = self.get_n_itr(self.sampler.batch_spec.size)
@@ -57,18 +58,15 @@ class MinibatchRlBase(BaseRunner):
         self.pbar = ProgBarCounter(self.log_interval_itrs)
 
     def shutdown(self):
-        self.finish_logging()
-        self.sampler.shutdown()
-
-    def finish_logging(self):
         logger.log("Training complete.")
         self.pbar.stop()
+        self.sampler.shutdown()
 
     def get_itr_snapshot(self, itr):
         return dict(
             itr=itr,
             cum_samples=itr * self.sampler.batch_spec.size,
-            agent_params=self.agent.state_dict(),
+            agent_params=self.agent.model.state_dict(),
         )
 
     def save_itr_snapshot(self, itr):

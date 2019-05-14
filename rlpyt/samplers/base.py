@@ -7,21 +7,25 @@ from rlpyt.utils.quick_args import save_args
 from rlpyt.utils.struct import Struct
 
 
-# TODO: figure out how to do AgentSamples, EnvSamples
-# AgentSamples: AgentStep._fields + bootstrap_value
-# EnvSamples: observation, reward, done, env_info
+Samples = namedarraytuple("Samples", ["agent", "env"])
+AgentSamples = namedarraytuple("AgentSamples",
+    ["action", "prev_action", "agent_info"])
+AgentSamplesBs = namedarraytuple("AgentSamples",
+    ["action", "prev_action", "agent_info", "boostrap_value"])
+EnvSamples = namedarraytuple("EnvSamples",
+    ["observation", "reward", "prev_reward", "done", "env_info"])
 
 
-class BatchSpec(namedtuple("BatchSpec", "T E")):
+class BatchSpec(namedtuple("BatchSpec", "T B")):
     """
-    T: int  Number of time steps.
-    E: int  Number of environment instances (a.k.a. B).
+    T: int  Number of time steps, >=1.
+    B: int  Number of separate trajectory segments (i.e. # env instances), >=1.
     """
     __slots__ = ()
 
     @property
     def size(self):
-        return self.T * self.E
+        return self.T * self.B
 
 
 class TrajInfo(Struct):
@@ -73,7 +77,7 @@ class BaseSampler(object):
         raise NotImplementedError
 
     def obtain_samples(self, itr):
-        return NotImplementedError
+        return NotImplementedError  # type: Samples
 
     def shutdown(self):
         self.ctrl.quit.value = True
@@ -82,11 +86,8 @@ class BaseSampler(object):
             w.join()
 
 
-Samples = namedtuple("Samples", ["agent", "env"])
-
-
-AgentInputs = namedarraytuple("AgentInputs",
-    ["observations", "actions", "rewards"])
+AgentInput = namedarraytuple("AgentInput",
+    ["observation", "prev_action", "prev_reward"])
 
 
 class BaseCollector(object):
@@ -95,46 +96,45 @@ class BaseCollector(object):
             self,
             rank,
             envs,
-            env_buf,
+            samples_buffer,
             max_path_length,
             TrajInfoCls,
             ):
         save_args(locals())
-        self.horizon = len(env_buf.rewards)  # Time major.
+        self.horizon = len(samples_buffer.env.reward)  # Time major.
 
     def start_envs(self, max_decorrelation_steps=0):
         """calls reset() on every env"""
-        observations, actions, rewards = list(), list(), list()
+        observation, prev_action, prev_reward = list(), list(), list()
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
         for env in self.envs:
-            observations.append(env.reset())
-            actions.append(env.action_space.sample().fill(0))
-            rewards.append(0.)
-        observations = np.array(observations)
-        actions = np.array(actions)
-        rewards = np.array(rewards)
+            observation.append(env.reset())
+            prev_action.append(env.action_space.sample(null=True))
+            prev_reward.append(0.)
+        observation = np.array(observation)
+        prev_action = np.array(prev_action)
+        prev_reward = np.array(prev_reward)
         if self.rank == 0:
             logger.log(
                 "Sampler decorrelating envs, max steps: "
                 f"{max_decorrelation_steps}"
             )
         if max_decorrelation_steps == 0:
-            return (observations, actions, rewards), traj_infos
+            return AgentInput(observation, prev_action, prev_reward), traj_infos
         for i, env in enumerate(self.envs):
             n_steps = int(get_random_fraction() * max_decorrelation_steps)
-            if hasattr(env.action_space, "sample_n"):
-                env_actions = env.action_space.sample_n(n_steps)
-            else:
-                env_actions = [env.action_space.sample() for _ in range(n_steps)]
+            env_actions = env.action_space.sample(n_steps)
             for a in env_actions:
                 o, r, d, info = env.step(a)
                 traj_infos[i].step(r, info)
                 d |= traj_infos[i].Length >= self.max_path_length
                 if d:
                     o = env.reset()
+                    a = env.action_space.sample(null=True)
+                    r = 0.
                     traj_infos[i] = self.TrajInfoCls()
-            observations[i] = o
-            actions[i] = a
-            rewards[i] = r
-        return AgentInputs(observations, actions, rewards), traj_infos
+            observation[i] = o
+            prev_action[i] = a
+            prev_reward[i] = r
+        return AgentInput(observation, prev_action, prev_reward), traj_infos
 

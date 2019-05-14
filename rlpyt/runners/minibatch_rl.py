@@ -32,7 +32,6 @@ class MinibatchRl(MinibatchRlBase):
 
     def initalize_logging(self):
         self._traj_infos = deque(maxlen=self.log_traj_window)
-        self._cum_completed_steps = 0
         self._cum_completed_trajs = 0
         self._new_completed_trajs = 0
         logger.log(f"Optimizing over {self.log_interval_itrs} iterations")
@@ -41,9 +40,7 @@ class MinibatchRl(MinibatchRlBase):
     def store_diagnostics(self, itr, traj_infos, opt_infos):
         self._cum_completed_trajs += len(traj_infos)
         self._new_completed_trajs += len(traj_infos)
-        for traj_info in traj_infos:
-            self._cum_completed_steps += traj_info["Length"]
-            self._traj_infos.append(traj_info)
+        self._traj_infos.extend(traj_infos)
         for k, v in opt_infos.items():
             self._opt_infos[k].extend(v if insinstance(v, list) else [v])
         self.pbar.update((itr + 1) % self.log_interval_itrs)
@@ -53,7 +50,6 @@ class MinibatchRl(MinibatchRlBase):
         self.save_itr_snapshot(itr)
         logger.record_tabular('Iteration', itr)
         logger.record_tabular('CumCompletedTrajs', self._cum_completed_trajs)
-        logger.record_tabular('CumCompletedSteps', self._cum_completed_steps)
         logger.record_tabular('CumTotalSteps', (itr + 1) * self.sampler.batch_spec.size)
         logger.record_tabular('NewCompletedTrajs', self._new_completed_trajs)
         logger.record_tabular('StepsInTrajWindow',

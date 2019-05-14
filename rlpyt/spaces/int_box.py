@@ -18,11 +18,13 @@ class IntBox(Space):
         self.dtype = np.dtype(dtype)
         assert np.issubdtype(self.dtype, np.integer)
 
-    def sample(self, size=None):
+    def sample(self, size=None, null=False):
         if size is None:
             size = ()
         elif isinstance(size, int):
             size = (size,)
+        if null:
+            raise NotImplementedError
         return np.random.randint(low=self.low, high=self.high,
             size=size + self.shape, dtype=self.dtype)
 
