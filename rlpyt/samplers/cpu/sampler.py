@@ -58,6 +58,7 @@ class CpuSampler(BaseSampler):
 
     def obtain_samples(self, itr):
         self.agent.sync_shared_memory()  # Weight values appear in workers.
+        self.samples_np[:] = 0  # Reset all sample values (optional?)
         self.ctrl.barrier_in.wait()
         # Workers collect samples here.
         self.ctrl.barrier_out.wait()

@@ -2,9 +2,8 @@
 
 from collections import namedtuple
 
-from rlpyt.utils.collections import namedarraytuple
+from rlpyt.utils.collections import namedarraytuple, AttrDict
 from rlpyt.utils.quick_args import save_args
-from rlpyt.utils.struct import Struct
 
 
 Samples = namedarraytuple("Samples", ["agent", "env"])
@@ -28,20 +27,18 @@ class BatchSpec(namedtuple("BatchSpec", "T B")):
         return self.T * self.B
 
 
-class TrajInfo(Struct):
+class TrajInfo(AttrDict):
     """
-    Because it inits as a Struct, this has the methods of a dictionary,
+    Because it inits as an AttrDict, this has the methods of a dictionary,
     e.g. the attributes can be iterated through by traj_info.items()
-
     Intent: all attributes not starting with underscore "_" will be logged.
-
     (Can subclass for more fields.)
     """
 
     _discount = 1  # Leading underscore, but also class attr not in self.__dict__.
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)  # (for Struct behavior)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)  # (for AttrDict behavior)
         self.Length = 0
         self.Return = 0
         self.NonzeroRewards = 0

@@ -15,7 +15,6 @@ OptInfo = namedtuple("OptInfo", ["Loss", "GradNorm", "Entropy", "Perplexity"])
 
 class A2C(RlAlgorithm):
 
-    opt_info_fields = OptInfo._fields
     bootstrap_value = True
     mid_batch_reset = False  # Could be implemented later.
 
@@ -32,6 +31,7 @@ class A2C(RlAlgorithm):
         if optim_kwargs is None:
             optim_kwargs = dict()
         save_args(locals())
+        self.opt_info_fields = OptInfo._fields.copy()
 
     def initialize(self, agent, n_itr):
         save_args(locals())

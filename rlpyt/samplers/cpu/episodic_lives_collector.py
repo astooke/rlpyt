@@ -1,18 +1,21 @@
 
 
-from rlpyt.utils.collections import AttrDict
 from rlpyt.utils.quick_args import save_args
 from rlpyt.samplers.base import BaseCollector, AgentInput
-from rlpyt.samplers.utils import initialize_worker
 from rlpyt.samplers.buffer import torchify_buffer, numpify_buffer
 
 
-class Collector(BaseCollector):
+class EpisodicLivesCollector(BaseCollector):
+    """Allows the learning agent to receive "done" signal but only reset the
+    env with additional signal "need_reset" in env_info.  Still pause and
+    reset the agent+env, so that recurrent agents reintialize at the next
+    batch. So can track trajectory info online."""
 
     def __init__(self, agent, **kwargs):
         save_args(locals())
         super().__init__(**kwargs)
-        self.need_reset = [False] * len(self.envs)
+        self.need_env_reset = [False] * len(self.envs)
+        self.need_agent_reset = [False] * len(self.envs)
 
     def collect_batch(self, agent_input, traj_infos):
         # Numpy arrays can be written to from numpy arrays or torch tensors
@@ -29,18 +32,21 @@ class Collector(BaseCollector):
             act_pyt, agent_info = self.agent.step(obs_pyt, act_pyt, rew_pyt)
             action = numpify_buffer(act_pyt)
             for i, env in enumerate(self.envs):
-                if self.need_reset[i]:
+                if self.need_agent_reset[i]:
                     continue
                 # Environment inputs and outputs are numpy arrays.
                 o, r, d, env_info = env.step(action[i])
                 traj_infos[i].step(observation[i], action[i], r, env_info)
-                d |= traj_infos[i].Length >= self.max_path_length
-                if d:
-                    self.need_reset[i] = True
+                env_d = getattr(env_info, "need_reset", False)
+                env_d |= traj_infos[i].Length >= self.max_path_length
+                d |= env_d
+                if env_d:
+                    self.need_env_reset[i] = True
                     completed_infos.append(traj_infos[i].terminate(o))
                     traj_infos[i] = self.TrajInfoCls()
                 else:
                     observation[i] = o
+                self.need_agent_resest[i] = d
                 reward[i] = r
                 env_buf.dones[s, i] = d
                 if env_info:
@@ -57,45 +63,15 @@ class Collector(BaseCollector):
         return AgentInput(observation, action, reward), traj_infos, completed_infos
 
     def reset_if_needed(self, agent_input):
-        for i, need in enumerate(self.need_reset):
-            if need:
-                agent_input[i] = 0.
-                agent_input.observation[i] = self.envs[i].reset()
+        for i, (need_agent, need_env) in enumerate(zip(
+                self.need_agent_reset, self.need_env_reset)):
+            if need_agent:
+                agent_input.prev_action[i] = 0.
+                agent_input.prev_reward[i] = 0.
                 self.agent.reset_one(idx=i)
-                self.need_reset[i] = False
+            if need_env:
+                agent_input.observation[i] = self.envs[i].reset()
+            self.need_agent_reset[i] = False
+            self.need_env_reset[i] = False
         return agent_input
-
-
-def sampling_process(common_kwargs, worker_kwargs):
-    c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
-
-    initialize_worker(w.rank, w.seed, w.cpus)
-    envs = [c.EnvCls(**c.env_kwargs) for _ in range(c.n_envs)]
-
-    collector = c.CollectorCls(
-        envs=envs,
-        agent=c.agent,
-        samples_np=w.samples_np,
-        max_path_length=c.max_path_length,
-        TrajInfoCls=c.TrajInfoCls,
-    )
-
-    agent_input, traj_infos = collector.start_envs(c.max_decorrelation_steps)
-    c.agent.reset()
-    ctrl = c.ctrl
-    ctrl.barrier_out.wait()
-
-    while True:
-        ctrl.barrier_in.wait()
-        if ctrl.quit.value:
-            break
-        agent_input = collector.reset_if_needed(agent_input)
-        agent_input, traj_infos, completed_infos = collector.collect_batch(
-            agent_input, traj_infos)
-        for info in completed_infos:
-            c.traj_infos_queue.put(info)
-        ctrl.barrier_out.wait()
-    
-    for env in envs:
-        env.terminate()
 

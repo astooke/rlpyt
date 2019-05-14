@@ -82,7 +82,7 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
         for k, v in zip(self._fields, self):
             yield k, v
 
-    for method in (__getitem__, __setitem__, get, get_field):
+    for method in (__getitem__, __setitem__, get_index, get, items):
         method.__qualname__ = f'{typename}.{method.__name__}'
 
     arg_list = repr(NtCls._fields).replace("'", "")[1:-1]
@@ -108,3 +108,25 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
     if return_namedtuple_cls:
         return result, NtCls
     return result
+
+
+class AttrDict(dict):
+    """
+    Behaves like a dictionary but additionally has attribute-style access
+    for both read and write.
+    e.g. x["key"] and x.key are the same,
+    e.g. can iterate using:  for k, v in x.items().
+    Can sublcass for specific data classes; must call AttrDict's __init__().
+    """
+
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        self.__dict__ = self
+
+    def copy(self):
+        """
+        Provides a "deep" copy of all unbroken chains of types AttrDict, but
+        shallow copies otherwise, (e.g. numpy arrays are NOT copied).
+        """
+        return type(self)(**{k: v.copy() if isinstance(v, AttrDict) else v
+            for k, v in self.items()})
