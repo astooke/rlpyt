@@ -9,14 +9,14 @@ Follows the rllab interfaces: agents output `action, agent_info`, environments o
 
 Recurrent agents are supported, as training batches are organized with leading indexes as `[Time, Batch]`, and agents receive previous action and previous reward as input, in addition to the observation. 
 
-Start from `rlpyt/experiments/scripts/atari/pg/launch/launch_atari_ff_a2c_cpu.py` as a complete example, and follow the code backwards from there.   
+Start from `rlpyt/experiments/scripts/atari/pg/launch/launch_atari_ff_a2c_cpu.py` as a complete example, and follow the code backwards from there.  :) 
 
 
 ## Current Status
 
-Multi-GPU training within one learning run is not implemented (see `accel_rl` for hint of how it might be done).  Stacking multiple experiments per machine is more effective for testing multiple runs / variations.
+Multi-GPU training within one learning run is not implemented (see [accel_rl](https://github.com/astooke/accel_rl) for hint of how it might be done).  Stacking multiple experiments per machine is more effective for testing multiple runs / variations.
 
-A2C is the first algorithm in place.  See `accel_rl` for similar implementations of other algorithms, including DQN, which could be ported.
+A2C is the first algorithm in place.  See [accel_rl](https://github.com/astooke/accel_rl) for similar implementations of other algorithms, including DQN, which could be ported.
 
 
 ## Visualization
