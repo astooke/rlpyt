@@ -1,33 +1,16 @@
 
-import psutil
-import time
 import multiprocessing as mp
+import numpy as np
+import ctypes
 
-from rlpyt.utils.seed import set_seed
-from rlpyt.utils.logging import logger
 from rlpyt.utils.buffer import buffer_from_example, torchify_buffer
-from rlpyt.samplers.base import (Samples, AgentSamples, AgentSamplesBs,
+from rlpyt.utils.collections import AttrDict
+from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBs,
     EnvSamples)
 
 
-def initialize_worker(rank, seed, cpu, group=None):
-    log_str = f"Sampler rank: {rank} initialized"
-    try:
-        p = psutil.Process()
-        cpus = [cpu] if isinstance(cpu, int) else cpu  # list or tuple
-        p.cpu_affinity(cpus)
-        log_str += f", CPU Affinity: {p.cpu_affinity()}"
-    except AttributeError:
-        pass
-    if seed is not None:
-        set_seed(seed)
-        time.sleep(0.3)  # (so the printing from set_seed is not intermixed)
-        log_str += f", Seed: {seed}"
-    logger.log(log_str)
-
-
 def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
-        agent_shared=True, env_shared=True):
+        agent_shared=True, env_shared=True, build_step_buffer=False):
     # One example: no T or B dimension.
     o = env.reset()
     a = env.action_space.sample()
@@ -63,28 +46,25 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
     )
     samples_np = Samples(agent_buffer, env_buffer)
     samples_pyt = torchify_buffer(samples_np)
+    if build_step_buffer:
+        raise NotImplementedError
+        # return samples_pyt, samples_np, step_pyt, step_np
     return samples_pyt, samples_np
 
 
-def build_par_objs(n_parallel):
-    ctrl = Struct(
+def build_par_objs(n, sync=False, groups=1):
+    ctrl = AttrDict(
         quit=mp.RawValue(ctypes.c_bool, False),
-        barrier_in=mp.Barrier(n_parallel + 1),
-        barrier_out=mp.Barrier(n_parallel + 1),
+        barrier_in=mp.Barrier(n * groups + 1),
+        barrier_out=mp.Barrier(n * groups + 1),
     )
     traj_infos_queue = mp.Queue()
+    if sync:
+        step_blockers = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
+        act_waiters = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
+        if groups == 1:
+            step_blockers = step_blockers[0]
+            act_waiters = act_waiters[0]
+        sync = AttrDict(step_blockers=step_blockers, act_waiters=act_waiters)
+        return ctrl, traj_infos_queue, sync
     return ctrl, traj_infos_queue
-
-
-def assemble_workers_kwargs(affinities, seed, samples_pyt, samples_np, n_envs):
-    workers_kwargs = list()
-    for rank in range(len(affinities.workers_cpus)):
-        slice_B = slice(rank * n_envs, (rank + 1) * n_envs)
-        worker_kwargs = dict(
-            rank=rank,
-            seed=seed + rank,
-            cpus=affinities.workers_cpus[rank],
-            samples_np=samples_np[:, slice_B],
-        )
-        workers_kwargs.append(worker_kwargs)
-    return workers_kwargs

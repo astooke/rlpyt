@@ -2,14 +2,15 @@
 import torch
 import torch.nn.functional as F
 
-from rlpyt.utils.tensor import infer_leading_dims
+from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 
 
 class AtariLstmModel(torch.nn.Module):
 
     def __init__(
             self,
-            env_spec,
+            image_shape,
+            output_dim,
             # conv_channels,
             # conv_sizes,
             # conv_strides,
@@ -21,13 +22,10 @@ class AtariLstmModel(torch.nn.Module):
             # name="atari_cnn_lstm",
             ):
         super().__init__()
-        image_shape = env_spec.observation_space.shape
-        action_size = env_spec.action_space.n
-        self.env_spec = env_spec
 
         # Hard-code just to get it running.
         self.conv1 = torch.nn.Conv2d(
-            in_channels=1,
+            in_channels=image_shape[0],
             out_channels=16,
             kernel_size=8,
             stride=1,
@@ -48,10 +46,10 @@ class AtariLstmModel(torch.nn.Module):
         test_mat = self.maxp1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.maxp2(test_mat)
-        lstm_in_size = test_mat.numel() + action_size + 1
+        lstm_in_size = test_mat.numel() + output_dim + 1
 
         self.lstm = torch.nn.LSTM(lstm_in_size, lstm_size, lstm_layers)
-        self.linear_pi = torch.nn.Linear(lstm_size, action_size)
+        self.linear_pi = torch.nn.Linear(lstm_size, output_dim)
         self.linear_v = torch.nn.Linear(lstm_size, 1)
 
         # in_channels = image_shape[0]
@@ -94,8 +92,8 @@ class AtariLstmModel(torch.nn.Module):
         img = image.to(torch.float)  # Expect torch.uint8 inputs
         img = img.mul_(1. / 255)  # From [0-255] to [0-1], in place.
 
-        # Infer leading dimensions.
-        T, B, img_shape, _T, _B = infer_leading_dims(img, 3)
+        # Infer (presence of) leading dimensions: [T,B], [B], or [].
+        img_shape, T, B, _T, _B = infer_leading_dims(img, 3)
 
         img = img.view(T * B, *img_shape)  # Fold time and batch dimensions.
         img = F.relu(self.maxp1(self.conv1(img)))
@@ -110,18 +108,11 @@ class AtariLstmModel(torch.nn.Module):
         lstm_out, next_rnn_state = self.lstm(lstm_input, init_rnn_state)
         lstm_flat = lstm_out.view(T * B, -1)
         pi = F.softmax(self.linear_pi(lstm_flat), dim=-1)
-        v = self.linear_v(lstm_flat)
+        v = self.linear_v(lstm_flat).squeeze(-1)
 
-        # Replace leading dimensions.
-        if _T:
-            pi = pi.view(T, B, -1)
-            v = v.view(T, B)
-        elif _B:
-            pi = pi.view(B, -1)
-            v = v.view(B)
-        else:
-            pi = pi.view(-1)
-            v = v.squeeze()
+        # Restore leading dimensions: [T,B], [B], or [], as input.
+        pi, v = restore_leading_dims((pi, v), T, B, _T, _B)
+        if not _B:
             next_rnn_state = next_rnn_state.squeeze(1)  # Remove batch dim.
 
         return pi, v, next_rnn_state

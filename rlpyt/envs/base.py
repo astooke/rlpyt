@@ -4,6 +4,7 @@ from collections import namedtuple
 
 EnvStep = namedtuple("EnvStep",
     ["observation", "reward", "done", "env_info"])
+EnvInfo = namedtuple("EnvInfo", [])
 
 
 class Env(object):
@@ -61,14 +62,7 @@ class Env(object):
 
 class EnvSpec(object):
 
-    def __init__(
-            self,
-            observation_space,
-            action_space):
-        """
-        :type observation_space: Space
-        :type action_space: Space
-        """
+    def __init__(self, observation_space, action_space):
         self._observation_space = observation_space
         self._action_space = action_space
 

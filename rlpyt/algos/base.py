@@ -9,7 +9,7 @@ OptInfo = namedtuple("OptInfo", [])
 
 class RlAlgorithm(object):
 
-    opt_info_fields = OptInfo._fields
+    opt_info_fields = OptInfo._fields.copy()
 
     def initialize(self, agent, n_itr):
         raise NotImplementedError

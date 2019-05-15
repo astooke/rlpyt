@@ -4,36 +4,38 @@ import torch
 from rlpyt.utils.quick_args import save_args
 from rlpyt.uitls.collections import namedarraytuple
 
-
+AgentInput = namedarraytuple("AgentInput",
+    ["observation", "prev_action", "prev_reward"])
+AgentStep = namedarraytuple("AgentStep", ["action", "agent_info"])
 AgentInfo = namedarraytuple("AgentInfo", [])
 
 
 class BaseAgent(object):
 
     model = None  # type: torch.nn.Module
-    _shared_model = None
+    shared_model = None
     device = torch.device("cpu")
     recurrent = False
 
     def __init__(self, ModelCls, model_kwargs, initial_state_dict=None):
-        save_args(locals(), underscore=True)
+        save_args(locals())
 
     def __call__(self, train_samples):
         """Returns values from model forward pass on training data."""
         raise NotImplementedError
 
     def initialize(self, env_spec, share_memory=False):
+        """Builds the model."""
         raise NotImplementedError
 
     def intialize_cuda(self, cuda_idx=None):
         """Call after initialize and after forking sampler workers."""
-        self._cuda_idx = cuda_idx
         if cuda_idx is None:
             return   # CPU
         if self._shared_memory:
-            self._shared_model = self.model
-            self.model = self._ModelCls(self._env_spec, **self._model_kwargs)
-            self.model.load_state_dict(self._shared_model.state_dict())
+            self.shared_model = self.model
+            self.model = self.ModelCls(**self._model_kwargs)
+            self.model.load_state_dict(self.shared_model.state_dict())
         self.device = torch.device("cuda", index=cuda_idx)
         self.model.to(self.device)
 
@@ -53,8 +55,8 @@ class BaseAgent(object):
 
     def sync_shared_memory(self):
         """Call in sampler master, after share_memory=True to initialize()."""
-        if self._shared_model is not None:
-            self._shared_model.load_state_dict(self.model.state_dict())
+        if self.shared_model is not None:
+            self.shared_model.load_state_dict(self.model.state_dict())
 
 
 RecurrentAgentInfo = namedarraytuple("AgentInfo", ["prev_rnn_state"])

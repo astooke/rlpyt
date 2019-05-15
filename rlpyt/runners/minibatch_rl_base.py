@@ -20,7 +20,6 @@ class MinibatchRlBase(BaseRunner):
             n_steps,
             seed=None,
             affinities=None,
-            cuda_idx=None,
             ):
         n_steps = int(n_steps)
         save_args(locals())
@@ -39,13 +38,13 @@ class MinibatchRlBase(BaseRunner):
             traj_info_kwargs=self.get_traj_info_kwargs(),
         )
         n_itr = self.get_n_itr(self.sampler.batch_spec.size)
-        self.agent.initialize_cuda(self.cuda_idx)
-        self.algo.initialize(self.agent, n_itr)
+        self.agent.initialize_cuda(self.affinities.get("cuda_idx", None))
+        self.algo.initialize(self.agent, n_itr, self.sampler.mid_batch_reset)
         self.initialize_logging()
         return n_itr
 
     def get_traj_info_kwargs(self):
-        return dict(discount=self.algo.get("discount", 1))
+        return dict(discount=getattr(self.algo, "discount", 1))
 
     def get_n_itr(self, batch_size):
         n_itr = (self.n_steps + self.log_interval_steps) // batch_size + 1
@@ -88,5 +87,3 @@ class MinibatchRlBase(BaseRunner):
             for k, v in self._opt_infos.items():
                 logger.record_tabular_misc_stat(k, v)
         self._opt_infos = {k: list() for k in self._opt_infos}  # (reset)
-
-

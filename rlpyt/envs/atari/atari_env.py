@@ -60,17 +60,15 @@ class AtariEnv(Env):
 
     def step(self, action):
         a = self._action_set[action]
-        reward = np.array(0., dtype="float32")
+        raw_reward = np.array(0., dtype="float32")
         for _ in range(self._frame_skip - 1):
-            reward += self.ale.act(a)
+            raw_reward += self.ale.act(a)
         self._get_screen(1)
-        reward += self.ale.act(a)
+        raw_reward += self.ale.act(a)
         self._update_obs()
-        info = dict()
-        if self._clip_reward:
-            info["raw_reward"] = reward
-            reward = np.sign(reward)
-        done, info = self._done(info)
+        reward = np.sign(raw_reward) if self._clip_reward else raw_reward
+        done, need_reset = self._done()
+        info = EnvInfo(raw_reward, need_reset)
         return EnvStep(self.get_obs(), reward, done, info)
 
     def render(self, wait=10, show_full_obs=False):
@@ -132,17 +130,18 @@ class AtariEnv(Env):
             self.ale.act(2)  # (not sure if this is necessary, saw it somewhere)
         self._lives = self.ale.lives()
 
-    def _done_no_epidosic_lives(self, info):
+    def _done_no_epidosic_lives(self):
         self._check_life()
-        return self.ale.game_over(), info
+        done = self.ale.game_over()
+        return done, done
 
-    def _done_episodic_lives(self, info):
-        need_reset = info["need_reset"] = self.ale.game_over()
+    def _done_episodic_lives(self):
+        need_reset = self.ale.game_over()
         lost_life = self._check_life()
         if lost_life:
             self._reset_obs()  # (reset here, so sampler does NOT call reset)
             self._update_obs()  # (will have already advanced in check_life)
-        return lost_life or need_reset, info
+        return lost_life or need_reset, need_reset
 
     ###########################################################################
     # Properties

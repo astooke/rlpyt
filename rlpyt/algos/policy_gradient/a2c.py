@@ -16,7 +16,7 @@ OptInfo = namedtuple("OptInfo", ["Loss", "GradNorm", "Entropy", "Perplexity"])
 class A2C(RlAlgorithm):
 
     bootstrap_value = True
-    mid_batch_reset = False  # Could be implemented later.
+    opt_info_fields = OptInfo._fields.copy()
 
     def __init__(
             self,
@@ -31,9 +31,8 @@ class A2C(RlAlgorithm):
         if optim_kwargs is None:
             optim_kwargs = dict()
         save_args(locals())
-        self.opt_info_fields = OptInfo._fields.copy()
 
-    def initialize(self, agent, n_itr):
+    def initialize(self, agent, n_itr, mid_batch_reset=False):
         save_args(locals())
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
@@ -77,5 +76,6 @@ class A2C(RlAlgorithm):
         if self.mid_batch_reset:
             valid = torch.ones_like(samples.env.done)
         else:
-            valid = 1 - torch.clamp(torch.cumsum(samples.env.done, dim=0), max=1)
+            valid = 1 - torch.clamp(torch.cumsum(samples.env.done, dim=0),
+                max=1)
         return return_, advantage, valid
