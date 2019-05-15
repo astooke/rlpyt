@@ -11,10 +11,11 @@ import sys
 import datetime
 import dateutil.tz
 import csv
-import joblib
+# import joblib
 import json
 import pickle
 import base64
+import torch
 
 _prefixes = []
 _prefix_str = ''
@@ -316,7 +317,7 @@ def pop_prefix():
     _prefix_str = ''.join(_prefixes)
 
 
-def save_itr_params(itr, params, use_cloudpickle=False):
+def save_itr_params(itr, params):
     if _snapshot_dir:
         if _snapshot_mode == 'all':
             file_name = osp.join(get_snapshot_dir(), 'itr_%d.pkl' % itr)
@@ -332,12 +333,7 @@ def save_itr_params(itr, params, use_cloudpickle=False):
             return
         else:
             raise NotImplementedError
-        if use_cloudpickle:
-            import cloudpickle
-            with open(file_name, 'wb') as f:
-                cloudpickle.dump(params, f, protocol=3)
-        else:
-            joblib.dump(params, file_name, compress=3)
+        torch.save(params, file_name)
 
 
 def log_parameters(log_file, args, classes):

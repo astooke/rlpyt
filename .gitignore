@@ -1,8 +1,8 @@
 
 # To store all experiment data locally only.
-# /data/  
+/data/  
 # For quick local testing.
-# /scratch/ 
+/scratch/ 
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

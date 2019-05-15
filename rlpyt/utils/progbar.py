@@ -1,10 +1,11 @@
 
 
 import pyprind
-import rllab.misc.logger as logger
+from rlpyt.utils.logging import logger
 
 
 class ProgBarCounter(object):
+
     def __init__(self, total_count):
         self.total_count = total_count
         self.max_progress = 1000000

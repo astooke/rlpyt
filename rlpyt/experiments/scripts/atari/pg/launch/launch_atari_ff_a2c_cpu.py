@@ -3,7 +3,7 @@ from rlpyt.utils.launching.affinity import encode_affinity
 from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
-script = "rlpyt/scripts/atari/pg/train/atari_ff_a2c_cpu.py"
+script = "rlpyt/experiments/scripts/atari/pg/train/atari_ff_a2c_cpu.py"
 default_config_key = "0"
 affinity_code = encode_affinity(
     n_cpu_cores=8,

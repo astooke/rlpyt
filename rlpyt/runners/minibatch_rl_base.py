@@ -65,7 +65,8 @@ class MinibatchRlBase(BaseRunner):
         return dict(
             itr=itr,
             cum_samples=itr * self.sampler.batch_spec.size,
-            agent_params=self.agent.model.state_dict(),
+            model_state_dict=self.agent.model.state_dict(),
+            optimizer_state_dict=self.agent.optimizer.state_dict(),
         )
 
     def save_itr_snapshot(self, itr):

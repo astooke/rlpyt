@@ -3,8 +3,8 @@ from collections import namedtuple
 
 
 def tuple_itemgetter(i):
-    def _tuple_itemgetter(nat):
-        return tuple.__getitem__(nat, i)
+    def _tuple_itemgetter(obj):
+        return tuple.__getitem__(obj, i)
     return _tuple_itemgetter
 
 

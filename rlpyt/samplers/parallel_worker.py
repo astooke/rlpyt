@@ -24,18 +24,19 @@ def sampling_process(common_kwargs, worker_kwargs):
     c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
     initialize_worker(w.rank, w.seed, w.cpus, w.get("group", None))
     envs = [c.EnvCls(**c.env_kwargs) for _ in range(c.n_envs)]
+    agent = c.get("agent", None)
     collector = c.CollectorCls(
         rank=w.rank,
         envs=envs,
         samples_np=w.samples_np,
         max_path_length=c.max_path_length,
         TrajInfoCls=c.TrajInfoCls,
-        agent=c.get("agent", None),  # Optional depending on collector class.
+        agent=agent,  # Optional depending on collector class.
         sync=w.get("sync", None),
         step_buf=w.get("step_buf", None),
     )
     agent_input, traj_infos = collector.start_envs(c.max_decorrelation_steps)
-    c.agent.reset()
+    collector.start_agent()
     ctrl = c.ctrl
     ctrl.barrier_out.wait()
 

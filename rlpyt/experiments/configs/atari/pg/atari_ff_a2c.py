@@ -1,5 +1,5 @@
 
-default_configs = dict()
+configs = dict()
 
 
 config = dict(
@@ -23,4 +23,4 @@ config = dict(
     ),
 )
 
-default_configs["0"] = config
+configs["0"] = config

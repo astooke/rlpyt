@@ -53,6 +53,11 @@ class BaseCollector(object):
         """Calls reset() on every env."""
         raise NotImplementedError
 
+    def start_agent(self):
+        if hasattr(self, "agent"):
+            self.agent.reset()
+            self.agent.model.eval()
+
     def collect_batch(self, agent_input, traj_infos):
         raise NotImplementedError
 

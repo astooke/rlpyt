@@ -1,0 +1,13 @@
+name: rlpyt
+channels:
+- pytorch
+dependencies:
+- python=3.7
+- pytorch=1.1
+- cudatoolkit=9.
+- numpy
+- psutil
+- opencv  # atari.
+- pip:
+  - atari-py
+  - pyprind  # progbar.
