@@ -17,7 +17,7 @@ ABBREVS = [N_GPU, CONTEXT_PER_GPU, CONTEXT_PER_RUN, N_CPU_CORES,
 
 # API
 
-def encode_affinity_params(n_cpu_cores=1, n_gpu=0, contexts_per_gpu=1,
+def encode_affinity(n_cpu_cores=1, n_gpu=0, contexts_per_gpu=1,
         contexts_per_run=1, cpu_per_run=1, cpu_per_worker=1,
         hyperthread_offset=None, n_socket=1, run_slot=None):
     """Use in run script to specify computer configuration."""
@@ -56,7 +56,7 @@ def get_affinity(run_slot_affinity_code):
 
 # Helpers
 
-def get_run_slots(affinity_code):
+def get_n_run_slots(affinity_code):
     aff = decode_affinity(affinity_code)
     if aff.get("gpu", 0) > 0:
         n_run_slots = (aff["gpu"] * aff.get("cpg", 1)) // aff.get("cpr", 1)
@@ -110,7 +110,7 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
     at the lowest numbered cores of each CPU socket.
     """
     if cxr > 1:
-        raise NotImplementedError
+        raise NotImplementedError  # (parallel training)
     n_ctx = gpu * cxg
     n_run_slots = n_ctx // cxr
     assert slt < n_run_slots
