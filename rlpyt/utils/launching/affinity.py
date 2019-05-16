@@ -49,7 +49,7 @@ def get_affinity(run_slot_affinity_code):
     """Use in individual experiment script; pass output to Runner."""
     run_slot, aff_code = remove_run_slot(run_slot_affinity_code)
     aff_params = decode_affinity(aff_code)
-    if aff_params.get("n_gpu", 0) > 0:
+    if aff_params.get("gpu", 0) > 0:
         return build_affinities_gpu(run_slot, **aff_params)
     return build_affinities_cpu(run_slot, **aff_params)
 
@@ -59,7 +59,7 @@ def get_affinity(run_slot_affinity_code):
 def get_n_run_slots(affinity_code):
     aff = decode_affinity(affinity_code)
     if aff.get("gpu", 0) > 0:
-        n_run_slots = (aff["gpu"] * aff.get("cpg", 1)) // aff.get("cpr", 1)
+        n_run_slots = (aff["gpu"] * aff.get("cxg", 1)) // aff.get("cxr", 1)
     else:
         n_run_slots = aff["cpu"] // aff["cpr"]
     return n_run_slots
