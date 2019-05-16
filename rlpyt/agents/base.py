@@ -32,7 +32,7 @@ class BaseAgent(object):
         """Call after initialize() and after forking sampler workers."""
         if cuda_idx is None:
             return   # CPU
-        if self._shared_memory:
+        if self._memory_is_shared:
             self.shared_model = self.model
             self.model = self.ModelCls(**self._model_kwargs)
             self.model.load_state_dict(self.shared_model.state_dict())
