@@ -94,13 +94,13 @@ def build_affinities_cpu(slt, cpu, cpr, cpw=1, hto=None, gpu=0):
         hto = cpu
     if hto > 0:
         hyperthreads = tuple(c + hto for c in cores)
-        worker_cpus = tuple(cores[i:i + cpw] + hyperthreads[i:i + cpw]
+        workers_cpus = tuple(cores[i:i + cpw] + hyperthreads[i:i + cpw]
             for i in range(0, cpu, cpw))
         master_cpus = cores + hyperthreads
     else:
-        worker_cpus = tuple(cores[i:i + cpw] for i in range(0, cpu, cpw))
+        workers_cpus = tuple(cores[i:i + cpw] for i in range(0, cpu, cpw))
         master_cpus = cores
-    return dict(master_cpus=master_cpus, workers_cpus=worker_cpus)
+    return dict(master_cpus=master_cpus, workers_cpus=workers_cpus)
 
 
 def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
@@ -142,13 +142,13 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
         hto = cpu
     if hto > 0:
         hyperthreads = tuple(c + hto for c in sim_cores)
-        worker_cpus = tuple(cores[i:i + cpw] + hyperthreads[i:i + cpw]
+        workers_cpus = tuple(sim_cores[i:i + cpw] + hyperthreads[i:i + cpw]
             for i in range(0, len(sim_cores), cpw))
         master_cpus = (gpu_core,) + sim_cores + (gpu_core + hto,) + hyperthreads
     else:
-        worker_cpus = tuple(cores[i:i + cpw]
+        workers_cpus = tuple(cores[i:i + cpw]
             for i in range(0, len(sim_cores), cpw))
         master_cpus = (gpu_core,) + sim_cores
 
-    return dict(master_cpus=master_cpus, workers_cpus=worker_cpus,
+    return dict(master_cpus=master_cpus, workers_cpus=workers_cpus,
         cuda_idx=my_gpu)
