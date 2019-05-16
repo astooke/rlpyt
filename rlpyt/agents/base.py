@@ -1,4 +1,5 @@
 
+import torch
 
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
@@ -13,7 +14,7 @@ class BaseAgent(object):
 
     model = None  # type: torch.nn.Module
     shared_model = None
-    device = "cpu"
+    device = torch.device("cpu")
     recurrent = False
 
     def __init__(self, ModelCls, model_kwargs, initial_model_state_dict=None):
