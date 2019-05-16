@@ -9,14 +9,14 @@ from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.collections import namedarraytuple
 
 
-OptData = namedarraytuple("OptData", ["return", "advantage", "valid"])
+OptData = namedarraytuple("OptData", ["return_", "advantage", "valid"])
 OptInfo = namedtuple("OptInfo", ["Loss", "GradNorm", "Entropy", "Perplexity"])
 
 
 class A2C(RlAlgorithm):
 
     bootstrap_value = True
-    opt_info_fields = OptInfo._fields.copy()
+    opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
     def __init__(
             self,

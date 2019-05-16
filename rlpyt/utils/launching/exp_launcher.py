@@ -4,13 +4,13 @@ import time
 import os
 import os.path as osp
 
-from rlpyt.utils.launching.affinity import get_run_slots, prepend_run_slot
+from rlpyt.utils.launching.affinity import get_n_run_slots, prepend_run_slot
 from rlpyt.utils.logging.context import get_log_dir
 from rlpyt.utils.launching.variant import save_variant
 
 
 def log_exps_tree(exp_dir, log_dirs):
-    os.makedirs(exp_dir, exist_ok=False)
+    os.makedirs(exp_dir, exist_ok=True)
     with open(osp.join(exp_dir, "experiments_tree.txt"), "w") as f:
         [f.write(log_dir + "\n") for log_dir in log_dirs]
 
@@ -18,7 +18,7 @@ def log_exps_tree(exp_dir, log_dirs):
 def launch_experiment(script, run_slot, affinity_code, log_dir, variant, run_ID, args):
     slot_affinity_code = prepend_run_slot(run_slot, affinity_code)
     save_variant(variant, log_dir)
-    call_list = ["python", script, slot_affinity_code, log_dir, run_ID]
+    call_list = ["python", script, slot_affinity_code, log_dir, str(run_ID)]
     call_list += [str(a) for a in args]
     print("\ncall string:\n", " ".join(call_list))
     p = subprocess.Popen(call_list)
@@ -41,6 +41,7 @@ def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
         for variant, log_dir, run_args in zip(variants, log_dirs, runs_args):
             launched = False
             log_dir = osp.join(exp_dir, log_dir)
+            os.makedirs(log_dir, exist_ok=True)
             while not launched:
                 for run_slot, p in enumerate(procs):
                     if p is None or p.poll() is not None:

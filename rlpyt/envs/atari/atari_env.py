@@ -7,7 +7,7 @@ from collections import namedtuple
 
 from rlpyt.envs.base import Env, EnvStep
 from rlpyt.spaces.discrete import Discrete
-from rlpyt.spaces.intbox import IntBox
+from rlpyt.spaces.int_box import IntBox
 from rlpyt.utils.quick_args import save_args
 
 

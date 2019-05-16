@@ -63,7 +63,7 @@ def restore_leading_dims(tensors, T, B, _T, _B):
     if not isinstance(tensors, tuple):
         tensors = (tensors,)
     if _T:
-        return *tuple(t.view(T, B, *t.shape[1:]) for t in tensors)
+        return tuple(t.view(T, B, *t.shape[1:]) for t in tensors)
     if not _B:
-        return *tuple(t.squeeze(0) for t in tensors)
-    return *tensors
+        return tuple(t.squeeze(0) for t in tensors)
+    return tensors

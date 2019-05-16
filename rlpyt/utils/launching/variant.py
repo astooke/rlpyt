@@ -3,6 +3,7 @@
 from copy import deepcopy
 from collections import namedtuple
 import os.path as osp
+import json
 
 VARIANT = "variant_config.json"
 
@@ -13,8 +14,6 @@ def make_variants(*variant_levels):
     variants, log_dirs = [dict()], [""]
     for variant_level in variant_levels:
         variants, log_dirs = _cross_variants(variants, log_dirs, variant_level)
-    variants = variants * n_runs_per  # All run 0 first, then all run 1, etc.
-    log_dirs = [ld + f"_{n}" for n in range(n_runs_per) for ld in log_dirs]    
     return variants, log_dirs
 
 

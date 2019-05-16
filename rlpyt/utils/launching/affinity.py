@@ -11,7 +11,7 @@ RUN_SLOT = "slt"
 CPU_PER_WORKER = "cpw"
 CPU_PER_RUN = "cpr"  # For cpu-only.
 
-ABBREVS = [N_GPU, CONTEXT_PER_GPU, CONTEXT_PER_RUN, N_CPU_CORES,
+ABBREVS = [N_GPU, CONTEXTS_PER_GPU, CONTEXTS_PER_RUN, N_CPU_CORES,
     HYPERTHREAD_OFFSET, N_SOCKET, CPU_PER_RUN, CPU_PER_WORKER]
 
 
@@ -73,13 +73,13 @@ def remove_run_slot(run_slot_affinity_code):
 
 
 def decode_affinity(affinity_code):
-    arg_strs = affinity_code.split("_")
+    codes = affinity_code.split("_")
     aff_kwargs = dict()
-    for a_str in args_strs:
-        abrv = a_str[-3:]
-        if abbrev not in ABBREVS:
+    for code in codes:
+        abrv = code[-3:]
+        if abrv not in ABBREVS:
             raise ValueError(f"Unrecognized affinity code abbreviation: {abrv}")
-        value = int(a_str[:-3])
+        value = int(code[:-3])
         aff_kwargs[abrv] = value
     return aff_kwargs
 

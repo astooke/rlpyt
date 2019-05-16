@@ -2,7 +2,7 @@
 import torch
 
 from rlpyt.utils.quick_args import save_args
-from rlpyt.uitls.collections import namedarraytuple
+from rlpyt.utils.collections import namedarraytuple
 
 AgentInput = namedarraytuple("AgentInput",
     ["observation", "prev_action", "prev_reward"])

@@ -1,7 +1,7 @@
 
 import torch
 
-from rlpyt.uitls.collections import namedarraytuple
+from rlpyt.utils.collections import namedarraytuple
 from rlpyt.agents.base import BaseAgent, BaseRecurrentAgent
 
 

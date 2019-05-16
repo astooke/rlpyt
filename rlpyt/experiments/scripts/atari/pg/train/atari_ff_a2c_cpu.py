@@ -1,7 +1,7 @@
 
 import sys
 
-from rlpyt.util.launching.affinity import get_affinity
+from rlpyt.utils.launching.affinity import get_affinity
 from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
 from rlpyt.samplers.cpu.collectors import EpisodicLivesWaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv

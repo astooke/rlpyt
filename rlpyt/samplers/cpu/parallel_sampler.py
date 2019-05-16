@@ -3,8 +3,7 @@ import multiprocessing as mp
 
 
 from rlpyt.samplers.parallel_sampler import ParallelSampler
-from rlpyt.samplers.buffer import build_samples_buffer
-from rlpyt.samplers.utils import build_par_objs
+from rlpyt.samplers.utils import build_samples_buffer, build_par_objs
 from rlpyt.samplers.parallel_worker import sampling_process
 
 
