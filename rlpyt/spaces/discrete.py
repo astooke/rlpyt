@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 from rlpyt.spaces.base import Space
-from rlpyt.utils import tensor
+from rlpyt.utils import tensor, array
 
 
 class Discrete(Space):
@@ -21,24 +21,26 @@ class Discrete(Space):
         assert np.issubdtype(self.onhot_dtype, np.integer)
         self.null_value = null_value
 
-    def sample(self, size=None, null=False):
+    def sample(self, size=None, null=False, torchify=False):
         sample = np.random.randint(low=0, high=self.n, size=size, dtype=dtype)
         if null:
             sample.fill(null_value)
+        if torchify:
+            sample = torch.from_numpy(sample)
         return sample
 
     def __repr__(self):
         return f"Discrete({self.n})"
 
     def to_onehot(self, indexes):
-        dtype = self.onehot_dtype if isinstance(indexes, np.ndarray) \
-            else self.torch_onehot_dtype
-        return tensor.to_onehot(indexes, self.n, dtype=dtype)
+        if isinstance(indexes, np.ndarray):
+            return array.to_onehot(indexes, self.n, dtype=self.onehot_dtype)
+        return tensor.to_onehot(indexes, self.n, dtype=self.torch_onehot_dtype)
 
     def from_onehot(self, onehot):
-        dtype = self.dtype if isinstance(indexes, np.ndarray) \
-            else self.torch_dtype
-        return tensor.from_onehot(onehot, dtype=dtype)
+        if isinstance(onehot, np.ndarray):
+            return array.from_onehot(onehot, dtype=self.dtype)
+        return tensor.from_onehot(onehot, dtpye=self.torch_dtype)
 
     def weighted_sample(self):
         # Maybe not needed, because torch.multinomial inside sample_actions().

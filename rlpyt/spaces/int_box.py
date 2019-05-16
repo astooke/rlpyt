@@ -1,5 +1,6 @@
 
 import numpy as np
+import torch
 
 from rlpyt.spaces.base import Space
 
@@ -18,15 +19,18 @@ class IntBox(Space):
         self.dtype = np.dtype(dtype)
         assert np.issubdtype(self.dtype, np.integer)
 
-    def sample(self, size=None, null=False):
+    def sample(self, size=None, null=False, torchify=False):
         if size is None:
             size = ()
         elif isinstance(size, int):
             size = (size,)
         if null:
             raise NotImplementedError
-        return np.random.randint(low=self.low, high=self.high,
+        sample = np.random.randint(low=self.low, high=self.high,
             size=size + self.shape, dtype=self.dtype)
+        if torchify:
+            sample = torch.from_numpy(sample)
+        return sample
 
     @property
     def bounds(self):

@@ -14,8 +14,7 @@ def select_at_indexes(indexes, array):
 
 
 def to_onehot(indexes, dim, dtype=None):
-    if dtype is None:
-        dtype = indexes.dtype
+    dtype = indexes.dtype if dtype is None else dtype
     onehot = np.zeros((indexes.size, dim), dtype=dtype)
     onehot[np.arange(indexes.size), indexes.reshape(-1)] = 1
     return onehot.reshape(indexes.shape + (dim,))
