@@ -1,15 +1,19 @@
 
+import psutil
+import time
+
 from rlpyt.utils.collections import AttrDict
 from rlpyt.utils.logging import logger
+from rlpyt.utils.seed import set_seed
 
 
 def initialize_worker(rank, seed, cpu, group=None):
-    log_str = f"Sampler rank: {rank} initialized"
+    log_str = f"Sampler rank {rank} initialized"
     try:
         p = psutil.Process()
         cpus = [cpu] if isinstance(cpu, int) else cpu  # list or tuple
         p.cpu_affinity(cpus)
-        log_str += f", CPU Affinity: {p.cpu_affinity()}"
+        log_str += f", CPU Affinity {p.cpu_affinity()}"
     except AttributeError:
         pass
     if seed is not None:

@@ -12,7 +12,7 @@ class ParallelSampler(BaseSampler):
         self.ctrl.barrier_out.wait()
         traj_infos = list()
         while self.traj_infos_queue.qsize():
-            traj_infos.apppend(self.traj_infos_queue.get())
+            traj_infos.append(self.traj_infos_queue.get())
         return self.samples_pyt, traj_infos
 
     def shutdown(self):

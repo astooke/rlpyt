@@ -2,17 +2,22 @@
 from collections import namedtuple
 
 
+RESERVED_NAMES = ["get_index", "get", "item"]
+
+
 def tuple_itemgetter(i):
     def _tuple_itemgetter(obj):
         return tuple.__getitem__(obj, i)
     return _tuple_itemgetter
 
 
-def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
+def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
+        classname_suffix=False):
     """
     Returns a new subclass of a namedtuple which exposes indexing / slicing
-    reads and writes of the contained values, intended to be numpy arrays which
-    share leading dimensions.
+    reads and writes applied to all contained objects, which must share
+    indexing (__getitem__) behavior (e.g. numpy arrays).
+
     (Code follows pattern of collections.namedtuple.)
 
     >>> PointsCls = namedarraytuple('Points', ['x', 'y'])
@@ -39,14 +44,18 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
     >>> 'x' in p                    # check field name instead of object
     True
     """
+    nt_typename = typename
+    if classname_suffix:
+        nt_typename += "_nt"  # Helpful to identify which style of tuple.
+        typename += "_nat"
 
-    NtCls = namedtuple(typename, field_names)
+    NtCls = namedtuple(nt_typename, field_names)
 
     def __getitem__(self, loc):
         return type(self)(*(s[loc] for s in self))
 
-    __getitem__.__doc__ = (f"Return a new {typename} instance containing the "
-        "selected index or slice from each field.")
+    __getitem__.__doc__ = (f"Return a new {typename} instance containing "
+        "the selected index or slice from each field.")
 
     def __setitem__(self, loc, value):
         """
@@ -55,8 +64,9 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
         field.  Else, assign whole of value to selected index or slice of
         all fields.
         """
-        if not isinstance(value, NtCls):
-            value = (value,) * len(self)
+        if not (isinstance(value, tuple) and  # Check for matching structure.
+                getattr(value, "_fields", None) == self._fields):
+            value = (value,) * len(self)  # Repeat whole value for each.
         for j, (s, v) in enumerate(zip(self, value)):
             try:
                 s[loc] = v
@@ -64,7 +74,7 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
                 raise Exception(f"Occured at item index {j}.") from e
 
     def __contains__(self, key):
-        """Checks presence of field name (unlike tuple; like dict)."""
+        "Checks presence of field name (unlike tuple; like dict)."
         return key in self._fields
 
     def get_index(self, index):
@@ -78,7 +88,7 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
         return getattr(self, field_name)
 
     def items(self):
-        """Iterate like a dict."""
+        "Iterate ordered (field_name, value) pairs (like OrderedDict)."
         for k, v in zip(self._fields, self):
             yield k, v
 
@@ -98,6 +108,8 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
     }
 
     for index, name in enumerate(NtCls._fields):
+        if name in RESERVED_NAMES:
+            raise ValueError(f"Disallowed field name: {name}.")
         itemgetter_object = tuple_itemgetter(index)
         doc = f'Alias for field number {index}'
         class_namespace[name] = property(itemgetter_object, doc=doc)
@@ -108,6 +120,21 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False):
     if return_namedtuple_cls:
         return result, NtCls
     return result
+
+
+def namedarraytuple_like(namedtuple, classname_suffix=False):
+    """Returns namedarraytuple class with same name and fields as input
+    namedtuple class or instance.  If input is namedarraytuple class or
+    instance, the same class is returned directly."""
+    if not ((isinstance(namedtuple, tuple) or issubclass(namedtuple, tuple)) and
+            hasattr(namedtuple, "_fields")):
+        raise TypeError("Input must be namedtuple (incl. namedarraytuple) "
+            f"class or instance, not {type(namedtuple)}")
+    input_type = type(namedtuple) if isinstance(namedtuple, tuple) else namedtuple
+    if input_type.__getitem__ is tuple.__getitem__:  # strict namedtuple
+        return namedarraytuple(input_type.__name__, input_type._fields,
+            classname_suffix=classname_suffix)
+    return input_type
 
 
 class AttrDict(dict):

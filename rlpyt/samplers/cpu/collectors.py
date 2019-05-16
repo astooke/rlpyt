@@ -31,7 +31,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
                     continue
                 # Environment inputs and outputs are numpy arrays.
                 o, r, d, env_info = env.step(action[i])
-                traj_infos[i].step(observation[i], action[i], r, env_info)
+                traj_infos[i].step(observation[i], action[i], r, agent_info[i], env_info)
                 d |= traj_infos[i].Length >= self.max_path_length
                 if d:
                     self.need_reset[i] = True
@@ -96,7 +96,7 @@ class EpisodicLivesWaitResetCollector(DecorrelatingStartCollector):
                     continue
                 # Environment inputs and outputs are numpy arrays.
                 o, r, d, env_info = env.step(action[i])
-                traj_infos[i].step(observation[i], action[i], r, env_info)
+                traj_infos[i].step(observation[i], action[i], r, agent_info[i], env_info)
                 env_d = getattr(env_info, "need_reset", d)
                 env_d |= traj_infos[i].Length >= self.max_path_length
                 d |= env_d
@@ -106,9 +106,9 @@ class EpisodicLivesWaitResetCollector(DecorrelatingStartCollector):
                     traj_infos[i] = self.TrajInfoCls()
                 else:
                     observation[i] = o
-                self.need_agent_resest[i] = d
+                self.need_agent_reset[i] = d
                 reward[i] = r
-                env_buf.dones[s, i] = d
+                env_buf.done[s, i] = d
                 if env_info:
                     env_buf.env_info[s, i] = env_info
             agent_buf.action[s] = action

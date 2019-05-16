@@ -10,8 +10,9 @@ affinity_code = encode_affinity(
     n_gpu=2,
     hyperthread_offset=8,
     n_socket=1,
+    # cpu_per_run=2,
 )
-runs_per_setting = 2
+runs_per_setting = 1
 experiment_title = "first_test"
 variant_levels = list()
 

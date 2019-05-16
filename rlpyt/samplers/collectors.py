@@ -1,7 +1,9 @@
 
+import numpy as np
 
 from rlpyt.samplers.base import BaseCollector
 from rlpyt.agents.base import AgentInput
+from rlpyt.utils.logging import logger
 
 
 class DecorrelatingStartCollector(BaseCollector):
@@ -25,11 +27,11 @@ class DecorrelatingStartCollector(BaseCollector):
         if max_decorrelation_steps == 0:
             return AgentInput(observation, prev_action, prev_reward), traj_infos
         for i, env in enumerate(self.envs):
-            n_steps = int(get_random_fraction() * max_decorrelation_steps)
+            n_steps = int(np.random.rand() * max_decorrelation_steps)
             env_actions = env.action_space.sample(n_steps)
             for a in env_actions:
                 o, r, d, info = env.step(a)
-                traj_infos[i].step(r, info)
+                traj_infos[i].step(o, a, r, None, info)
                 d = getattr(info, "need_reset", d)  # For episodic lives.
                 d |= traj_infos[i].Length >= self.max_path_length
                 if d:

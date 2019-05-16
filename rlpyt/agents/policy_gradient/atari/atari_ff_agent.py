@@ -3,9 +3,9 @@ import torch
 
 from rlpyt.agents.base import AgentStep
 from rlpyt.agents.policy_gradient.base import BasePgAgent, AgentInfo
-from rlpyt.models.atari_ff_model import AtariFfModel
+from rlpyt.models.policy_gradient.atari_ff_model import AtariFfModel
 from rlpyt.distributions.categorical import Categorical, DistInfo
-from rlpyt.samplers.buffer import buffer_to
+from rlpyt.utils.buffer import buffer_to
 
 
 class AtariFfAgent(BasePgAgent):

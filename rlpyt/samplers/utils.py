@@ -2,9 +2,11 @@
 import multiprocessing as mp
 import numpy as np
 import ctypes
+import time
 
-from rlpyt.utils.buffer import buffer_from_example, torchify_buffer
+from rlpyt.utils.buffer import buffer_from_example, torchify_buffer, numpify_buffer
 from rlpyt.utils.collections import AttrDict
+from rlpyt.agents.base import AgentInput
 from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBs,
     EnvSamples)
 
@@ -14,29 +16,30 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
     # One example: no T or B dimension.
     o = env.reset()
     a = env.action_space.sample()
-    a, agent_info = agent.step(o, a, np.array(0, dtype="float32"))
-    o, r, d, env_info = env.step(a)
+    agent_input = torchify_buffer(AgentInput(o, a, np.array(0, dtype="float32")))
+    a, agent_info_ = agent.step(*agent_input)
+    o, r, d, env_info_ = env.step(numpify_buffer(a))
     T, B = batch_spec
 
     all_action = buffer_from_example(a, (T + 1, B), agent_shared)
     action = all_action[1:]
     prev_action = all_action[:-1]  # Writing to action will populate prev_action.
-    agent_info = buffer_from_example(agent_info, (T, B), agent_shared)
+    agent_info = buffer_from_example(agent_info_, (T, B), agent_shared)
     agent_buffer = AgentSamples(
         action=action,
         prev_action=prev_action,
         agent_info=agent_info,
     )
     if bootstrap_value:
-        bv = buffer_from_example(agent_info.value, (1, B), agent_shared)
-        agent_buffer = AgentSamplesBs(*agent_buffer, boostrap_value=bv)
+        bv = buffer_from_example(agent_info_.value, (1, B), agent_shared)
+        agent_buffer = AgentSamplesBs(*agent_buffer, bootstrap_value=bv)
 
     observation = buffer_from_example(o, (T, B), env_shared)
     all_reward = buffer_from_example(r, (T + 1, B), env_shared)
     reward = all_reward[1:]
     prev_reward = all_reward[:-1]  # Writing to reward will populate prev_reward.
     done = buffer_from_example(d, (T, B), env_shared)
-    env_info = buffer_from_example(env_info, (T, B), env_shared)
+    env_info = buffer_from_example(env_info_, (T, B), env_shared)
     env_buffer = EnvSamples(
         observation=observation,
         reward=reward,

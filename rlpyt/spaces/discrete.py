@@ -18,13 +18,14 @@ class Discrete(Space):
         self.torch_onehot_dtype = torch.from_numpy(
             np.zeros(1, dtype=self.onehot_dtype)).dtype
         assert np.issubdtype(self.dtype, np.integer)
-        assert np.issubdtype(self.onhot_dtype, np.integer)
+        assert np.issubdtype(self.onehot_dtype, np.integer)
         self.null_value = null_value
 
     def sample(self, size=None, null=False, torchify=False):
-        sample = np.random.randint(low=0, high=self.n, size=size, dtype=dtype)
+        sample = np.asarray(np.random.randint(
+            low=0, high=self.n, size=size, dtype=self.dtype))
         if null:
-            sample.fill(null_value)
+            sample.fill(self.null_value)
         if torchify:
             sample = torch.from_numpy(sample)
         return sample

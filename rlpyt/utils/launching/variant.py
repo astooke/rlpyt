@@ -64,5 +64,5 @@ def update_config(default, variant):
             raise KeyError(f"Variant key {k} not found in default config.")
         if isinstance(v, dict) != isinstance(new[k], dict):
             raise TypeError(f"Variant dict structure at key {k} mismatched with default.")
-        new[k] = update_config(new[k], v) if isinstnace(v, dict) else v
+        new[k] = update_config(new[k], v) if isinstance(v, dict) else v
     return new

@@ -33,7 +33,7 @@ def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none")
     logger.set_snapshot_dir(exp_dir)
     logger.add_text_output(text_log_file)
     logger.add_tabular_output(tabular_log_file)
-    logger.push_prefix(f"{name}_{run_ID}")
+    logger.push_prefix(f"{name}_{run_ID} ")
 
     if log_params is None:
         log_params = dict()

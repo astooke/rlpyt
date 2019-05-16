@@ -1,7 +1,7 @@
 
 
 from rlpyt.samplers.collections import BatchSpec, TrajInfo
-from rlpyt.utils.quick_args import save_args
+from rlpyt.utils.quick_args import save__init__args
 
 
 class BaseSampler(object):
@@ -18,7 +18,7 @@ class BaseSampler(object):
             TrajInfoCls=TrajInfo,
             CollectorCls=None,
             ):
-        save_args(locals())
+        save__init__args(locals())
         self.batch_spec = BatchSpec(batch_T, batch_B)
         self.mid_batch_reset = CollectorCls.mid_batch_reset
 
@@ -46,7 +46,7 @@ class BaseCollector(object):
             sync=None,
             step_buf=None,
             ):
-        save_args(locals())
+        save__init__args(locals())
         self.horizon = len(samples_np.env.reward)  # Time major.
 
     def start_envs(self):

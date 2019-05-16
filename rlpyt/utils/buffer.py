@@ -4,15 +4,16 @@ import multiprocessing as mp
 import ctypes
 import torch
 
+from rlpyt.utils.collections import namedarraytuple_like
+
 
 def buffer_from_example(example, leading_dims, shared_memory=False):
-    if hasattr(example, "_fields"):  # Then assume namedtuple; recurse.
-        buffer_ = type(example)(*(
-            buffer_from_example(v, leading_dims, shared_memory)
-            for v in example))
-    else:
-        buffer_ = build_array(example, leading_dims, shared_memory)
-    return buffer_
+    try:
+        buffer_type = namedarraytuple_like(example)
+    except TypeError:  # example was not a namedtuple or namedarraytuple
+        return build_array(example, leading_dims, shared_memory)
+    return buffer_type(*(buffer_from_example(v, leading_dims, shared_memory)
+        for v in example))
 
 
 def build_array(example, leading_dims, shared_memory=False):
@@ -35,7 +36,10 @@ def torchify_buffer(buffer_):
         return torch.from_numpy(buffer_)
     elif isinstance(buffer_, torch.Tensor):
         return buffer_
-    return type(buffer_)(*(torchify_buffer(b) for b in buffer_))
+    contents = tuple(torchify_buffer(b) for b in buffer_)
+    if type(buffer_) is tuple:  # tuple, namedtuple instantiate differently.
+        return contents
+    return type(buffer_)(*contents)
 
 
 def numpify_buffer(buffer_):
@@ -43,17 +47,34 @@ def numpify_buffer(buffer_):
         return buffer_.numpy()
     elif isinstance(buffer_, np.ndarray):
         return buffer_
-    return type(buffer_)(*(numpify_buffer(b) for b in buffer_))
+    contents = tuple(numpify_buffer(b) for b in buffer_)
+    if type(buffer_) is tuple:
+        return contents
+    return type(buffer_)(*contents)
 
 
 def buffer_to(buffer_, device=None):
     if isinstance(buffer_, torch.Tensor):
         return buffer_.to(device)
-    return type(buffer_)(*(buffer_to(b) for b in buffer_))
+    elif isinstance(buffer_, np.ndarray):
+        raise TypeError("Cannot move numpy array to device.")
+    contents = tuple(buffer_to(b) for b in buffer_)
+    if type(buffer_) is tuple:
+        return contents
+    return type(buffer_)(*contents)
 
 
 def buffer_method(buffer_, method_name, *args, **kwargs):
     if isinstance(buffer_, (torch.Tensor, np.ndarray)):
         return getattr(buffer_, method_name)(*args, **kwargs)
-    return type(buffer_)(*(buffer_method(b, method_name, *args, **kwargs)
-        for b in buffer_))
+    contents = tuple(buffer_method(b, method_name, *args, **kwargs) for b in buffer_)
+    if type(buffer_) is tuple:
+        return contents
+    return type(buffer_)(*contents)
+
+
+def _recurse_buffer(func, buffer_):
+    contents = tuple(func(b) for b in buffer_)
+    if type(buffer_) is tuple:
+        return contents
+    return type(buffer_)(*contents)

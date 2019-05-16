@@ -7,9 +7,9 @@ def select_at_indexes(indexes, array):
     dim = len(indexes.shape)
     assert indexes.shape == array.shape[:dim]
     num = int(np.prod(indexes.shape))
-    a_flat = array.reshape(num, *array.shape[dim:])
+    a_flat = array.reshape((num,) + array.shape[dim:])
     s_flat = a_flat[np.arange(num), indexes.reshape(-1)]
-    selected = s_flat.reshape(*array.shape[:dim], *array.shape[dim + 1:])
+    selected = s_flat.reshape(array.shape[:dim] + array.shape[dim + 1:])
     return selected
 
 
@@ -32,7 +32,7 @@ def valid_mean(array, valid=None):
 
 def infer_leading_dims(array, dim):
     """Param 'dim': number of data dimensions, check for [B] or [T,B] leading."""
-    shape = array.shape[dim:]
+    shape = array.shape[-dim:]
     T = B = 1
     _T = _B = False
     if array.ndim == dim + 2:

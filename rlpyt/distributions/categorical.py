@@ -31,7 +31,7 @@ class Categorical(Distribution):
     def sample(self, dist_info):
         p = dist_info.prob
         action = torch.multinomial(p.view(-1, self.dim), num_samples=1)
-        return action.view(*p.shape[:-1])
+        return action.view(p.shape[:-1])
 
     def entropy(self, dist_info):
         p = dist_info.prob
@@ -44,7 +44,7 @@ class Categorical(Distribution):
         return valid_mean(self.entropy(dist_info), valid)
 
     def mean_perplexity(self, dist_info, valid=None):
-        return valid_mean(self.perplexity(dist_info, valid))
+        return valid_mean(self.perplexity(dist_info), valid)
 
     def log_likelihood(self, indexes, dist_info):
         selected_likelihood = select_at_indexes(indexes, dist_info.prob)

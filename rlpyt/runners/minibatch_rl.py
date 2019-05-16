@@ -1,8 +1,10 @@
 
+import time
 from collections import deque
 
 from rlpyt.runners.minibatch_rl_base import MinibatchRlBase
 from rlpyt.utils.logging import logger
+from rlpyt.utils.prog_bar import ProgBarCounter
 
 
 class MinibatchRl(MinibatchRlBase):
@@ -11,12 +13,10 @@ class MinibatchRl(MinibatchRlBase):
 
     def __init__(
             self,
-            log_interval_steps=1e5,
             log_traj_window=100,
             **kwargs
             ):
         super().__init__(**kwargs)
-        self.log_interval_steps = int(log_interval_steps)
         self.log_traj_window = int(log_traj_window)
 
     def train(self):
@@ -26,25 +26,26 @@ class MinibatchRl(MinibatchRlBase):
                 self.agent.model.eval()  # Might not be this agent sampling.
                 samples, traj_infos = self.sampler.obtain_samples(itr)
                 self.agent.model.train()
-                _opt_samples, opt_infos = self.algo.optimize_agent(samples, itr)
-                self.store_diagnostics(itr, traj_infos, opt_infos)
+                _opt_data, opt_info = self.algo.optimize_agent(samples, itr)
+                self.store_diagnostics(itr, traj_infos, opt_info)
                 if (itr + 1) % self.log_interval_itrs == 0:
                     self.log_diagnostics(itr)
         self.shutdown()
 
-    def initalize_logging(self):
+    def initialize_logging(self):
         self._traj_infos = deque(maxlen=self.log_traj_window)
         self._cum_completed_trajs = 0
         self._new_completed_trajs = 0
         logger.log(f"Optimizing over {self.log_interval_itrs} iterations")
         super().initialize_logging()
 
-    def store_diagnostics(self, itr, traj_infos, opt_infos):
+    def store_diagnostics(self, itr, traj_infos, opt_info):
         self._cum_completed_trajs += len(traj_infos)
         self._new_completed_trajs += len(traj_infos)
         self._traj_infos.extend(traj_infos)
-        for k, v in opt_infos.items():
-            self._opt_infos[k].extend(v if insinstance(v, list) else [v])
+        for k, v in self._opt_infos.items():
+            new_v = getattr(opt_info, k, None) or []
+            v.extend(new_v if isinstance(new_v, list) else [new_v])
         self.pbar.update((itr + 1) % self.log_interval_itrs)
 
     def log_diagnostics(self, itr):

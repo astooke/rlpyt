@@ -9,14 +9,14 @@ from rlpyt.samplers.parallel_worker import sampling_process
 
 class CpuParallelSampler(ParallelSampler):
 
-    def initialize(self, agent, affinities, seed,
+    def initialize(self, agent, affinity, seed,
             bootstrap_value=False, traj_info_kwargs=None):
-        n_parallel = len(affinities.worker_cpus)
+        n_parallel = len(affinity["workers_cpus"])
         assert self.batch_spec.B % n_parallel == 0  # Same num envs per worker.
         n_envs = self.batch_spec.B // n_parallel  # Per worker.
 
         # Construct an example of each kind of data that needs to be stored.
-        env = self.EnvCls(**self.env_args)
+        env = self.EnvCls(**self.env_kwargs)
         agent.initialize(env.spec, share_memory=True)
         samples_pyt, samples_np = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True,
@@ -42,8 +42,7 @@ class CpuParallelSampler(ParallelSampler):
             max_decorrelation_steps=self.max_decorrelation_steps,
         )
 
-        workers_kwargs = assemble_workers_kwargs(affinities, seed,
-            samples_pyt, samples_np, n_envs)
+        workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np, n_envs)
 
         workers = [mp.Process(target=sampling_process,
             kwargs=dict(common_kwargs=common_kwargs, worker_kwargs=w_kwargs))
@@ -57,17 +56,17 @@ class CpuParallelSampler(ParallelSampler):
         self.samples_np = samples_np
         self.agent = agent
 
-        self.ctrl.barrier.wait()  # Wait for workers to decorrelate envs.
+        self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
 
 
-def assemble_workers_kwargs(affinities, seed, samples_np, n_envs):
+def assemble_workers_kwargs(affinity, seed, samples_np, n_envs):
     workers_kwargs = list()
-    for rank in range(len(affinities.workers_cpus)):
+    for rank in range(len(affinity["workers_cpus"])):
         slice_B = slice(rank * n_envs, (rank + 1) * n_envs)
         worker_kwargs = dict(
             rank=rank,
             seed=seed + rank,
-            cpus=affinities.workers_cpus[rank],
+            cpus=affinity["workers_cpus"][rank],
             samples_np=samples_np[:, slice_B],
         )
         workers_kwargs.append(worker_kwargs)

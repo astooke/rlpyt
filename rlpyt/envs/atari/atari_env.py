@@ -8,7 +8,7 @@ from collections import namedtuple
 from rlpyt.envs.base import Env, EnvStep
 from rlpyt.spaces.discrete import Discrete
 from rlpyt.spaces.int_box import IntBox
-from rlpyt.utils.quick_args import save_args
+from rlpyt.utils.quick_args import save__init__args
 
 
 W, H = (80, 104)  # Fixed size: crop two rows, then downsample by 2x.
@@ -28,7 +28,7 @@ class AtariEnv(Env):
                  max_start_noops=30,
                  repeat_action_probability=0.,
                  ):
-        save_args(locals(), underscore=True)
+        save__init__args(locals(), underscore=True)
         # ALE
         game_path = atari_py.get_game_path(game)
         if not os.path.exists(game_path):
@@ -43,7 +43,8 @@ class AtariEnv(Env):
         self._action_space = Discrete(len(self._action_set),
             null_value=ACTION_INDEX["NOOP"])
         obs_shape = (num_img_obs, H, W)
-        self._observation_space = IntBox(shape=obs_shape, dtype="uint8")
+        self._observation_space = IntBox(low=0, high=255,
+            shape=obs_shape, dtype="uint8")
         self._max_frame = self.ale.getScreenGrayscale()
         self._raw_frame_1 = self._max_frame.copy()
         self._raw_frame_2 = self._max_frame.copy()

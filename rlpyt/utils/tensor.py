@@ -7,9 +7,9 @@ def select_at_indexes(indexes, tensor):
     dim = len(indexes.shape)
     assert indexes.shape == tensor.shape[:dim]
     num = indexes.numel()
-    t_flat = t.view(num, *t.shape[dim:])
+    t_flat = tensor.view((num,) + tensor.shape[dim:])
     s_flat = t_flat[torch.arange(num), indexes.view(-1)]
-    return s_flat.view(*t.shape[:dim], *t.shape[dim + 1:])
+    return s_flat.view(tensor.shape[:dim] + tensor.shape[dim + 1:])
 
 
 def to_onehot(indexes, num, dtype=None):
@@ -45,7 +45,7 @@ def infer_leading_dims(tensor, dim):
     _T: boolean --presense of T dim (2 leading)
     _B: boolean --presence of B dim (at least 1 leading)
     """
-    shape = tensor.shape[dim:]
+    shape = tensor.shape[-dim:]
     assert tensor.dim() >= dim and tensor.dim() <= dim + 2
     T = B = 1
     _T = _B = False
@@ -63,7 +63,7 @@ def restore_leading_dims(tensors, T, B, _T, _B):
     if not isinstance(tensors, tuple):
         tensors = (tensors,)
     if _T:
-        return tuple(t.view(T, B, *t.shape[1:]) for t in tensors)
+        return tuple(t.view((T, B) + t.shape[1:]) for t in tensors)
     if not _B:
         return tuple(t.squeeze(0) for t in tensors)
     return tensors

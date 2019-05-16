@@ -36,15 +36,15 @@ class TrajInfo(AttrDict):
 
     _discount = 1  # Leading underscore, but also class attr not in self.__dict__.
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)  # (for AttrDict behavior)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)  # (for AttrDict behavior)
         self.Length = 0
         self.Return = 0
         self.NonzeroRewards = 0
         self.DiscountedReturn = 0
         self._cur_discount = 1
 
-    def step(self, _observation, _action, reward, _env_info):
+    def step(self, _observation, _action, reward, _agent_info, _env_info):
         self.Length += 1
         self.Return += reward
         self.NonzeroRewards += reward != 0

@@ -1,7 +1,7 @@
 
 import torch
 
-from rlpyt.utils.quick_args import save_args
+from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
 
 AgentInput = namedarraytuple("AgentInput",
@@ -18,7 +18,7 @@ class BaseAgent(object):
     recurrent = False
 
     def __init__(self, ModelCls, model_kwargs, initial_state_dict=None):
-        save_args(locals())
+        save__init__args(locals())
 
     def __call__(self, train_samples):
         """Returns values from model forward pass on training data."""
@@ -28,8 +28,8 @@ class BaseAgent(object):
         """Builds the model."""
         raise NotImplementedError
 
-    def intialize_cuda(self, cuda_idx=None):
-        """Call after initialize and after forking sampler workers."""
+    def initialize_cuda(self, cuda_idx=None):
+        """Call after initialize() and after forking sampler workers."""
         if cuda_idx is None:
             return   # CPU
         if self._shared_memory:

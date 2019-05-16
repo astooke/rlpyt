@@ -3,7 +3,7 @@ import torch
 from collections import namedtuple
 
 from rlpyt.algos.base import RlAlgorithm
-from rlpyt.utils.quick_args import save_args
+from rlpyt.utils.quick_args import save__init__args
 from rlpyt.algos.utils import discount_return
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.collections import namedarraytuple
@@ -30,12 +30,14 @@ class A2C(RlAlgorithm):
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
-        save_args(locals())
+        save__init__args(locals())
 
     def initialize(self, agent, n_itr, mid_batch_reset=False):
-        save_args(locals())
-        self.optimizer = self.OptimCls(agent.parameters(),
+        self.optimizer = self.OptimCls(agent.model.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
+        self.agent = agent
+        self.n_itr = n_itr
+        self.mid_batch_reset = mid_batch_reset
 
     def loss(self, samples):
         dist_info, value = self.agent(samples)
@@ -65,17 +67,22 @@ class A2C(RlAlgorithm):
         grad_norm = torch.nn.utils.clip_grad_norm_(
             self.agent.model.parameters(), self.clip_grad_norm)
         self.optimizer.step()
-        opt_info = OptInfo(i.item()
-            for i in [loss, grad_norm, entropy, perplexity])
+        opt_info = OptInfo(
+            Loss=loss.item(),
+            GradNorm=grad_norm,
+            Entropy=entropy.item(),
+            Perplexity=perplexity.item(),
+        )
         return opt_data, opt_info
 
     def process_samples(self, samples):
-        return_ = discount_return(samples.env.reward, samples.env.done,
+        done = samples.env.done.type(samples.env.reward.dtype)
+        return_ = discount_return(samples.env.reward, done,
             samples.agent.bootstrap_value, self.discount)
-        advantage = return_ - samples.agent.value
+        advantage = return_ - samples.agent.agent_info.value
         if self.mid_batch_reset:
-            valid = torch.ones_like(samples.env.done)
+            valid = torch.ones_like(done)
         else:
-            valid = 1 - torch.clamp(torch.cumsum(samples.env.done, dim=0),
+            valid = 1 - torch.clamp(torch.cumsum(done, dim=0),
                 max=1)
         return return_, advantage, valid
