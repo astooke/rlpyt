@@ -137,7 +137,7 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
     sim_cores = tuple(range(min_sim_core, min_sim_core + sim_cpu_per_ctx))
 
     assert len(sim_cores) % cpw == 0
-    n_worker = l
+    n_worker = len(sim_cores) // cpw
     if hto is None:
         hto = cpu
     if hto > 0:
