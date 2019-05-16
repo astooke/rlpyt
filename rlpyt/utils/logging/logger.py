@@ -9,7 +9,7 @@ import os
 import os.path as osp
 import sys
 import datetime
-import dateutil.tz
+# import dateutil.tz
 import csv
 # import joblib
 import json
@@ -185,7 +185,7 @@ def log(s, with_prefix=True, with_timestamp=True, color=None):
         if with_prefix and not _disable_prefix:
             out = _prefix_str + out
         if with_timestamp:
-            now = datetime.datetime.now(dateutil.tz.tzlocal())
+            now = datetime.datetime.now()  # dateutil.tz.tzlocal())
             timestamp = now.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
             out = "%s | %s" % (timestamp, out)
         if color is not None:
