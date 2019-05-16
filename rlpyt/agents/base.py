@@ -40,7 +40,7 @@ class BaseAgent(object):
             self.model.load_state_dict(self.shared_model.state_dict())
         self.device = torch.device("cuda", index=cuda_idx)
         self.model.to(self.device)
-        logger.log("Initialized agent model on device: {self.device}.")
+        logger.log(f"Initialized agent model on device: {self.device}.")
 
     @torch.no_grad()  # Hint: apply this decorator on overriding method.
     def step(self, observation, prev_action, prev_reward):
