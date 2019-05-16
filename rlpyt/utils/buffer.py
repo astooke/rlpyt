@@ -58,7 +58,7 @@ def buffer_to(buffer_, device=None):
         return buffer_.to(device)
     elif isinstance(buffer_, np.ndarray):
         raise TypeError("Cannot move numpy array to device.")
-    contents = tuple(buffer_to(b) for b in buffer_)
+    contents = tuple(buffer_to(b, device=device) for b in buffer_)
     if type(buffer_) is tuple:
         return contents
     return type(buffer_)(*contents)
