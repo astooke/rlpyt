@@ -29,7 +29,7 @@ class MinibatchRlBase(BaseRunner):
     def startup(self):
         p = psutil.Process()
         p.cpu_affinity(self.affinity.get("master_cpus", p.cpu_affinity()))
-        logger.log(f"Set master cpu affinity: {p.cpu_affinity()}.")
+        logger.log(f"Runner set master cpu affinity: {p.cpu_affinity()}.")
         if self.seed is None:
             self.seed = make_seed()
         set_seed(self.seed)

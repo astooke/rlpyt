@@ -125,11 +125,11 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
     assert cpu % skt == 0
     cpu_per_skt = cpu // skt
 
-    my_ctx = slt  # Different for multi-context runs, not implemented.
+    my_ctx = slt  # Different for multi-context run, not implemented.
     my_gpu = my_ctx // cxg
     my_skt = my_gpu // gpu_per_skt
     gpu_in_skt = my_gpu % gpu_per_skt
-    gpu_core = gpu_in_skt + skt * cpu_per_skt
+    gpu_core = gpu_in_skt + my_skt * cpu_per_skt
     ctx_in_gpu = my_ctx % cxg
 
     min_sim_core = (my_skt * cpu_per_skt + gpu_per_skt +
