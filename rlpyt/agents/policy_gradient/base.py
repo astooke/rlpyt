@@ -18,8 +18,8 @@ class BasePgAgent(BaseAgent):
         if share_memory:
             self.model.share_memory()
         self._memory_is_shared = share_memory
-        if self.initial_state_dict is not None:
-            self.model.load_state_dict(self.initial_state_dict)
+        if self.initial_model_state_dict is not None:
+            self.model.load_state_dict(self.initial_model_state_dict)
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
 

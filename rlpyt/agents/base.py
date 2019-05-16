@@ -1,5 +1,4 @@
 
-import torch
 
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
@@ -14,11 +13,12 @@ class BaseAgent(object):
 
     model = None  # type: torch.nn.Module
     shared_model = None
-    device = torch.device("cpu")
+    device = "cpu"
     recurrent = False
 
-    def __init__(self, ModelCls, model_kwargs, initial_state_dict=None):
+    def __init__(self, ModelCls, model_kwargs, initial_model_state_dict=None):
         save__init__args(locals())
+        self.env_model_kwargs = dict()  # Populate in initialize().
 
     def __call__(self, train_samples):
         """Returns values from model forward pass on training data."""
@@ -34,7 +34,7 @@ class BaseAgent(object):
             return   # CPU
         if self._memory_is_shared:
             self.shared_model = self.model
-            self.model = self.ModelCls(**self._model_kwargs)
+            self.model = self.ModelCls(**self.env_model_kwargs, **self.model_kwargs)
             self.model.load_state_dict(self.shared_model.state_dict())
         self.device = torch.device("cuda", index=cuda_idx)
         self.model.to(self.device)

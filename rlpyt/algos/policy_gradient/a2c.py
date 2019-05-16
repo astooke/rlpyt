@@ -27,6 +27,7 @@ class A2C(RlAlgorithm):
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             clip_grad_norm=1.,
+            initial_optim_state_dict=None,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -35,6 +36,8 @@ class A2C(RlAlgorithm):
     def initialize(self, agent, n_itr, mid_batch_reset=False):
         self.optimizer = self.OptimCls(agent.model.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
+        if self.initial_optim_state_dict is not None:
+            self.optimizer.load_state_dict(self.initial_optim_state_dict)
         self.agent = agent
         self.n_itr = n_itr
         self.mid_batch_reset = mid_batch_reset
