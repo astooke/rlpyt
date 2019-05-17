@@ -11,7 +11,10 @@ config = dict(
         entropy_loss_coeff=0.01,
         clip_grad_norm=1.,
     ),
-    env=dict(game="pong"),
+    env=dict(
+        game="pong",
+        num_img_obs=1,
+        ),
     model=dict(),
     optim=dict(),
     runner=dict(

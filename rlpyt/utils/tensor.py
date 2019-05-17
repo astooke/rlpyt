@@ -18,7 +18,9 @@ def to_onehot(indexes, num, dtype=None):
         dtype = indexes.dtype
     onehot = torch.zeros(indexes.shape + (num,),
         dtype=dtype, device=indexes.device)
-    onehot.scatter_(-1, indexes.unsqueeze(-1), 1)
+    print("indexes: ", indexes)
+    print("onehot: ", onehot)
+    onehot.scatter_(-1, indexes.unsqueeze(-1).type(torch.long), 1)
     return onehot
 
 

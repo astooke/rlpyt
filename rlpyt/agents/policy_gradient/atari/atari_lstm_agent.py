@@ -16,7 +16,8 @@ class AtariLstmAgent(BaseRecurrentPgAgent):
 
     def __call__(self, samples):
         model_inputs = buffer_to((
-            samples.env.observation, samples.agent.prev_action,
+            samples.env.observation,
+            self.distribution.to_onehot(samples.agent.prev_action),
             samples.env.prev_reward, samples.agent.agent_info.prev_rnn_state[0],
             ), device=self.device)
         pi, value, _next_rnn_state = self.model(*model_inputs)
@@ -33,8 +34,8 @@ class AtariLstmAgent(BaseRecurrentPgAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
-        agent_inputs = buffer_to(
-            (observation, prev_action, prev_reward),
+        prev_action = self.distribution.to_onehot(prev_action)
+        agent_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         prev_rnn_state = self.prev_rnn_state
         if prev_rnn_state is not None:

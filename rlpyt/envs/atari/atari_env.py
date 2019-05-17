@@ -6,7 +6,6 @@ import cv2
 from collections import namedtuple
 
 from rlpyt.envs.base import Env, EnvStep
-from rlpyt.spaces.discrete import Discrete
 from rlpyt.spaces.int_box import IntBox
 from rlpyt.utils.quick_args import save__init__args
 
@@ -40,8 +39,7 @@ class AtariEnv(Env):
 
         # Spaces
         self._action_set = self.ale.getMinimalActionSet()
-        self._action_space = Discrete(len(self._action_set),
-            null_value=ACTION_INDEX["NOOP"])
+        self._action_space = IntBox(low=0, high=len(self._action_set))
         obs_shape = (num_img_obs, H, W)
         self._observation_space = IntBox(low=0, high=255,
             shape=obs_shape, dtype="uint8")

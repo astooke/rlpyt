@@ -100,10 +100,9 @@ class AtariLstmModel(torch.nn.Module):
         img = F.relu(self.maxp1(self.conv1(img)))
         img = F.relu(self.maxp2(self.conv2(img)))
 
-        onehot_action = self.env_spec.action_space.to_onehot(prev_action)
         lstm_input = torch.cat([
             img.view(T, B, -1),
-            onehot_action.view(T, B, -1),
+            prev_action.view(T, B, -1),  # Assumed onehot.
             prev_reward.view(T, B, 1),
             ], dim=2)
         lstm_out, next_rnn_state = self.lstm(lstm_input, init_rnn_state)
@@ -114,6 +113,6 @@ class AtariLstmModel(torch.nn.Module):
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), T, B, _T, _B)
         if not _B:
-            next_rnn_state = next_rnn_state.squeeze(1)  # Remove batch dim.
+            next_rnn_state = next_rnn_state.squeeze(1)  # Remove batch dim?
 
         return pi, v, next_rnn_state

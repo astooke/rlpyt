@@ -6,18 +6,18 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 script = "rlpyt/experiments/scripts/atari/pg/train/atari_lstm_a2c_cpu.py"
 default_config_key = "0"
 affinity_code = encode_affinity(
-    n_cpu_cores=6,
-    n_gpu=2,
+    n_cpu_cores=2,
+    n_gpu=0,
     hyperthread_offset=8,
     n_socket=1,
-    # cpu_per_run=2,
+    cpu_per_run=2,
 )
 runs_per_setting = 1
 experiment_title = "first_lstm_test"
 variant_levels = list()
 
-learning_rate = [7e-4, 1e-3]
-batch_T = [20, 50]
+learning_rate = [7e-4]  # , 1e-3]
+batch_T = [20]  # , 50]
 values = list(zip(learning_rate, batch_T))
 names = ["test_{}lr_{}T".format(*v) for v in values]
 keys = [("algo", "learning_rate"), ("sampler", "batch_T")]
