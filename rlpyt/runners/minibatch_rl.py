@@ -22,7 +22,7 @@ class MinibatchRl(MinibatchRlBase):
     def train(self):
         n_itr = self.startup()
         for itr in range(self.n_itr):
-            with logger.prefix(f"itr #{itr}"):
+            with logger.prefix(f"itr #{itr} "):
                 self.agent.model.eval()  # Might not be this agent sampling.
                 samples, traj_infos = self.sampler.obtain_samples(itr)
                 self.agent.model.train()
@@ -36,7 +36,7 @@ class MinibatchRl(MinibatchRlBase):
         self._traj_infos = deque(maxlen=self.log_traj_window)
         self._cum_completed_trajs = 0
         self._new_completed_trajs = 0
-        logger.log(f"Optimizing over {self.log_interval_itrs} iterations")
+        logger.log(f"Optimizing over {self.log_interval_itrs} iterations.")
         super().initialize_logging()
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
