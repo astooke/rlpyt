@@ -1,6 +1,7 @@
 
 import multiprocessing as mp
 import ctypes
+import numpy as np
 
 from rlpyt.utils.buffer import buffer_from_example, torchify_buffer
 from rlpyt.utils.collections import AttrDict
@@ -78,6 +79,7 @@ def get_example_outputs(agent, env, examples):
     o = env.reset()
     a = env.action_space.sample()
     o, r, d, env_info = env.step(a)
+    r = np.asarray(r, dtype="float32")  # Important to match dtype here.
     agent.reset()
     agent_input = torchify_buffer(AgentInput(o, a, r))
     a, agent_info = agent.step(*agent_input)
