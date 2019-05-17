@@ -4,7 +4,7 @@ import torch
 from rlpyt.agents.base import AgentStep
 from rlpyt.agents.policy_gradient.base import (BaseRecurrentPgAgent,
     RecurrentAgentInfo)
-from rlpyt.models.atari_lstm_model import AtariLstmModel
+from rlpyt.models.policy_gradient.atari_lstm_model import AtariLstmModel
 from rlpyt.distributions.categorical import Categorical, DistInfo
 from rlpyt.samplers.buffer import buffer_to
 
