@@ -6,7 +6,7 @@ from rlpyt.agents.policy_gradient.base import (BaseRecurrentPgAgent,
     RecurrentAgentInfo)
 from rlpyt.models.policy_gradient.atari_lstm_model import AtariLstmModel
 from rlpyt.distributions.categorical import Categorical, DistInfo
-from rlpyt.samplers.buffer import buffer_to
+from rlpyt.utils.buffer import buffer_to
 
 
 class AtariLstmAgent(BaseRecurrentPgAgent):
