@@ -51,6 +51,7 @@ class CpuParallelSampler(ParallelSampler):
         for w in workers:
             w.start()
 
+        self.workers = workers
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
         self.samples_pyt = samples_pyt
