@@ -161,7 +161,7 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
         all_cpus=master_cpus,
         master_cpus=master_cpus,
         workers_cpus=workers_cpus,
-        master_torch_threads=1 + len(sim_cores),
+        master_torch_threads=1,
         worker_torch_threads=cpw,
         cuda_idx=my_gpu,
     )
