@@ -1,10 +1,8 @@
 
 import multiprocessing as mp
-import numpy as np
 import ctypes
-import time
 
-from rlpyt.utils.buffer import buffer_from_example, torchify_buffer, numpify_buffer
+from rlpyt.utils.buffer import buffer_from_example, torchify_buffer
 from rlpyt.utils.collections import AttrDict
 from rlpyt.agents.base import AgentInput
 from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBs,
@@ -13,33 +11,35 @@ from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBs,
 
 def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
         agent_shared=True, env_shared=True, build_step_buffer=False):
-    # One example: no T or B dimension.
-    o = env.reset()
-    a = env.action_space.sample()
-    agent_input = torchify_buffer(AgentInput(o, a, np.array(0, dtype="float32")))
-    a, agent_info_ = agent.step(*agent_input)
-    o, r, d, env_info_ = env.step(numpify_buffer(a))
-    T, B = batch_spec
+    """Step/reset agent and env in subprocess, so it doesn't affect settings
+    in master before forking workers (e.g. torch num_threads (MKL) may be set
+    at first forward computation.)"""
+    mgr = mp.Manager()
+    examples = mgr.dict()
+    w = mp.Process(target=get_example_outputs, args=(agent, env, examples))
+    w.start()
+    w.join()
 
-    all_action = buffer_from_example(a, (T + 1, B), agent_shared)
+    T, B = batch_spec
+    all_action = buffer_from_example(examples["action"], (T + 1, B), agent_shared)
     action = all_action[1:]
     prev_action = all_action[:-1]  # Writing to action will populate prev_action.
-    agent_info = buffer_from_example(agent_info_, (T, B), agent_shared)
+    agent_info = buffer_from_example(examples["agent_info"], (T, B), agent_shared)
     agent_buffer = AgentSamples(
         action=action,
         prev_action=prev_action,
         agent_info=agent_info,
     )
     if bootstrap_value:
-        bv = buffer_from_example(agent_info_.value, (1, B), agent_shared)
+        bv = buffer_from_example(examples["agent_info"].value, (1, B), agent_shared)
         agent_buffer = AgentSamplesBs(*agent_buffer, bootstrap_value=bv)
 
-    observation = buffer_from_example(o, (T, B), env_shared)
-    all_reward = buffer_from_example(r, (T + 1, B), env_shared)
+    observation = buffer_from_example(examples["observation"], (T, B), env_shared)
+    all_reward = buffer_from_example(examples["reward"], (T + 1, B), env_shared)
     reward = all_reward[1:]
     prev_reward = all_reward[:-1]  # Writing to reward will populate prev_reward.
-    done = buffer_from_example(d, (T, B), env_shared)
-    env_info = buffer_from_example(env_info_, (T, B), env_shared)
+    done = buffer_from_example(examples["done"], (T, B), env_shared)
+    env_info = buffer_from_example(examples["env_info"], (T, B), env_shared)
     env_buffer = EnvSamples(
         observation=observation,
         reward=reward,
@@ -71,3 +71,19 @@ def build_par_objs(n, sync=False, groups=1):
         sync = AttrDict(step_blockers=step_blockers, act_waiters=act_waiters)
         return ctrl, traj_infos_queue, sync
     return ctrl, traj_infos_queue
+
+
+def get_example_outputs(agent, env, examples):
+    """Do this in a sub-process to avoid setup conflict in master/workers."""
+    o = env.reset()
+    a = env.action_space.sample()
+    o, r, d, env_info = env.step(a)
+    agent.reset()
+    agent_input = AgentInput(torchify_buffer(o, a, r))
+    a, agent_info = agent.step(*agent_input)
+    examples["observation"] = o  # Copy to master in mp managed dictionary.
+    examples["reward"] = r
+    examples["done"] = d
+    examples["env_info"] = env_info
+    examples["action"] = a
+    examples["agent_info"] = agent_info

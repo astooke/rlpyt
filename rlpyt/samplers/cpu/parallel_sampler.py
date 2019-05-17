@@ -17,10 +17,10 @@ class CpuParallelSampler(ParallelSampler):
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spec, share_memory=True)
+        agent.initialize(env.spec)  # Actual agent initialization.
         samples_pyt, samples_np = build_samples_buffer(agent, env,
-            self.batch_spec, bootstrap_value, agent_shared=True,
-            env_shared=True, build_step_buffer=False)
+            self.batch_spec, bootstrap_value,
+            agent_shared=True, env_shared=True, build_step_buffer=False)
         env.terminate()
         del env
 
