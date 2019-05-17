@@ -40,6 +40,7 @@ class CpuParallelSampler(ParallelSampler):
             ctrl=ctrl,
             max_path_length=self.max_path_length,
             max_decorrelation_steps=self.max_decorrelation_steps,
+            torch_threads=affinity.get("worker_torch_threads", None),
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np, n_envs)

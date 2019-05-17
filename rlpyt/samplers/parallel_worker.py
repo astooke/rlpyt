@@ -27,7 +27,7 @@ def initialize_worker(rank, seed=None, cpu=None, torch_threads=None, group=None)
 def sampling_process(common_kwargs, worker_kwargs):
     """Arguments fed from the Sampler class in master process."""
     c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
-    initialize_worker(w.rank, w.seed, w.cpus, w.get("group", None))
+    initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads, w.get("group", None))
     envs = [c.EnvCls(**c.env_kwargs) for _ in range(c.n_envs)]
     agent = c.get("agent", None)
     collector = c.CollectorCls(
