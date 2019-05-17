@@ -79,11 +79,11 @@ def get_example_outputs(agent, env, examples):
     a = env.action_space.sample()
     o, r, d, env_info = env.step(a)
     agent.reset()
-    agent_input = AgentInput(torchify_buffer(o, a, r))
+    agent_input = torchify_buffer(AgentInput(o, a, r))
     a, agent_info = agent.step(*agent_input)
     examples["observation"] = o  # Copy to master in mp managed dictionary.
     examples["reward"] = r
     examples["done"] = d
     examples["env_info"] = env_info
-    examples["action"] = a
+    examples["action"] = a  # Probably OK to put torch tensor here, could numpify.
     examples["agent_info"] = agent_info
