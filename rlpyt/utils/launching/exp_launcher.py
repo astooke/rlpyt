@@ -4,7 +4,7 @@ import time
 import os
 import os.path as osp
 
-from rlpyt.utils.launching.affinity import get_n_run_slots, prepend_run_slot
+from rlpyt.utils.launching.affinity import get_n_run_slots, prepend_run_slot, get_affinity
 from rlpyt.utils.logging.context import get_log_dir
 from rlpyt.utils.launching.variant import save_variant
 
@@ -17,9 +17,14 @@ def log_exps_tree(exp_dir, log_dirs):
 
 def launch_experiment(script, run_slot, affinity_code, log_dir, variant, run_ID, args):
     slot_affinity_code = prepend_run_slot(run_slot, affinity_code)
-    save_variant(variant, log_dir)
-    call_list = ["python", script, slot_affinity_code, log_dir, str(run_ID)]
+    affinity = get_affinity(slot_affinity_code)
+    call_list = []
+    if affinity["all_cpus"]:
+        cpus = ",".join(str(c) for c in affinity["all_cpus"])
+        call_list += ["taskset", "-c", cpus]  # PyTorch obeys better than just psutil.
+    call_list += ["python", script, slot_affinity_code, log_dir, str(run_ID)]
     call_list += [str(a) for a in args]
+    save_variant(variant, log_dir)
     print("\ncall string:\n", " ".join(call_list))
     p = subprocess.Popen(call_list)
     return p
