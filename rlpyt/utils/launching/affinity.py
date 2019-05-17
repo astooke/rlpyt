@@ -100,7 +100,13 @@ def build_affinities_cpu(slt, cpu, cpr, cpw=1, hto=None, gpu=0):
     else:
         workers_cpus = tuple(cores[i:i + cpw] for i in range(0, cpu, cpw))
         master_cpus = cores
-    return dict(master_cpus=master_cpus, workers_cpus=workers_cpus)
+    affinity = dict(
+        master_cpus=master_cpus,
+        workers_cpus=workers_cpus,
+        master_torch_threads=len(cores),
+        worker_torch_threads=cpw,
+    )
+    return affinity
 
 
 def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
@@ -150,5 +156,11 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
             for i in range(0, len(sim_cores), cpw))
         master_cpus = (gpu_core,) + sim_cores
 
-    return dict(master_cpus=master_cpus, workers_cpus=workers_cpus,
-        cuda_idx=my_gpu)
+    affinity = dict(
+        master_cpus=master_cpus,
+        workers_cpus=workers_cpus,
+        master_torch_threads=1 + len(sim_cores),
+        worker_torch_threads=cpw,
+        cuda_idx=my_gpu,
+    )
+    return affinity

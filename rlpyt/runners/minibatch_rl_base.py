@@ -1,6 +1,7 @@
 
 import psutil
 import time
+import torch
 
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.seed import set_seed, make_seed
@@ -28,8 +29,12 @@ class MinibatchRlBase(BaseRunner):
 
     def startup(self):
         p = psutil.Process()
-        p.cpu_affinity(self.affinity.get("master_cpus", p.cpu_affinity()))
-        logger.log(f"Runner set master cpu affinity: {p.cpu_affinity()}.")
+        if "master_cpus" in self.affinity:
+            p.cpu_affinity(self.affinity["master_cpus"])
+        logger.log(f"Runner master cpu affinity: {p.cpu_affinity()}.")
+        if "master_torch_threads" in self.affinity:
+            torch.set_num_threads(self.affinity["master_torch_threads"])
+        logger.log(f"Runner master torch threads: {torch.get_num_threads()}.")
         if self.seed is None:
             self.seed = make_seed()
         set_seed(self.seed)
