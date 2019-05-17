@@ -12,11 +12,11 @@ def initialize_worker(rank, seed=None, cpu=None, torch_threads=None, group=None)
     log_str = f"Sampler rank {rank} initialized"
     p = psutil.Process()
     if cpu is not None:
-        p.cpu_affinity([cpu] if isintance(cpu, int) else cpu)
-    log_str += f", CPU affinity {p.cpy_affinity()}"
+        p.cpu_affinity([cpu] if isinstance(cpu, int) else cpu)
+    log_str += f", CPU affinity {p.cpu_affinity()}"
     if torch_threads is not None:
         torch.set_num_threads(torch_threads)
-    log_str += f", torch threads {torch.get_num_threads()}"
+    log_str += f", Torch threads {torch.get_num_threads()}"
     if seed is not None:
         set_seed(seed)
         time.sleep(0.3)  # (so the printing from set_seed is not intermixed)
