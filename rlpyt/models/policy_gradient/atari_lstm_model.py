@@ -2,8 +2,12 @@
 import torch
 import torch.nn.functional as F
 
+from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 from rlpyt.models.utils import conv2d_output_shape
+
+
+RnnState = namedarraytuple("RnnState", ["h", "c"])  # For downstream namedarraytuples to work
 
 
 class AtariLstmModel(torch.nn.Module):
@@ -34,8 +38,10 @@ class AtariLstmModel(torch.nn.Module):
             padding=0,
         )
         h, w = conv2d_output_shape(h, w, kernel_size=8, stride=1, padding=0)
+        
         self.maxp1 = torch.nn.MaxPool2d(2)
         h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
+        
         self.conv2 = torch.nn.Conv2d(
             in_channels=16,
             out_channels=32,
@@ -44,10 +50,11 @@ class AtariLstmModel(torch.nn.Module):
             padding=0,
         )
         h, w = conv2d_output_shape(h, w, kernel_size=4, stride=1, padding=0)
+        
         self.maxp2 = torch.nn.MaxPool2d(2)
         h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
 
-        lstm_in_size = h * w + output_dim + 1
+        lstm_in_size = h * w * 32 + output_dim + 1
 
         self.lstm = torch.nn.LSTM(lstm_in_size, lstm_size, lstm_layers)
         self.linear_pi = torch.nn.Linear(lstm_size, output_dim)
@@ -99,20 +106,25 @@ class AtariLstmModel(torch.nn.Module):
         img = img.view(T * B, *img_shape)  # Fold time and batch dimensions.
         img = F.relu(self.maxp1(self.conv1(img)))
         img = F.relu(self.maxp2(self.conv2(img)))
-
         lstm_input = torch.cat([
             img.view(T, B, -1),
             prev_action.view(T, B, -1),  # Assumed onehot.
             prev_reward.view(T, B, 1),
             ], dim=2)
+        if init_rnn_state is not None:
+            init_rnn_state = tuple(None if h_c is None else torch.transpose(h_c, 0, 1)
+                for h_c in init_rnn_state)  # [B,N,H] --> [N,B,H]
         lstm_out, next_rnn_state = self.lstm(lstm_input, init_rnn_state)
+        next_rnn_state = tuple(torch.transpose(h_c, 0, 1)
+            for h_c in next_rnn_state)  # [N,B,H] --> [B,N,H]
         lstm_flat = lstm_out.view(T * B, -1)
         pi = F.softmax(self.linear_pi(lstm_flat), dim=-1)
         v = self.linear_v(lstm_flat).squeeze(-1)
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), T, B, _T, _B)
-        if not _B:
-            next_rnn_state = next_rnn_state.squeeze(1)  # Remove batch dim?
+        next_rnn_state = restore_leading_dims(next_rnn_state,
+            T=1, B=B, _T=False, _B=_B)
+        next_rnn_state = RnnState(*next_rnn_state)
 
         return pi, v, next_rnn_state

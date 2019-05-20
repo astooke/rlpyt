@@ -15,10 +15,9 @@ class DecorrelatingStartCollector(BaseCollector):
         for env in self.envs:
             observation.append(env.reset())
             prev_action.append(env.action_space.sample(null=True))
-            prev_reward.append(0.)
         observation = np.array(observation)
         prev_action = np.array(prev_action)
-        prev_reward = np.array(prev_reward)
+        prev_reward = np.zeros(len(self.envs), dtype="float32")
         if self.rank == 0:
             logger.log(
                 "Sampler decorrelating envs, max steps: "

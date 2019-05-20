@@ -35,8 +35,10 @@ class AtariFfModel(torch.nn.Module):
             padding=0,
         )
         h, w = conv2d_output_shape(h, w, kernel_size=8, stride=1, padding=0)
+        
         self.maxp1 = torch.nn.MaxPool2d(2)
         h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
+        
         self.conv2 = torch.nn.Conv2d(
             in_channels=16,
             out_channels=32,
@@ -44,11 +46,13 @@ class AtariFfModel(torch.nn.Module):
             stride=1,
             padding=0,
         )
+        
         h, w = conv2d_output_shape(h, w, kernel_size=4, stride=1, padding=0)
+        
         self.maxp2 = torch.nn.MaxPool2d(2)
         h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
 
-        fc_in_size = h * w
+        fc_in_size = h * w * 32
 
         # DON'T do this.
         # test_mat = torch.zeros(1, *image_shape)

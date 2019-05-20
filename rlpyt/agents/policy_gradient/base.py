@@ -1,9 +1,9 @@
 
 import torch
+from collections import namedtuple
 
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.agents.base import BaseAgent, BaseRecurrentAgent
-
 
 AgentInfo = namedarraytuple("AgentInfo", ["dist_info", "value"])
 
@@ -29,12 +29,3 @@ class BasePgAgent(BaseAgent):
 
     def make_env_to_model_kwargs(self, env_spec):
         return {}
-
-
-RecurrentAgentInfo = namedarraytuple("AgentInfo",
-    ["dist_info", "value", "prev_rnn_state"])
-
-
-class BaseRecurrentPgAgent(BasePgAgent, BaseRecurrentAgent):
-
-    pass

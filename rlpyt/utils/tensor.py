@@ -18,8 +18,6 @@ def to_onehot(indexes, num, dtype=None):
         dtype = indexes.dtype
     onehot = torch.zeros(indexes.shape + (num,),
         dtype=dtype, device=indexes.device)
-    print("indexes: ", indexes)
-    print("onehot: ", onehot)
     onehot.scatter_(-1, indexes.unsqueeze(-1).type(torch.long), 1)
     return onehot
 
@@ -47,8 +45,8 @@ def infer_leading_dims(tensor, dim):
     _T: boolean --presense of T dim (2 leading)
     _B: boolean --presence of B dim (at least 1 leading)
     """
+    assert tensor.dim() in (dim, dim + 1, dim + 2)
     shape = tensor.shape[-dim:]
-    assert tensor.dim() >= dim and tensor.dim() <= dim + 2
     T = B = 1
     _T = _B = False
     if tensor.dim() == dim + 2:

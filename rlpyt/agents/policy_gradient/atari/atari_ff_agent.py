@@ -6,6 +6,7 @@ from rlpyt.agents.policy_gradient.base import BasePgAgent, AgentInfo
 from rlpyt.models.policy_gradient.atari_ff_model import AtariFfModel
 from rlpyt.distributions.categorical import Categorical, DistInfo
 from rlpyt.utils.buffer import buffer_to
+from rlpyt.algos.policy_gradient.base import AgentTrain
 
 
 class AtariFfAgent(BasePgAgent):
@@ -19,8 +20,8 @@ class AtariFfAgent(BasePgAgent):
             samples.env.prev_reward,
             ), device=self.device)
         pi, value = self.model(*model_inputs)
-        outputs = DistInfo(pi), value
-        return buffer_to(outputs, device="cpu")  # TODO: try keeping on device.
+        agent_train = AgentTrain(DistInfo(pi), value)
+        return buffer_to(agent_train, device="cpu")  # TODO: try keeping on device.
 
     def initialize(self, env_spec, share_memory=False):
         super().initialize(env_spec, share_memory)

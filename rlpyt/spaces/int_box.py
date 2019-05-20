@@ -27,10 +27,11 @@ class IntBox(Space):
             size = ()
         elif isinstance(size, int):
             size = (size,)
-        sample = np.random.randint(low=self.low, high=self.high,
-            size=size + self.shape, dtype=self.dtype)
         if null:
-            sample[:] = self.null_value
+            sample = self.null_value * np.ones(size, dtype=self.dtype)
+        else:
+            sample = np.random.randint(low=self.low, high=self.high,
+                size=size + self.shape, dtype=self.dtype)
         if torchify:
             sample = torch.from_numpy(sample)
         return sample
@@ -41,7 +42,7 @@ class IntBox(Space):
 
     @property
     def n(self):
-        return self.high - self.low - 1
+        return self.high - self.low
 
     def __repr__(self):
-        return f"IntBox({self.low}-{self.high - 1} {self.shape})"
+        return f"IntBox({self.low}-{self.high - 1} shape={self.shape})"

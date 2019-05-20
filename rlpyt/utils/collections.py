@@ -1,4 +1,5 @@
 
+import sys
 from collections import namedtuple
 
 
@@ -49,10 +50,23 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
         nt_typename += "_nt"  # Helpful to identify which style of tuple.
         typename += "_nat"
 
-    NtCls = namedtuple(nt_typename, field_names)
+    try:  # For pickling, get location where this function was called.
+        # NOTE: (pickling might not work for nested class definition.)
+        module = sys._getframe(1).f_globals.get('__name__', '__main__')
+    except (AttributeError, ValueError):
+        module = None
+    NtCls = namedtuple(nt_typename, field_names, module=module)
 
     def __getitem__(self, loc):
-        return type(self)(*(s[loc] for s in self))
+        try:
+            return type(self)(*(s[loc] for s in self))
+        except IndexError as e:
+            for j, s in enumerate(self):
+                try:
+                    _ = s[loc]
+                except IndexError:
+                    raise Exception(f"Occured in {self.__class__} at field "
+                        f"'{self._fields[j]}'.") from e
 
     __getitem__.__doc__ = (f"Return a new {typename} instance containing "
         "the selected index or slice from each field.")
@@ -71,7 +85,8 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
             try:
                 s[loc] = v
             except (ValueError, IndexError, TypeError) as e:
-                raise Exception(f"Occured at item index {j}.") from e
+                raise Exception(f"Occured in {self.__class__} at field "
+                    f"'{self._fields[j]}'.") from e
 
     def __contains__(self, key):
         "Checks presence of field name (unlike tuple; like dict)."
@@ -83,9 +98,7 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
 
     def get(self, field_name, default=None):
         "Retrieve value by field name (like dict.get())."
-        if field_name not in self._fields:
-            return default
-        return getattr(self, field_name)
+        return getattr(self, field_name, None)
 
     def items(self):
         "Iterate ordered (field_name, value) pairs (like OrderedDict)."

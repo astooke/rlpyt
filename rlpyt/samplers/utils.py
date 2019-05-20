@@ -75,10 +75,9 @@ def build_par_objs(n, sync=False, groups=1):
 
 
 def get_example_outputs(agent, env, examples):
-    """Do this in a sub-process to avoid setup conflict in master/workers."""
+    """Do this in a sub-process to avoid setup conflict in master/workers (e.g. MKL)."""
     o = env.reset()
     a = env.action_space.sample()
-    print("get_example_outputs -- sampled action: ", a)
     o, r, d, env_info = env.step(a)
     r = np.asarray(r, dtype="float32")  # Important to match dtype here.
     agent.reset()

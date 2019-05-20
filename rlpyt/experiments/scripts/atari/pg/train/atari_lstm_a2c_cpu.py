@@ -11,7 +11,7 @@ from rlpyt.runners.minibatch_rl import MinibatchRl
 from rlpyt.utils.logging.context import logger_context
 from rlpyt.utils.launching.variant import load_variant, update_config
 
-from rlpyt.experiments.configs.atari.pg.atari_ff_a2c import configs
+from rlpyt.experiments.configs.atari.pg.atari_lstm_a2c import configs
 
 
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
