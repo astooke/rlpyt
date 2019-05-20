@@ -16,8 +16,8 @@ runs_per_setting = 1
 experiment_title = "first_lstm_test"
 variant_levels = list()
 
-learning_rate = [7e-4, 1e-3]
-batch_T = [20, 50]
+learning_rate = [1e-4, 7e-4]
+batch_T = [20, 20]
 values = list(zip(learning_rate, batch_T))
 names = ["test_{}lr_{}T".format(*v) for v in values]
 keys = [("algo", "learning_rate"), ("sampler", "batch_T")]

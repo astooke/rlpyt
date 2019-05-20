@@ -8,7 +8,7 @@ config = dict(
         discount=0.99,
         learning_rate=7e-4,
         value_loss_coeff=0.5,
-        entropy_loss_coeff=0.03,
+        entropy_loss_coeff=0.01,
         clip_grad_norm=1.,
     ),
     env=dict(
@@ -23,7 +23,7 @@ config = dict(
     ),
     sampler=dict(
         batch_T=20,
-        batch_B=16,
+        batch_B=32,
         max_path_length=27000,
         max_decorrelation_steps=1000,
     ),

@@ -21,7 +21,7 @@ class AtariLstmModel(torch.nn.Module):
             # conv_strides,
             # conv_pads,
             # pool_sizes,
-            # hidden_size=256,
+            hidden_size=256,
             lstm_size=256,
             lstm_layers=1,
             # name="atari_cnn_lstm",
@@ -54,8 +54,9 @@ class AtariLstmModel(torch.nn.Module):
         self.maxp2 = torch.nn.MaxPool2d(2)
         h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
 
-        lstm_in_size = h * w * 32 + output_dim + 1
-
+        fc_in_size = h * w * 32
+        self.fc = torch.nn.Linear(fc_in_size, hidden_size)
+        lstm_in_size = hidden_size + output_dim + 1
         self.lstm = torch.nn.LSTM(lstm_in_size, lstm_size, lstm_layers)
         self.linear_pi = torch.nn.Linear(lstm_size, output_dim)
         self.linear_v = torch.nn.Linear(lstm_size, 1)
@@ -106,8 +107,9 @@ class AtariLstmModel(torch.nn.Module):
         img = img.view(T * B, *img_shape)  # Fold time and batch dimensions.
         img = F.relu(self.maxp1(self.conv1(img)))
         img = F.relu(self.maxp2(self.conv2(img)))
+        fc_out = F.relu(self.fc(img.view(T * B, -1)))
         lstm_input = torch.cat([
-            img.view(T, B, -1),
+            fc_out.view(T, B, -1),
             prev_action.view(T, B, -1),  # Assumed onehot.
             prev_reward.view(T, B, 1),
             ], dim=2)
