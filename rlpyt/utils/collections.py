@@ -81,12 +81,12 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
         if not (isinstance(value, tuple) and  # Check for matching structure.
                 getattr(value, "_fields", None) == self._fields):
             value = (value,) * len(self)  # Repeat whole value for each.
-        for j, (s, v) in enumerate(zip(self, value)):
-            try:
-                s[loc] = v
-            except (ValueError, IndexError, TypeError) as e:
-                raise Exception(f"Occured in {self.__class__} at field "
-                    f"'{self._fields[j]}'.") from e
+        try:
+            for j, (s, v) in enumerate(zip(self, value)):
+                    s[loc] = v
+        except (ValueError, IndexError, TypeError) as e:
+            raise Exception(f"Occured in {self.__class__} at field "
+                f"'{self._fields[j]}'.") from e
 
     def __contains__(self, key):
         "Checks presence of field name (unlike tuple; like dict)."
