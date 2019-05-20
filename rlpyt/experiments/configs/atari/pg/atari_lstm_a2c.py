@@ -8,7 +8,7 @@ config = dict(
         discount=0.99,
         learning_rate=7e-4,
         value_loss_coeff=0.5,
-        entropy_loss_coeff=0.01,
+        entropy_loss_coeff=0.05,
         clip_grad_norm=1.,
     ),
     env=dict(
@@ -19,7 +19,7 @@ config = dict(
     optim=dict(),
     runner=dict(
         n_steps=10e6,
-        # log_interval_steps=1e4,
+        log_interval_steps=1e4,
     ),
     sampler=dict(
         batch_T=20,
