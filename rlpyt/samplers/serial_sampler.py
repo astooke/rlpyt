@@ -13,7 +13,7 @@ class SerialSampler(BaseSampler):
     def initialize(self, agent, _affinity=None, _seed=None,
             bootstrap_value=False, traj_info_kwargs=None):
         envs = [self.EnvCls(**self.env_kwargs) for _ in self.batch_spec.B]
-        agent.initialize(envs[0].spec)
+        agent.initialize(envs[0].spec, share_memory=False)
         samples_pyt, samples_np = build_samples_buffer(agent, envs[0],
             self.batch_spec, bootstrap_value, agent_shared=False,
             env_shared=False, build_step_buffer=False, subprocess=False)

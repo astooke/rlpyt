@@ -19,7 +19,7 @@ class GpuParallelSampler(ParallelSampler):
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spec)  # Actual agent initialization, keep.
+        agent.initialize(env.spec, share_memory=True)  # Actual agent initialization, keep.
         buffers = build_samples_buffer(agent, env, self.batch_spec,
             bootstrap_value, agent_shared=True, env_shared=True,
             build_step_buffer=True)
