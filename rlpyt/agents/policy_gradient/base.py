@@ -1,9 +1,8 @@
 
 import torch
-from collections import namedtuple
 
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.agents.base import BaseAgent, BaseRecurrentAgent
+from rlpyt.agents.base import BaseAgent
 
 AgentInfo = namedarraytuple("AgentInfo", ["dist_info", "value"])
 
@@ -17,7 +16,7 @@ class BasePgAgent(BaseAgent):
         self.model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
         if share_memory:
             self.model.share_memory()
-        self._memory_is_shared = share_memory
+            self.shared_model = self.model
         if self.initial_model_state_dict is not None:
             self.model.load_state_dict(self.initial_model_state_dict)
         self.env_spec = env_spec

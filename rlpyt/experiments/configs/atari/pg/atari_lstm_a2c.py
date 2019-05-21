@@ -39,3 +39,10 @@ config["sampler"]["batch_T"] = 5
 config["sampler"]["batch_B"] = 16
 config["algo"]["learning_rate"] = 1e-4
 configs["4frame"] = config
+
+
+config = copy.deepcopy(config)
+config["algo"]["learning_rate"] = 7e-4
+config["sampler"]["batch_B"] = 32
+config["algo"]["clip_grad_norm"] = 1
+configs["like_ff"] = config

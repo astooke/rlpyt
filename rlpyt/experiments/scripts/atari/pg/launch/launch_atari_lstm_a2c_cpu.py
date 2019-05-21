@@ -12,19 +12,19 @@ affinity_code = encode_affinity(
     n_socket=1,
     # cpu_per_run=2,
 )
-runs_per_setting = 1
-experiment_title = "lstm_4frame_test"
+runs_per_setting = 2
+experiment_title = "bypass_lstm_test"
 variant_levels = list()
 
-learning_rate = [1e-4] * 4
-entropy_loss_coeff = [0.01, 0.4, 0.04, 0.1]
+learning_rate = [5e-4] * 4
+entropy_loss_coeff = [0.01, 0.02, 0.04, 0.08]
 values = list(zip(learning_rate, entropy_loss_coeff))
 dir_names = ["test_{}lr_{}ent".format(*v) for v in values]
 keys = [("algo", "learning_rate"), ("algo", "entropy_loss_coeff")]
 variant_levels.append(VariantLevel(keys, values, dir_names))
 
 
-games = ["seaquest"]
+games = ["pong", "seaquest"]
 values = list(zip(games))
 dir_names = ["{}".format(*v) for v in values]
 keys = [("env", "game")]
@@ -32,7 +32,7 @@ variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
 
-default_config_key = "4frame"
+default_config_key = "like_ff"
 
 run_experiments(
     script=script,
