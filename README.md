@@ -54,7 +54,7 @@ The class types perform the following roles:
     * `Collector` - Steps environments (and maybe operates agent) and records samples, attached to sampler.
       * `Environment` - The task to be learned.
         * `Space` - Interface specifications from environment to agent.
-  * `Agent` - Chooses control action to the environment; trained by the algorithm.  Interface to model.
+  * `Agent` - Chooses control action to the environment in sampler; trained by the algorithm.  Interface to model.
     * `Model` - Neural network module, attached to the agent.
     * `Distribution` - Samples actions for stochastic agents and defines related formulas for use in loss function, attached to the agent.
   * `Algorithm` - Uses gathered samples to train the agent (e.g. defines a loss function and calls gradient descent).
