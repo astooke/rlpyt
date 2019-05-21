@@ -49,13 +49,13 @@ pip install -e .
 
 The class types perform the following roles:
 
-* `Runner` - Connects the sampler, agent, and algorithm; manages the training loop and logging of diagnostics.
-  * `Sampler` - Manages agent / environment interaction to collect training data, can initialize parallel workers.
-    * `Collector` - Steps environments (and maybe operates agent) and records samples, attached to sampler.
-      * `Environment` - The task to be learned.
-        * `Space` - Interface specifications from environment to agent.
-  * `Agent` - Chooses control action to the environment in sampler; trained by the algorithm.  Interface to model.
-    * `Model` - Neural network module, attached to the agent.
-    * `Distribution` - Samples actions for stochastic agents and defines related formulas for use in loss function, attached to the agent.
-  * `Algorithm` - Uses gathered samples to train the agent (e.g. defines a loss function and calls gradient descent).
-    * `Optimizer` - Training update rule (e.g. Adam), attached to the algorithm.
+* **Runner** - Connects the `sampler`, `agent`, and `algorithm`; manages the training loop and logging of diagnostics.
+  * **Sampler** - Manages `agent` / `environment` interaction to collect training data, can initialize parallel workers.
+    * **Collector** - Steps `environments` (and maybe operates `agent`) and records samples, attached to `sampler`.
+      * **Environment** - The task to be learned.
+        * **Space** - Interface specifications from `environment` to `agent`.
+  * **Agent** - Chooses control action to the `environment` in `sampler`; trained by the `algorithm`.  Interface to `model`.
+    * **Model** - Neural network module, attached to the `agent`.
+    * **Distribution** - Samples actions for stochastic `agents` and defines related formulas for use in loss function, attached to the `agent`.
+  * **Algorithm** - Uses gathered samples to train the `agent` (e.g. defines a loss function and performs gradient descent).
+    * **Optimizer** - Training update rule (e.g. Adam), attached to the `algorithm`.
