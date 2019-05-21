@@ -12,8 +12,8 @@ affinity_code = encode_affinity(
     n_socket=1,
     # cpu_per_run=2,
 )
-runs_per_setting = 1
-experiment_title = "first_test"
+runs_per_setting = 2
+experiment_title = "ff_retest"
 variant_levels = list()
 
 learning_rate = [7e-4, 1e-3]
@@ -24,7 +24,7 @@ keys = [("algo", "learning_rate"), ("sampler", "batch_B")]
 variant_levels.append(VariantLevel(keys, values, dir_names))
 
 
-games = ["pong"]
+games = ["pong", "seaquest"]
 values = list(zip(games))
 dir_names = ["{}".format(*v) for v in values]
 keys = [("env", "game")]
