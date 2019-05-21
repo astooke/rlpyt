@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
-from rlpyt.model.utils import conv2d_output_shape
+from rlpyt.models.utils import conv2d_output_shape
 
 
 class AtariFfModel(torch.nn.Module):
