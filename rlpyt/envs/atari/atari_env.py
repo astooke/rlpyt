@@ -8,12 +8,24 @@ from collections import namedtuple
 from rlpyt.envs.base import Env, EnvStep
 from rlpyt.spaces.int_box import IntBox
 from rlpyt.utils.quick_args import save__init__args
+from rlpyt.samplers.collections import TrajInfo
 
 
 W, H = (80, 104)  # Fixed size: crop two rows, then downsample by 2x.
 
 
-EnvInfo = namedtuple("EnvInfo", ["raw_reward", "need_reset"])
+EnvInfo = namedtuple("EnvInfo", ["game_score", "need_reset"])
+
+
+class AtariTrajInfo(TrajInfo):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.GameScore = 0
+
+    def step(self, _observation, _action, reward, _agent_info, env_info):
+        super().step(_observation, _action, reward, _agent_info, env_info)
+        self.GameScore += getattr(env_info, "game_score", 0)
 
 
 class AtariEnv(Env):
@@ -26,6 +38,7 @@ class AtariEnv(Env):
                  episodic_lives=True,
                  max_start_noops=30,
                  repeat_action_probability=0.,
+                 horizon=27000,
                  ):
         save__init__args(locals(), underscore=True)
         # ALE
@@ -41,8 +54,8 @@ class AtariEnv(Env):
         self._action_set = self.ale.getMinimalActionSet()
         self._action_space = IntBox(low=0, high=len(self._action_set))
         obs_shape = (num_img_obs, H, W)
-        self._observation_space = IntBox(low=0, high=255,
-            shape=obs_shape, dtype="uint8")
+        self._observation_space = IntBox(low=0, high=255, shape=obs_shape,
+            dtype="uint8")
         self._max_frame = self.ale.getScreenGrayscale()
         self._raw_frame_1 = self._max_frame.copy()
         self._raw_frame_2 = self._max_frame.copy()
@@ -53,21 +66,31 @@ class AtariEnv(Env):
         self._has_up = "UP" in self.get_action_meanings()
         self._done = self._done_episodic_lives if episodic_lives else \
             self._done_no_epidosic_lives
+        self._horizon = int(horizon)
 
-        # Get ready
-        self.reset()
+    def reset(self):
+        """Call reset when first using AtariEnv, before first step."""
+        self.ale.reset_game()
+        self._reset_obs()
+        self._life_reset()
+        for _ in range(np.random.randint(0, self._max_start_noops + 1)):
+            self.ale.act(0)
+        self._update_obs()  # (don't bother to populate any frame history)
+        self._step_counter = 0
+        return self.get_obs()
 
     def step(self, action):
         a = self._action_set[action]
-        raw_reward = np.array(0., dtype="float32")
+        game_score = np.array(0., dtype="float32")
         for _ in range(self._frame_skip - 1):
-            raw_reward += self.ale.act(a)
+            game_score += self.ale.act(a)
         self._get_screen(1)
-        raw_reward += self.ale.act(a)
+        game_score += self.ale.act(a)
         self._update_obs()
-        reward = np.sign(raw_reward) if self._clip_reward else raw_reward
+        reward = np.sign(game_score) if self._clip_reward else game_score
         done, need_reset = self._done()
-        info = EnvInfo(raw_reward, need_reset)
+        info = EnvInfo(game_score=game_score, need_reset=need_reset)
+        self._step_counter += 1
         return EnvStep(self.get_obs(), reward, done, info)
 
     def render(self, wait=10, show_full_obs=False):
@@ -83,15 +106,6 @@ class AtariEnv(Env):
     def get_obs(self):
         return self._obs.copy()
 
-    def reset(self):
-        self.ale.reset_game()
-        self._reset_obs()
-        self._life_reset()
-        for _ in range(np.random.randint(0, self._max_start_noops + 1)):
-            self.ale.act(0)
-        self._update_obs()  # (don't bother to populate any frame history)
-        return self.get_obs()
-
     ###########################################################################
     # Helpers
 
@@ -104,7 +118,7 @@ class AtariEnv(Env):
         self._get_screen(2)
         np.maximum(self._raw_frame_1, self._raw_frame_2, self._max_frame)
         img = cv2.resize(self._max_frame[1:-1], (W, H), cv2.INTER_NEAREST)
-        # NOTE: this order--oldest to newest--needed for ReplayFrameBuffer in DQN!!
+        # NOTE: Order oldest to newest needed for ReplayFrameBuffer in DQN.
         self._obs = np.concatenate([self._obs[1:], img[np.newaxis]])
 
     def _reset_obs(self):
@@ -131,16 +145,17 @@ class AtariEnv(Env):
 
     def _done_no_epidosic_lives(self):
         self._check_life()
-        done = self.ale.game_over()
+        done = self.ale.game_over() or self._step_counter >= self.horizon
         return done, done
 
     def _done_episodic_lives(self):
-        need_reset = self.ale.game_over()
+        need_reset = self.ale.game_over() or self._step_counter >= self.horizon
         lost_life = self._check_life()
+        done = lost_life or need_reset
         if lost_life:
             self._reset_obs()  # (reset here, so sampler does NOT call reset)
             self._update_obs()  # (will have already advanced in check_life)
-        return lost_life or need_reset, need_reset
+        return done, need_reset
 
     ###########################################################################
     # Properties
@@ -173,6 +188,10 @@ class AtariEnv(Env):
     def repeat_action_probability(self):
         return self._repeat_action_probability
 
+    @property
+    def horizon(self):
+        return self._horizon
+
     def get_action_meanings(self):
         return [ACTION_MEANING[i] for i in self._action_set]
 
@@ -199,3 +218,4 @@ ACTION_MEANING = {
 }
 
 ACTION_INDEX = {v: k for k, v in ACTION_MEANING.items()}
+

@@ -34,11 +34,11 @@ class CpuParallelSampler(ParallelSampler):
             env_kwargs=self.env_kwargs,
             n_envs=n_envs,
             agent=agent,
+            batch_T=self.batch_spec.T,
             CollectorCls=self.CollectorCls,
             TrajInfoCls=self.TrajInfoCls,
             traj_infos_queue=traj_infos_queue,
             ctrl=ctrl,
-            max_path_length=self.max_path_length,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=affinity.get("worker_torch_threads", None),
         )

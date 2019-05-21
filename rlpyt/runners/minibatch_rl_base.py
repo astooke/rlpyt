@@ -25,16 +25,21 @@ class MinibatchRlBase(BaseRunner):
             ):
         n_steps = int(n_steps)
         log_interval_steps = int(log_interval_steps)
+        affinity = dict() if affinity is None else affinity
         save__init__args(locals())
+        if agent.recurrent and sampler.mid_batch_reset:
+            raise NotImplementedError("Cannot train recurrent agents with"
+                " resets mid-batch (unless custom implemented--then remove this"
+                " error).")
 
     def startup(self):
         p = psutil.Process()
         if "master_cpus" in self.affinity:
             p.cpu_affinity(self.affinity["master_cpus"])
-        logger.log(f"Runner master cpu affinity: {p.cpu_affinity()}.")
+        logger.log(f"Runner master CPU affinity: {p.cpu_affinity()}.")
         if "master_torch_threads" in self.affinity:
             torch.set_num_threads(self.affinity["master_torch_threads"])
-        logger.log(f"Runner master torch threads: {torch.get_num_threads()}.")
+        logger.log(f"Runner master Torch threads: {torch.get_num_threads()}.")
         if self.seed is None:
             self.seed = make_seed()
         set_seed(self.seed)
@@ -55,7 +60,7 @@ class MinibatchRlBase(BaseRunner):
         return dict(discount=getattr(self.algo, "discount", 1))
 
     def get_n_itr(self, batch_size):
-        n_itr = (self.n_steps + self.log_interval_steps) // batch_size + 1
+        n_itr = (self.n_steps + self.log_interval_steps) // batch_size
         self.log_interval_itrs = max(self.log_interval_steps // batch_size, 1)
         self.n_itr = n_itr
         return n_itr

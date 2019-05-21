@@ -21,6 +21,8 @@ def build_array(example, leading_dims, shared_memory=False):
     if a.dtype == "object":
         raise TypeError("Buffer example value cannot cast as np.dtype==object.")
     constructor = np_mp_array if shared_memory else np.zeros
+    if not isinstance(leading_dims, (list, tuple)):
+        leading_dims = (leading_dims,)
     return constructor(shape=leading_dims + a.shape, dtype=a.dtype)
 
 
@@ -73,8 +75,10 @@ def buffer_method(buffer_, method_name, *args, **kwargs):
     return type(buffer_)(*contents)
 
 
-def _recurse_buffer(func, buffer_):
-    contents = tuple(func(b) for b in buffer_)
+def buffer_func(buffer_, func, *args, **kwargs):
+    if isinstance(buffer_, (torch.Tensor, np.ndarray)):
+        return func(buffer_, *args, **kwargs)
+    contents = tuple(buffer_func(b, func, *args, **kwargs) for b in buffer_)
     if type(buffer_) is tuple:
         return contents
     return type(buffer_)(*contents)

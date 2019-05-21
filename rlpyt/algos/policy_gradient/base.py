@@ -7,7 +7,8 @@ from rlpyt.utils.collections import namedarraytuple
 from rlpyt.algos.utils import discount_return
 
 OptData = namedarraytuple("OptData", ["return_", "advantage", "valid"])
-OptInfo = namedtuple("OptInfo", ["Loss", "GradNorm", "Entropy", "Perplexity"])
+# Convention: traj_info fields CamelCase, opt_info fields lowerCamelCase
+OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "entropy", "perplexity"])
 AgentTrain = namedtuple("AgentTrain", ["dist_info", "value"])
 
 
@@ -31,8 +32,7 @@ class PolicyGradient(RlAlgorithm):
             samples.agent.bootstrap_value, self.discount)
         advantage = return_ - samples.agent.agent_info.value
         if self.mid_batch_reset:
-            valid = torch.ones_like(done)
+            valid = torch.ones_like(done)  # or None.
         else:
-            valid = 1 - torch.clamp(torch.cumsum(done, dim=0),
-                max=1)
+            valid = 1 - torch.clamp(torch.cumsum(done, dim=0), max=1)
         return return_, advantage, valid

@@ -5,7 +5,7 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.logging import logger
 
-AgentInput = namedarraytuple("AgentInput",
+AgentInputs = namedarraytuple("AgentInputs",
     ["observation", "prev_action", "prev_reward"])
 AgentStep = namedarraytuple("AgentStep", ["action", "agent_info"])
 
@@ -73,8 +73,8 @@ class BaseRecurrentAgent(BaseAgent):
         self._reset_one(idx, self._prev_rnn_state)
 
     def _reset_one(self, idx, prev_rnn_state):
-        """Assume each state is of shape: [B, ...], but can be nested
-        list/tuple. Reset chosen index in the Batch dimension."""
+        """Assume each state is of shape: [B, ...], but can be nested tuples.
+        Reset chosen index in the Batch dimension."""
         if isinstance(prev_rnn_state, tuple):
             for prev_state in prev_rnn_state:
                 self._reset_one(idx, prev_state)

@@ -1,0 +1,99 @@
+
+from rlpyt.samplers.collectors import DecorrelatingStartCollector
+
+
+class ResetCollector(DecorrelatingStartCollector):
+    """Valid to run episodic lives."""
+
+    mid_batch_reset = True
+
+    def collect_batch(self, _agent_inputs, traj_infos):
+        act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
+        step = self.step_buffer_np
+        agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
+        agent_buf.prev_action[0] = step.action
+        step_blocker.release()  # Previous obs already written, ready for new.
+        completed_infos = list()
+        env_buf.prev_reward[0] = step.reward
+        for t in range(self.batch_T):
+            env_buf.observation[t] = step.observation
+            act_waiter.acquire()  # Need sampled actions from server.
+            for b, env in enumerate(self.envs):
+                if self.need_reset[b]:
+                    continue
+                o, r, d, env_info = env.step(step.action[b])
+                traj_infos[b].step(step.observation[b], step.action[b], r,
+                    step.agent_info[b], env_info)
+                if getattr(env_info, "need_reset", d):
+                    completed_infos.append(traj_infos[b].terminate(o))
+                    traj_infos[b] = self.TrajInfoCls()
+                    o = env.reset()
+                step.observation[b] = o
+                step.reward[b] = r
+                step.done[b] = d
+                if env_info:
+                    env_buf.env_info[t, b] = env_info
+            agent_buf.action[t] = step.action  # OPTIONAL BY SERVER
+            env_buf.reward[t] = step.reward
+            env_buf.dones[t] = step.done
+            if step.agent_info:
+                agent_buf.agent_info[t] = step.agent_info  # OPTIONAL BY SERVER
+            step_blocker.release()  # Ready for server to use/write step buffer.
+
+        return None, traj_infos, completed_infos
+
+
+class WaitResetCollector(DecorrelatingStartCollector):
+    """Valid to run episodic lives."""
+
+    mid_batch_reset = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.need_reset = [False] * len(self.envs)
+
+    def collect_batch(self, _agent_inputs, traj_infos):
+        act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
+        step = self.step_buffer_np
+        agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
+        agent_buf.prev_action[0] = step.action
+        step_blocker.release()  # Previous obs already written, ready for new.
+        completed_infos = list()
+        env_buf.prev_reward[0] = step.reward
+        for t in range(self.batch_T):
+            env_buf.observation[t] = step.observation
+            act_waiter.acquire()  # Need sampled actions from server.
+            for b, env in enumerate(self.envs):
+                if self.need_reset[b]:
+                    continue
+                o, r, d, env_info = env.step(step.action[b])
+                traj_infos[b].step(step.observation[b], step.action[b], r,
+                    step.agent_info[b], env_info)
+                if getattr(env_info, "need_reset", d):
+                    self.need_reset[b] = True
+                    completed_infos.append(traj_infos[b].terminate(o))
+                    traj_infos[b] = self.TrajInfoCls()
+                else:
+                    step.observation[b] = o
+                step.reward[b] = r
+                step.done[b] = d
+                if env_info:
+                    env_buf.env_info[t, b] = env_info
+            agent_buf.action[t] = step.action  # OPTIONAL BY SERVER
+            env_buf.reward[t] = step.reward
+            env_buf.dones[t] = step.done
+            if step.agent_info:
+                agent_buf.agent_info[t] = step.agent_info  # OPTIONAL BY SERVER
+            step_blocker.release()  # Ready for server to use/write step buffer.
+
+        return None, traj_infos, completed_infos
+
+    def reset_if_needed(self, _agent_inputs):
+        step = self.step_buffer
+        for b, need in enumerate(self.need_reset):
+            if need:
+                step.observation[b] = self.envs[b].reset()
+                step.action[b] = 0
+                step.reward[b] = 0
+                self.need_reset[b] = False
+        return None

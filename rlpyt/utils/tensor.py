@@ -42,28 +42,30 @@ def infer_leading_dims(tensor, dim):
     shape: tensor shape after leading dims
     T: int --size of first leading dim, if two leading dims, o/w 1.
     B: int --size of first leading dim if one, second leading dim if two, o/w 1.
-    _T: boolean --presense of T dim (2 leading)
-    _B: boolean --presence of B dim (at least 1 leading)
+    has_T: boolean --presense of T dim (2 leading)
+    has_B: boolean --presence of B dim (at least 1 leading)
     """
     assert tensor.dim() in (dim, dim + 1, dim + 2)
     shape = tensor.shape[-dim:]
     T = B = 1
-    _T = _B = False
+    has_T = has_B = False
     if tensor.dim() == dim + 2:
         T, B = tensor.shape[:2]
-        _T = _B = True  # Might have T=1 or B=1.
+        has_T = has_B = True  # Might have T=1 or B=1.
     elif tensor.dim() == dim + 1:
         B = tensor.shape[0]
-        _B = True
-    return shape, T, B, _T, _B
+        has_B = True
+    return shape, T, B, has_T, has_B
 
 
-def restore_leading_dims(tensors, T, B, _T, _B):
+def restore_leading_dims(tensors, T=1, B=1, has_T=False, has_B=False):
     """Assume tensors have leading Batch dimension (might need removed)."""
-    if not isinstance(tensors, tuple):
+    is_seq = True
+    if not isinstance(tensors, (tuple, list)):
         tensors = (tensors,)
-    if _T:
+        is_seq = False
+    if has_T:
         return tuple(t.view((T, B) + t.shape[1:]) for t in tensors)
-    if not _B:
+    if not has_B:  # Assume B=1 leading dim.
         return tuple(t.squeeze(0) for t in tensors)
-    return tensors
+    return tensors if is_seq else tensors[0]

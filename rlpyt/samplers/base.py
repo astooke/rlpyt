@@ -13,7 +13,6 @@ class BaseSampler(object):
             env_kwargs,
             batch_T,
             batch_B,
-            max_path_length=int(1e6),
             max_decorrelation_steps=100,
             TrajInfoCls=TrajInfo,
             CollectorCls=None,
@@ -40,28 +39,27 @@ class BaseCollector(object):
             rank,
             envs,
             samples_np,
-            max_path_length,
+            batch_T,
             TrajInfoCls,
-            agent=None,  # Present depending on collector class.
+            agent=None,  # Present or not, depending on collector class.
             sync=None,
-            step_buf=None,
+            step_buffer_np=None,
             ):
         save__init__args(locals())
-        self.horizon = len(samples_np.env.reward)  # Time major.
 
     def start_envs(self):
         """Calls reset() on every env."""
         raise NotImplementedError
 
     def start_agent(self):
-        if hasattr(self, "agent"):
+        if getattr(self, "agent", None) is not None:
             self.agent.reset()
-            self.agent.model.eval()
+            self.agent.model.eval()  # Do once inside worker.
 
-    def collect_batch(self, agent_input, traj_infos):
+    def collect_batch(self, agent_inputs, traj_infos):
         raise NotImplementedError
 
-    def reset_if_needed(self, agent_input):
-        """Reset agent and or env as needed, between batches."""
-        pass
+    def reset_if_needed(self, agent_inputs):
+        """Reset agent and or env as needed, if doing between batches."""
+        return agent_inputs
 

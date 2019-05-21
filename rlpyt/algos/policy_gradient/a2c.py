@@ -53,9 +53,9 @@ class A2C(PolicyGradient):
             self.agent.model.parameters(), self.clip_grad_norm)
         self.optimizer.step()
         opt_info = OptInfo(
-            Loss=loss.item(),
-            GradNorm=grad_norm,
-            Entropy=entropy.item(),
-            Perplexity=perplexity.item(),
+            loss=loss.item(),
+            gradNorm=grad_norm,
+            entropy=entropy.item(),
+            perplexity=perplexity.item(),
         )
         return opt_data, opt_info

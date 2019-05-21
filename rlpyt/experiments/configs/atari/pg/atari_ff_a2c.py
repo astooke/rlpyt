@@ -21,7 +21,6 @@ config = dict(
     sampler=dict(
         batch_T=5,
         batch_B=64,
-        max_path_length=27000,
         max_decorrelation_steps=1000,
     ),
 )

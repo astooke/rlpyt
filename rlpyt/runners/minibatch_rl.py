@@ -21,7 +21,7 @@ class MinibatchRl(MinibatchRlBase):
 
     def train(self):
         n_itr = self.startup()
-        for itr in range(self.n_itr):
+        for itr in range(n_itr):
             with logger.prefix(f"itr #{itr} "):
                 self.agent.model.eval()  # Might not be this agent sampling.
                 samples, traj_infos = self.sampler.obtain_samples(itr)

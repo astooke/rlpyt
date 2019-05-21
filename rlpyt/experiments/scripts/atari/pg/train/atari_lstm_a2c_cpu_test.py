@@ -4,7 +4,7 @@ import sys
 from rlpyt.utils.launching.affinity import get_affinity
 from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
 from rlpyt.samplers.cpu.episodic_lives_collectors import EpisodicLivesWaitResetCollector
-from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
+from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.policy_gradient.a2c import A2C
 from rlpyt.agents.policy_gradient.atari.atari_lstm_agent import AtariLstmAgent
 from rlpyt.runners.minibatch_rl import MinibatchRl
@@ -17,14 +17,13 @@ from rlpyt.experiments.configs.atari.pg.atari_lstm_a2c import configs
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     affinity = get_affinity(slot_affinity_code)
     config = configs[config_key]
-    variant = load_variant(log_dir)
-    config = update_config(config, variant)
+    # variant = load_variant(log_dir)
+    # config = update_config(config, variant)
 
     sampler = CpuParallelSampler(
         EnvCls=AtariEnv,
         env_kwargs=config["env"],
         CollectorCls=EpisodicLivesWaitResetCollector,
-        TrajInfoCls=AtariTrajInfo,
         **config["sampler"]
     )
     algo = A2C(optim_kwargs=config["optim"], **config["algo"])
@@ -37,7 +36,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         **config["runner"]
     )
     name = config["env"]["game"] + str(config["algo"]["entropy_loss_coeff"])
-    with logger_context(log_dir, run_ID, name, config):  # Might have to flatten config
+    with logger_context(log_dir, run_ID, name, config):
         runner.train()
 
 

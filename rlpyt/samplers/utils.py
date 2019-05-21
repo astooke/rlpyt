@@ -5,21 +5,25 @@ import numpy as np
 
 from rlpyt.utils.buffer import buffer_from_example, torchify_buffer
 from rlpyt.utils.collections import AttrDict
-from rlpyt.agents.base import AgentInput
-from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBs,
-    EnvSamples)
+from rlpyt.agents.base import AgentInputs
+from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBsv,
+    EnvSamples, StepBuffer)
 
 
 def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
-        agent_shared=True, env_shared=True, build_step_buffer=False):
-    """Step/reset agent and env in subprocess, so it doesn't affect settings
-    in master before forking workers (e.g. torch num_threads (MKL) may be set
-    at first forward computation.)"""
-    mgr = mp.Manager()
-    examples = mgr.dict()
-    w = mp.Process(target=get_example_outputs, args=(agent, env, examples))
-    w.start()
-    w.join()
+        agent_shared=True, env_shared=True, build_step_buffer=False,
+        subprocess=True):
+    """Recommended to step/reset agent and env in subprocess, so it doesn't
+    affect settings in master before forking workers (e.g. torch num_threads
+    (MKL) may be set at first forward computation.)"""
+    if subprocess:
+        mgr = mp.Manager()
+        examples = mgr.dict()  # Examples pickled back to master.
+        w = mp.Process(target=get_example_outputs, args=(agent, env, examples))
+        w.start()
+        w.join()
+    else:
+        examples = get_example_outputs(agent, env, dict())
 
     T, B = batch_spec
     all_action = buffer_from_example(examples["action"], (T + 1, B), agent_shared)
@@ -33,7 +37,7 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
     )
     if bootstrap_value:
         bv = buffer_from_example(examples["agent_info"].value, (1, B), agent_shared)
-        agent_buffer = AgentSamplesBs(*agent_buffer, bootstrap_value=bv)
+        agent_buffer = AgentSamplesBsv(*agent_buffer, bootstrap_value=bv)
 
     observation = buffer_from_example(examples["observation"], (T, B), env_shared)
     all_reward = buffer_from_example(examples["reward"], (T + 1, B), env_shared)
@@ -50,10 +54,23 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
     )
     samples_np = Samples(agent_buffer, env_buffer)
     samples_pyt = torchify_buffer(samples_np)
-    if build_step_buffer:
-        raise NotImplementedError
-        # return samples_pyt, samples_np, step_pyt, step_np
-    return samples_pyt, samples_np
+    if not build_step_buffer:
+        return samples_pyt, samples_np
+
+    step_obs = buffer_from_example(examples["observation"], B, shared=True)
+    step_act = buffer_from_example(examples["action"], B, shared=True)
+    step_rew = buffer_from_example(examples["reward"], B, shared=True)
+    step_don = buffer_from_example(examples["done"], B, shared=True)
+    step_inf = buffer_from_example(examples["agent_info"], B, shared=True)
+    step_buffer_np = StepBuffer(
+        observation=step_obs,
+        action=step_act,
+        reward=step_rew,
+        done=step_don,
+        agent_info=step_inf,
+    )
+    step_buffer_pyt = torchify_buffer(step_buffer_np)
+    return samples_pyt, samples_np, step_buffer_pyt, step_buffer_np
 
 
 def build_par_objs(n, sync=False, groups=1):
@@ -75,17 +92,18 @@ def build_par_objs(n, sync=False, groups=1):
 
 
 def get_example_outputs(agent, env, examples):
-    """Do this in a sub-process to avoid setup conflict in master/workers (e.g. MKL)."""
+    """Do this in a sub-process to avoid setup conflict in master/workers (e.g.
+    MKL)."""
     o = env.reset()
     a = env.action_space.sample()
     o, r, d, env_info = env.step(a)
-    r = np.asarray(r, dtype="float32")  # Important to match dtype here.
+    r = np.asarray(r, dtype="float32")  # Must match torch float dtype here.
     agent.reset()
-    agent_input = torchify_buffer(AgentInput(o, a, r))
+    agent_input = torchify_buffer(AgentInputs(o, a, r))
     a, agent_info = agent.step(*agent_input)
-    examples["observation"] = o  # Copy to master in mp managed dictionary.
+    examples["observation"] = o
     examples["reward"] = r
     examples["done"] = d
     examples["env_info"] = env_info
-    examples["action"] = a  # Probably OK to put torch tensor here, could numpify.
+    examples["action"] = a  # OK to put torch tensor here, could numpify.
     examples["agent_info"] = agent_info
