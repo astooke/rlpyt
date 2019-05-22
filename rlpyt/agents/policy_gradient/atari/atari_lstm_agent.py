@@ -22,7 +22,7 @@ class AtariLstmAgent(BaseRecurrentPgAgent):
             samples.env.prev_reward, samples.agent.agent_info.prev_rnn_state[0],
             ), device=self.device)
         pi, value, _next_rnn_state = self.model(*model_inputs)
-        agent_train = AgentTrain(dist_info=DistInfo(pi), value=value)
+        agent_train = AgentTrain(dist_info=DistInfo(prob=pi), value=value)
         return buffer_to(agent_train, device="cpu")  # TODO: try keeping on device.
 
     def initialize(self, env_spec, share_memory=False):
@@ -41,7 +41,7 @@ class AtariLstmAgent(BaseRecurrentPgAgent):
         prev_rnn_state = buffer_to(self.prev_rnn_state,  # Model handles None.
             device=self.device) if self.prev_rnn_state is not None else None
         pi, value, rnn_state = self.model(*agent_inputs, prev_rnn_state)
-        dist_info = DistInfo(pi)
+        dist_info = DistInfo(prob=pi)
         action = self.distribution.sample(dist_info)
         prev_rnn_state = buffer_func(rnn_state,  # Buffer does not handle None.
             torch.zeros_like) if prev_rnn_state is None else self.prev_rnn_state

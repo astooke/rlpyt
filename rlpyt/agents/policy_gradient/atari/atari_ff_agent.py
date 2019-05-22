@@ -20,7 +20,7 @@ class AtariFfAgent(BasePgAgent):
             samples.env.prev_reward,
             ), device=self.device)
         pi, value = self.model(*model_inputs)
-        agent_train = AgentTrain(dist_info=DistInfo(pi), value=value)
+        agent_train = AgentTrain(dist_info=DistInfo(prob=pi), value=value)
         return buffer_to(agent_train, device="cpu")  # TODO: try keeping on device.
 
     def initialize(self, env_spec, share_memory=False):
