@@ -9,9 +9,12 @@ from rlpyt.utils.logging.context import get_log_dir
 from rlpyt.utils.launching.variant import save_variant
 
 
-def log_exps_tree(exp_dir, log_dirs):
+def log_exps_tree(exp_dir, log_dirs, runs_per_setting):
     os.makedirs(exp_dir, exist_ok=True)
     with open(osp.join(exp_dir, "experiments_tree.txt"), "w") as f:
+        f.write(f"Experiment manager process ID: {os.getpid()}\n.")
+        f.write("Number of settings (experiments) to run: "
+            f"{len(log_dirs)}  ({runs_per_setting * len(log_dirs)}).\n\n")
         [f.write(log_dir + "\n") for log_dir in log_dirs]
 
 
@@ -40,7 +43,7 @@ def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
     if runs_args is None:
         runs_args = [()] * len(variants)
     assert len(runs_args) == len(variants)
-    log_exps_tree(exp_dir, log_dirs)
+    log_exps_tree(exp_dir, log_dirs, runs_per_setting)
     n, total = 0, runs_per_setting * len(variants)
     for run_ID in range(runs_per_setting):
         for variant, log_dir, run_args in zip(variants, log_dirs, runs_args):
@@ -62,7 +65,7 @@ def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
                         launched = True
                         n += 1
                         with open(osp.join(exp_dir, "num_launched.txt"), "w") as f:
-                            f.write(f"Experiments launched so far: {n} out of {total}.")
+                            f.write(f"Experiments launched so far: {n} out of {total}.\n")
                         break
                 if not launched:
                     time.sleep(10)
