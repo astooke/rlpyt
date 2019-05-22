@@ -121,18 +121,18 @@ class AtariLstmModel(torch.nn.Module):
             init_rnn_state = tuple(torch.transpose(hc, 0, 1).contiguous()
                 for hc in init_rnn_state)
         lstm_out, (hn, cn) = self.lstm(lstm_input, init_rnn_state)
-        next_rnn_state = (hn.transpose(0, 1), cn.transpose(0, 1))  # --> [B,N,H]
         lstm_flat = lstm_out.view(T * B, -1)
 
-        # pi = F.softmax(self.linear_pi(lstm_flat), dim=-1)
-        # v = self.linear_v(lstm_flat).squeeze(-1)
-        # DEBUG: bypass the LSTM.
-        pi = F.softmax(self.linear_pi(fc_out), dim=-1)
-        v = self.linear_v(fc_out).squeeze(-1)
+        pi = F.softmax(self.linear_pi(lstm_flat), dim=-1)
+        v = self.linear_v(lstm_flat).squeeze(-1)
+        # # DEBUG: bypass the LSTM.
+        # pi = F.softmax(self.linear_pi(fc_out), dim=-1)
+        # v = self.linear_v(fc_out).squeeze(-1)
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), T, B, has_T, has_B)
-        next_rnn_state = restore_leading_dims(next_rnn_state, B=B, put_B=has_B)
-        next_rnn_state = RnnState(*next_rnn_state)
+        hn, cn = (hn.transpose(0, 1), cn.transpose(0, 1))  # --> [B,N,H]
+        hn, cn = restore_leading_dims((hn, cn), B=B, put_B=has_B)
+        next_rnn_state = RnnState(h=hn, c=cn)
 
         return pi, v, next_rnn_state

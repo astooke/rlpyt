@@ -11,7 +11,7 @@ config = dict(
         learning_rate=7e-4,
         value_loss_coeff=0.5,
         entropy_loss_coeff=0.01,
-        clip_grad_norm=0.25,
+        clip_grad_norm=1.,
     ),
     env=dict(
         game="pong",
@@ -20,11 +20,11 @@ config = dict(
     model=dict(),
     optim=dict(),
     runner=dict(
-        n_steps=5e6,
+        n_steps=10e6,
         # log_interval_steps=1e5,
     ),
     sampler=dict(
-        batch_T=20,
+        batch_T=5,
         batch_B=32,
         max_decorrelation_steps=1000,
     ),

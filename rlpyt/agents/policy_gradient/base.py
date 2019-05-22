@@ -1,6 +1,4 @@
 
-import torch
-
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.agents.base import BaseAgent
 
@@ -22,9 +20,17 @@ class BasePgAgent(BaseAgent):
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
 
-    @torch.no_grad()  # Hint: apply this decorator on overriding method.
-    def step(self, observation, prev_action, prev_reward):
-        raise NotImplementedError  # return types: action, AgentInfo
+    def initialize_cuda(self, cuda_idx=None):
+        if cuda_idx is None:
+            return  # CPU
+        if self.shared_model is not None:
+            self.model = self.ModelCls(**self.env_model_kwargs, 
+                **self.model_kwargs)
+            self.model.load_state_dict(self.shared_model.state_dict())
+        self.device = torch.device("cuda", index=cuda_idx)
+        self.model.to(device)
+        logger.log(f"Initialized agent model on device: {self.device}.")
+
 
     def make_env_to_model_kwargs(self, env_spec):
         return {}

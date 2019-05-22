@@ -12,7 +12,7 @@ LOG_DIR = osp.abspath(osp.join(osp.dirname(__file__), '../../..')) + "/data"
 
 def get_log_dir(experiment_name):
     yyyymmdd = datetime.datetime.today().strftime("%Y%m%d")
-    log_dir = os.path.join(LOG_DIR, "local", yyyymmdd, experiment_name)
+    log_dir = osp.join(LOG_DIR, "local", yyyymmdd, experiment_name)
     return log_dir
 
 
@@ -20,15 +20,15 @@ def get_log_dir(experiment_name):
 def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none"):
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_log_tabular_only(False)
-    abs_log_dir = os.path.abspath(log_dir + f"_{run_ID}")
-    if LOG_DIR != os.path.commonpath([abs_log_dir, LOG_DIR]):
+    abs_log_dir = osp.abspath(osp.join(log_dir, f"run_{run_ID}"))
+    if LOG_DIR != osp.commonpath([abs_log_dir, LOG_DIR]):
         print(f"logger_context received log_dir outside of {LOG_DIR}: "
             f"prepending by {LOG_DIR}/local/<yyyymmdd>/")
         abs_log_dir = get_log_dir(log_dir)
-    exp_dir = abs_log_dir  # os.path.join(abs_log_dir, exp_name)
-    tabular_log_file = os.path.join(exp_dir, "progress.csv")
-    text_log_file = os.path.join(exp_dir, "debug.log")
-    params_log_file = os.path.join(exp_dir, "params.json")
+    exp_dir = abs_log_dir  # osp.join(abs_log_dir, exp_name)
+    tabular_log_file = osp.join(exp_dir, "progress.csv")
+    text_log_file = osp.join(exp_dir, "debug.log")
+    params_log_file = osp.join(exp_dir, "params.json")
 
     logger.set_snapshot_dir(exp_dir)
     logger.add_text_output(text_log_file)
