@@ -86,6 +86,7 @@ def decode_affinity(affinity_code):
 
 def build_affinities_cpu(slt, cpu, cpr, cpw=1, hto=None, gpu=0):
     assert gpu == 0
+    assert cpu % cpr == 0
     n_run_slots = cpu // cpr
     assert slt <= n_run_slots
     cores = tuple(range(slt * cpr, (slt + 1) * cpr))
@@ -95,10 +96,10 @@ def build_affinities_cpu(slt, cpu, cpr, cpw=1, hto=None, gpu=0):
     if hto > 0:
         hyperthreads = tuple(c + hto for c in cores)
         workers_cpus = tuple(cores[i:i + cpw] + hyperthreads[i:i + cpw]
-            for i in range(0, cpu, cpw))
+            for i in range(0, cpr, cpw))
         master_cpus = cores + hyperthreads
     else:
-        workers_cpus = tuple(cores[i:i + cpw] for i in range(0, cpu, cpw))
+        workers_cpus = tuple(cores[i:i + cpw] for i in range(0, cpr, cpw))
         master_cpus = cores
     affinity = dict(
         all_cpus=master_cpus,
