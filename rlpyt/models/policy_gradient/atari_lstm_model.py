@@ -132,7 +132,7 @@ class AtariLstmModel(torch.nn.Module):
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), T, B, has_T, has_B)
-        next_rnn_state = restore_leading_dims(next_rnn_state, B=B, has_B=has_B)
+        next_rnn_state = restore_leading_dims(next_rnn_state, B=B, put_B=has_B)
         next_rnn_state = RnnState(*next_rnn_state)
 
         return pi, v, next_rnn_state

@@ -121,4 +121,3 @@ class EpisodicLivesWaitResetCollector(DecorrelatingStartCollector):
                 agent_inputs.observation[b] = self.envs[b].reset()
                 self.need_env_reset[b] = False
         return agent_inputs
-

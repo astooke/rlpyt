@@ -20,7 +20,7 @@ class AtariFfAgent(BasePgAgent):
             samples.env.prev_reward,
             ), device=self.device)
         pi, value = self.model(*model_inputs)
-        agent_train = AgentTrain(DistInfo(pi), value)
+        agent_train = AgentTrain(dist_info=DistInfo(pi), value=value)
         return buffer_to(agent_train, device="cpu")  # TODO: try keeping on device.
 
     def initialize(self, env_spec, share_memory=False):
@@ -36,13 +36,16 @@ class AtariFfAgent(BasePgAgent):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         pi, value = self.model(*model_inputs)
-        dist_info = DistInfo(pi)
+        dist_info = DistInfo(prob=pi)
         action = self.distribution.sample(dist_info)
-        action, agent_info = buffer_to((action, (dist_info, value)),
+        agent_info = AgentInfo(dist_info=dist_info, value=value)
+        action, agent_info = buffer_to((action, agent_info),
             device="cpu")
-        return AgentStep(action, AgentInfo(*agent_info))
+        return AgentStep(action=action, agent_info=agent_info)
 
     @torch.no_grad()
     def value(self, observation, prev_action, prev_reward):
-        _pi, value = self.model(observation, prev_action, prev_reward)
+        model_inputs = buffer_to((observation, prev_action, prev_reward),
+            device=self.device)
+        _pi, value = self.model(*model_inputs)
         return value.to("cpu")

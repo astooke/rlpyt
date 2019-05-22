@@ -3,7 +3,7 @@ import sys
 from collections import namedtuple
 
 
-RESERVED_NAMES = ["get_index", "get", "item"]
+RESERVED_NAMES = ("get_index", "get", "item")
 
 
 def tuple_itemgetter(i):

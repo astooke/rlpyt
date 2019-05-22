@@ -57,7 +57,7 @@ class BaseAgent(object):
 
     def sync_shared_memory(self):
         """Call in sampler master, after share_memory=True to initialize()."""
-        if self.shared_model is not self.model:
+        if self.shared_model is not self.model:  # (self.model gets trained)
             self.shared_model.load_state_dict(self.model.state_dict())
 
 

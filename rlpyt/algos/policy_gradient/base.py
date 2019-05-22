@@ -31,8 +31,7 @@ class PolicyGradient(RlAlgorithm):
         return_ = discount_return(samples.env.reward, done,
             samples.agent.bootstrap_value, self.discount)
         advantage = return_ - samples.agent.agent_info.value
-        if self.mid_batch_reset:
-            valid = torch.ones_like(done)  # or None.
-        else:
-            valid = 1 - torch.clamp(torch.cumsum(done, dim=0), max=1)
+        valid = torch.ones_like(done)  # or None
+        if not self.mid_batch_reset:  # valid until 1 after first done
+            valid[1:] = 1 - torch.clamp(torch.cumsum(done[:-1], dim=0), max=1)
         return return_, advantage, valid

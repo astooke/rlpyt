@@ -2,14 +2,14 @@
 import multiprocessing as mp
 
 
-from rlpyt.samplers.parallel_sampler import ParallelSampler
+from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer, build_par_objs
 from rlpyt.samplers.parallel_worker import sampling_process
 from rlpyt.utils.collections import AttrDict
 from rlpyt.agents.base import AgentInputs
 
 
-class GpuParallelSampler(ParallelSampler):
+class GpuParallelSampler(BaseSampler):
 
     def initialize(self, agent, affinity, seed,
             bootstrap_value=False, traj_info_kwargs=None):
@@ -19,7 +19,7 @@ class GpuParallelSampler(ParallelSampler):
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spec, share_memory=True)  # Actual agent initialization, keep.
+        agent.initialize(env.spec, share_memory=False)  # Actual agent initialization, keep.
         buffers = build_samples_buffer(agent, env, self.batch_spec,
             bootstrap_value, agent_shared=True, env_shared=True,
             build_step_buffer=True)
@@ -43,7 +43,7 @@ class GpuParallelSampler(ParallelSampler):
             traj_infos_queue=traj_infos_queue,
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
-            torch_threads=affinity.get("worker_torch_threads", None),
+            torch_threads=None,
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np,
@@ -66,6 +66,22 @@ class GpuParallelSampler(ParallelSampler):
         self.sync = sync
 
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
+
+    def obtain_samples(self, itr):
+        self.samples_np[:] = 0  # Reset all batch sample values (optional?).
+        self.ctrl.barrier_in.wait()
+        self.serve_actions(itr)  # Worker step environments here.
+        self.ctrl.barrier_out.wait()
+        traj_infos = list()
+        while self.traj_infos_queue.qsize():
+            traj_infos.append(self.traj_infos_queue.get())
+        return self.samples_pyt, traj_infos
+
+    def shutdown(self):
+        self.ctrl.quit.value = True
+        self.ctrl.barrier_in.wait()
+        for w in self.workers:
+            w.join()
 
     def serve_actions(self, itr):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters

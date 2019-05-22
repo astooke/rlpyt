@@ -11,7 +11,6 @@ class DecorrelatingStartCollector(BaseCollector):
 
     def start_envs(self, max_decorrelation_steps=0):
         """Calls reset() on every env and returns agent_inputs buffer."""
-        observation, prev_action, prev_reward = list(), list(), list()
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
         observations = list()
         for env in self.envs:

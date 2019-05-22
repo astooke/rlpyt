@@ -58,14 +58,14 @@ def infer_leading_dims(tensor, dim):
     return shape, T, B, has_T, has_B
 
 
-def restore_leading_dims(tensors, T=1, B=1, has_T=False, has_B=False):
+def restore_leading_dims(tensors, T=1, B=1, put_T=False, put_B=False):
     """Assume tensors have leading Batch dimension (might need removed)."""
     is_seq = True
     if not isinstance(tensors, (tuple, list)):
         tensors = (tensors,)
         is_seq = False
-    if has_T:
+    if put_T:
         return tuple(t.view((T, B) + t.shape[1:]) for t in tensors)
-    if not has_B:  # Assume B=1 leading dim.
+    if not put_B:  # Assume B=1 leading dim.
         return tuple(t.squeeze(0) for t in tensors)
     return tensors if is_seq else tensors[0]

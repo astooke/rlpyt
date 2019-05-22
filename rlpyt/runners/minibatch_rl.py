@@ -44,7 +44,7 @@ class MinibatchRl(MinibatchRlBase):
         self._new_completed_trajs += len(traj_infos)
         self._traj_infos.extend(traj_infos)
         for k, v in self._opt_infos.items():
-            new_v = getattr(opt_info, k, None) or []
+            new_v = getattr(opt_info, k, [])
             v.extend(new_v if isinstance(new_v, list) else [new_v])
         self.pbar.update((itr + 1) % self.log_interval_itrs)
 

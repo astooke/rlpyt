@@ -2,12 +2,12 @@
 import multiprocessing as mp
 
 
-from rlpyt.samplers.parallel_sampler import ParallelSampler
+from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer, build_par_objs
 from rlpyt.samplers.parallel_worker import sampling_process
 
 
-class CpuParallelSampler(ParallelSampler):
+class CpuParallelSampler(BaseSampler):
 
     def initialize(self, agent, affinity, seed,
             bootstrap_value=False, traj_info_kwargs=None):
@@ -59,6 +59,23 @@ class CpuParallelSampler(ParallelSampler):
         self.agent = agent
 
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
+
+    def obtain_samples(self, itr):
+        self.agent.sync_shared_memory()  # New weights in workers, if needed.
+        self.samples_np[:] = 0  # Reset all batch sample values (optional?).
+        self.ctrl.barrier_in.wait()
+        # Workers step environments and sample actions here.
+        self.ctrl.barrier_out.wait()
+        traj_infos = list()
+        while self.traj_infos_queue.qsize():
+            traj_infos.append(self.traj_infos_queue.get())
+        return self.samples_pyt, traj_infos
+
+    def shutdown(self):
+        self.ctrl.quit.value = True
+        self.ctrl.barrier_in.wait()
+        for w in self.workers:
+            w.join()
 
 
 def assemble_workers_kwargs(affinity, seed, samples_np, n_envs):

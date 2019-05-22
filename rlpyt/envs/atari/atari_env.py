@@ -32,7 +32,7 @@ class AtariEnv(Env):
 
     def __init__(self,
                  game="pong",
-                 frame_skip=4,
+                 frame_skip=4,  # frames per step (>=1)
                  num_img_obs=4,
                  clip_reward=True,
                  episodic_lives=True,
@@ -65,7 +65,7 @@ class AtariEnv(Env):
         self._has_fire = "FIRE" in self.get_action_meanings()
         self._has_up = "UP" in self.get_action_meanings()
         self._done = self._done_episodic_lives if episodic_lives else \
-            self._done_no_epidosic_lives
+            self._done_no_episodic_lives
         self._horizon = int(horizon)
 
     def reset(self):
@@ -99,7 +99,7 @@ class AtariEnv(Env):
             shape = img.shape
             img = img.reshape(shape[0] * shape[1], shape[2])
         else:
-            img = img[0]
+            img = img[-1]
         cv2.imshow(self._game, img)
         cv2.waitKey(wait)
 
@@ -143,7 +143,7 @@ class AtariEnv(Env):
             self.ale.act(2)  # (not sure if this is necessary, saw it somewhere)
         self._lives = self.ale.lives()
 
-    def _done_no_epidosic_lives(self):
+    def _done_no_episodic_lives(self):
         self._check_life()
         done = self.ale.game_over() or self._step_counter >= self.horizon
         return done, done
