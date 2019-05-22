@@ -18,11 +18,16 @@ def log_exps_tree(exp_dir, log_dirs, runs_per_setting):
         [f.write(log_dir + "\n") for log_dir in log_dirs]
 
 
+def log_num_launched(exp_dir, n, total)
+    with open(osp.join(exp_dir, "num_launched.txt"), "w") as f:
+        f.write(f"Experiments launched so far: {n} out of {total}.\n")
+
+
 def launch_experiment(script, run_slot, affinity_code, log_dir, variant, run_ID, args):
     slot_affinity_code = prepend_run_slot(run_slot, affinity_code)
     affinity = get_affinity(slot_affinity_code)
-    call_list = []
-    if affinity["all_cpus"]:
+    call_list = list()
+    if affinity.get("all_cpus", ()):
         cpus = ",".join(str(c) for c in affinity["all_cpus"])
         call_list += ["taskset", "-c", cpus]  # PyTorch obeys better than just psutil.
     call_list += ["python", script, slot_affinity_code, log_dir, str(run_ID)]
@@ -44,7 +49,7 @@ def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
         runs_args = [()] * len(variants)
     assert len(runs_args) == len(variants)
     log_exps_tree(exp_dir, log_dirs, runs_per_setting)
-    n, total = 0, runs_per_setting * len(variants)
+    num_launched, total = 0, runs_per_setting * len(variants)
     for run_ID in range(runs_per_setting):
         for variant, log_dir, run_args in zip(variants, log_dirs, runs_args):
             launched = False
@@ -63,9 +68,8 @@ def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
                             args=common_args + run_args,
                         ) 
                         launched = True
-                        n += 1
-                        with open(osp.join(exp_dir, "num_launched.txt"), "w") as f:
-                            f.write(f"Experiments launched so far: {n} out of {total}.\n")
+                        num_launched += 1
+                        log_num_launched(exp_dir, num_launched, total)
                         break
                 if not launched:
                     time.sleep(10)
