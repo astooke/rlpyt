@@ -18,7 +18,7 @@ def log_exps_tree(exp_dir, log_dirs, runs_per_setting):
         [f.write(log_dir + "\n") for log_dir in log_dirs]
 
 
-def log_num_launched(exp_dir, n, total)
+def log_num_launched(exp_dir, n, total):
     with open(osp.join(exp_dir, "num_launched.txt"), "w") as f:
         f.write(f"Experiments launched so far: {n} out of {total}.\n")
 
@@ -66,7 +66,7 @@ def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
                             variant=variant,
                             run_ID=run_ID,
                             args=common_args + run_args,
-                        ) 
+                        )
                         launched = True
                         num_launched += 1
                         log_num_launched(exp_dir, num_launched, total)
