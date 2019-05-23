@@ -1,6 +1,8 @@
+import torch
 
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.agents.base import BaseAgent
+from rlpyt.utils.logging import logger
 
 AgentInfo = namedarraytuple("AgentInfo", ["dist_info", "value"])
 
@@ -24,13 +26,12 @@ class BasePgAgent(BaseAgent):
         if cuda_idx is None:
             return  # CPU
         if self.shared_model is not None:
-            self.model = self.ModelCls(**self.env_model_kwargs, 
+            self.model = self.ModelCls(**self.env_model_kwargs,
                 **self.model_kwargs)
             self.model.load_state_dict(self.shared_model.state_dict())
         self.device = torch.device("cuda", index=cuda_idx)
-        self.model.to(device)
+        self.model.to(self.device)
         logger.log(f"Initialized agent model on device: {self.device}.")
-
 
     def make_env_to_model_kwargs(self, env_spec):
         return {}

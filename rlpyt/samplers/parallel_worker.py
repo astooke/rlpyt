@@ -44,7 +44,6 @@ def sampling_process(common_kwargs, worker_kwargs):
     collector.start_agent()
     ctrl = c.ctrl
     ctrl.barrier_out.wait()
-
     while True:
         agent_inputs = collector.reset_if_needed(agent_inputs)  # Outside barrier?
         ctrl.barrier_in.wait()

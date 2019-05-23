@@ -3,7 +3,6 @@ import torch
 
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.utils.logging import logger
 
 AgentInputs = namedarraytuple("AgentInputs",
     ["observation", "prev_action", "prev_reward"])
