@@ -10,15 +10,16 @@ N_SOCKET = "skt"
 RUN_SLOT = "slt"
 CPU_PER_WORKER = "cpw"
 CPU_PER_RUN = "cpr"  # For cpu-only.
+CPU_RESERVED = "res"  # Reserve CPU cores per master, not allowed by workers.
 
 ABBREVS = [N_GPU, CONTEXTS_PER_GPU, CONTEXTS_PER_RUN, N_CPU_CORES,
-    HYPERTHREAD_OFFSET, N_SOCKET, CPU_PER_RUN, CPU_PER_WORKER]
+    HYPERTHREAD_OFFSET, N_SOCKET, CPU_PER_RUN, CPU_PER_WORKER, CPU_RESERVED]
 
 
 # API
 
-def encode_affinity(n_cpu_cores=1, n_gpu=0, contexts_per_gpu=1,
-        contexts_per_run=1, cpu_per_run=1, cpu_per_worker=1,
+def encode_affinity(n_cpu_cores=1, n_gpu=0, cpu_reserved=0,
+        contexts_per_gpu=1, contexts_per_run=1, cpu_per_run=1, cpu_per_worker=1,
         hyperthread_offset=None, n_socket=1, run_slot=None):
     """Use in run script to specify computer configuration."""
     affinity_code = f"{n_cpu_cores}{N_CPU_CORES}_{n_gpu}{N_GPU}"
@@ -34,6 +35,8 @@ def encode_affinity(n_cpu_cores=1, n_gpu=0, contexts_per_gpu=1,
         affinity_code += f"_{hyperthread_offset}{HYPERTHREAD_OFFSET}"
     if n_socket > 1:
         affinity_code += f"_{n_socket}{N_SOCKET}"
+    if cpu_reserved > 0:
+        affinity_code += f"_{cpu_reserved}{CPU_RESERVED}"
     if run_slot is not None:
         assert run_slot <= (n_gpu * contexts_per_gpu) // contexts_per_run
         affinity_code = f"{run_slot}{RUN_SLOT}_" + affinity_code
@@ -50,8 +53,8 @@ def get_affinity(run_slot_affinity_code):
     run_slot, aff_code = remove_run_slot(run_slot_affinity_code)
     aff_params = decode_affinity(aff_code)
     if aff_params.get("gpu", 0) > 0:
-        return build_affinities_gpu(run_slot, **aff_params)
-    return build_affinities_cpu(run_slot, **aff_params)
+        return build_gpu_affinity(run_slot, **aff_params)
+    return build_cpu_affinity(run_slot, **aff_params)
 
 
 # Helpers
@@ -84,23 +87,19 @@ def decode_affinity(affinity_code):
     return aff_kwargs
 
 
-def build_affinities_cpu(slt, cpu, cpr, cpw=1, hto=None, gpu=0):
+def build_cpu_affinity(slt, cpu, cpr, cpw=1, hto=None, res=0, skt=1, gpu=0):
     assert gpu == 0
     assert cpu % cpr == 0
-    n_run_slots = cpu // cpr
-    assert slt <= n_run_slots
-    cores = tuple(range(slt * cpr, (slt + 1) * cpr))
-    assert len(cores) % cpw == 0
     if hto is None:  # default, different from 0, which turns them OFF.
         hto = cpu
-    if hto > 0:
-        hyperthreads = tuple(c + hto for c in cores)
-        workers_cpus = tuple(cores[i:i + cpw] + hyperthreads[i:i + cpw]
-            for i in range(0, cpr, cpw))
-        master_cpus = cores + hyperthreads
-    else:
-        workers_cpus = tuple(cores[i:i + cpw] for i in range(0, cpr, cpw))
-        master_cpus = cores
+    n_run_slots = cpu // cpr
+    assert slt <= n_run_slots
+    min_core = slt * cpr + offset_for_socket(hto, cpu, skt, slt, n_run_slots)
+    cores = tuple(range(min_core, min_core + cpr))
+    worker_cores = cores[res:]
+    assert len(worker_cores) % cpw == 0
+    master_cpus = get_master_cpus(cores, hto)
+    workers_cpus = get_workers_cpus(worker_cores, cpw, hto)
     affinity = dict(
         all_cpus=master_cpus,
         master_cpus=master_cpus,
@@ -111,10 +110,53 @@ def build_affinities_cpu(slt, cpu, cpr, cpw=1, hto=None, gpu=0):
     return affinity
 
 
-def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
-    """Divides CPUs evenly among GPUs, with one CPU held open for each GPU, to
+def build_gpu_affinity(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, res=0,
+        skt=1):
+    """Divides CPUs evenly among GPUs."""
+    if cxr > 1:
+        raise NotImplementedError  # (parallel training)
+    n_ctx = gpu * cxg
+    n_run_slots = n_ctx // cxr
+    assert slt < n_run_slots
+    assert cpu % n_ctx == 0
+    cpr = cpu // n_ctx
+    affinity = build_cpu_affinity(slt, cpu, cpr, cpw, hto, res, skt)
+    affinity["cuda_idx"] = slt // cxg
+    return affinity
+
+
+def offset_for_socket(hto, cpu, skt, slt, n_run_slots):
+    """If hto==cpu or skt==1, returns 0."""
+    assert (hto - cpu) % skt == 0
+    rem_cpu_per_skt = (hto - cpu) // skt
+    slt_per_skt = n_run_slots // skt
+    my_skt = slt // slt_per_skt
+    return my_skt * rem_cpu_per_skt
+
+
+def get_master_cpus(cores, hto):
+    hyperthreads = tuple(c + hto for c in cores) if hto > 0 else ()
+    return cores + hyperthreads
+
+
+def get_workers_cpus(cores, cpw, hto):
+    cpus = tuple(cores[i:i + cpw]
+        for i in range(0, len(cores), cpw))
+    if hto > 0:
+        hyperthreads = tuple(c + hto for c in cores)
+        hyperthreads = tuple(hyperthreads[i:i + cpw]
+            for i in range(0, len(cores), cpw))
+        cpus = tuple(c + h for c, h in zip(cpus, hyperthreads))
+    return cpus
+
+
+def build_affinities_gpu_1cpu_drive(slt, gpu, cpu, cxg=1, cxr=1, cpw=1,
+        hto=None, skt=1):
+    """OLD.
+    Divides CPUs evenly among GPUs, with one CPU held open for each GPU, to
     drive it.  Workers assigned on the remaining CPUs.  Master permitted to use
-    all cores (good in case of multi-context per GPU).  GPU-driving CPUs grouped
+    driver core + worker cores (good in case of multi-context per GPU and old
+    alternating action server sampler, from accel_rl). GPU-driving CPUs grouped
     at the lowest numbered cores of each CPU socket.
     """
     if cxr > 1:
@@ -145,7 +187,6 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
     sim_cores = tuple(range(min_sim_core, min_sim_core + sim_cpu_per_ctx))
 
     assert len(sim_cores) % cpw == 0
-    n_worker = len(sim_cores) // cpw
     if hto is None:
         hto = cpu
     if hto > 0:
@@ -154,7 +195,7 @@ def build_affinities_gpu(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, skt=1):
             for i in range(0, len(sim_cores), cpw))
         master_cpus = (gpu_core,) + sim_cores + (gpu_core + hto,) + hyperthreads
     else:
-        workers_cpus = tuple(cores[i:i + cpw]
+        workers_cpus = tuple(sim_cores[i:i + cpw]
             for i in range(0, len(sim_cores), cpw))
         master_cpus = (gpu_core,) + sim_cores
 

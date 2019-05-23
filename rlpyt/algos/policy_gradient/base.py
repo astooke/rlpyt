@@ -26,7 +26,7 @@ class PolicyGradient(RlAlgorithm):
         self.n_itr = n_itr
         self.mid_batch_reset = mid_batch_reset
 
-    def process_samples(self, samples):
+    def process_returns(self, samples):
         reward, done, value, bv = (samples.env.reward, samples.env.done,
             samples.agent.agent_info.value, samples.agent.bootstrap_value)
         done = done.type(reward.dtype)
@@ -36,7 +36,7 @@ class PolicyGradient(RlAlgorithm):
         else:
             advantage, return_ = generalized_advantage_estimation(
                 reward, value, done, bv, self.discount, self.gae_lambda)
-        
+
         valid = torch.ones_like(done)  # or None
         if not self.mid_batch_reset:  # valid until 1 after first done
             valid[1:] = 1 - torch.clamp(torch.cumsum(done[:-1], dim=0), max=1)

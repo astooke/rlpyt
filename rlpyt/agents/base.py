@@ -20,7 +20,7 @@ class BaseAgent(object):
         save__init__args(locals())
         self.env_model_kwargs = dict()  # Populate in initialize().
 
-    def __call__(self, train_samples):
+    def __call__(self, observation, prev_action, prev_reward):
         """Returns values from model forward pass on training data."""
         raise NotImplementedError
 

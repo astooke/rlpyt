@@ -14,11 +14,9 @@ class AtariFfAgent(BasePgAgent):
     def __init__(self, ModelCls=AtariFfModel, **kwargs):
         super().__init__(ModelCls=ModelCls, **kwargs)
 
-    def __call__(self, samples):
-        model_inputs = buffer_to((
-            samples.env.observation, samples.agent.prev_action,
-            samples.env.prev_reward,
-            ), device=self.device)
+    def __call__(self, observation, prev_action, prev_reward):
+        model_inputs = buffer_to((observation, prev_action, prev_reward),
+            device=self.device)
         pi, value = self.model(*model_inputs)
         agent_train = AgentTrain(dist_info=DistInfo(prob=pi), value=value)
         return buffer_to(agent_train, device="cpu")  # TODO: try keeping on device.
