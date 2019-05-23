@@ -51,19 +51,19 @@ class MinibatchRl(MinibatchRlBase):
     def log_diagnostics(self, itr):
         self.pbar.stop()
         self.save_itr_snapshot(itr)
+        new_time = time.time()
+        samples_per_second = (self.log_interval_itrs *
+            self.sampler.batch_spec.size) / (new_time - self._last_time)
         logger.record_tabular('Iteration', itr)
-        logger.record_tabular('CumCompletedTrajs', self._cum_completed_trajs)
         logger.record_tabular('CumTotalSteps', (itr + 1) * self.sampler.batch_spec.size)
+        logger.record_tabular('CumTime (s)', new_time - self._start_time)
+        logger.record_tabular('SamplesPerSecond', samples_per_second)
+        logger.record_tabular('CumCompletedTrajs', self._cum_completed_trajs)
         logger.record_tabular('NewCompletedTrajs', self._new_completed_trajs)
         logger.record_tabular('StepsInTrajWindow',
             sum(info["Length"] for info in self._traj_infos))
         self._log_infos()
 
-        new_time = time.time()
-        samples_per_second = (self.log_interval_itrs *
-            self.sampler.batch_spec.size) / (new_time - self._last_time)
-        logger.record_tabular('CumTime (s)', new_time - self._start_time)
-        logger.record_tabular('SamplesPerSecond', samples_per_second)
         self._last_time = new_time
         logger.dump_tabular(with_prefix=False)
 
