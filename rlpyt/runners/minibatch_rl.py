@@ -23,9 +23,9 @@ class MinibatchRl(MinibatchRlBase):
         n_itr = self.startup()
         for itr in range(n_itr):
             with logger.prefix(f"itr #{itr} "):
-                self.agent.model.eval()  # Might not be this agent sampling.
+                self.agent.eval_mode()  # Might not be this agent sampling.
                 samples, traj_infos = self.sampler.obtain_samples(itr)
-                self.agent.model.train()
+                self.agent.train_mode()
                 _opt_data, opt_info = self.algo.optimize_agent(samples, itr)
                 self.store_diagnostics(itr, traj_infos, opt_info)
                 if (itr + 1) % self.log_interval_itrs == 0:

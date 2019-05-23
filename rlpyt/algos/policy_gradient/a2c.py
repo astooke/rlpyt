@@ -19,6 +19,7 @@ class A2C(PolicyGradient):
             optim_kwargs=None,
             clip_grad_norm=1.,
             initial_optim_state_dict=None,
+            gae_lambda=1,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()

@@ -43,9 +43,17 @@ class BaseAgent(object):
     def reset_one(self, idx):
         pass
 
-    @property
-    def recurrent(self):
-        return False
+    def parameters(self):
+        """Parameters to be optimized."""
+        return self.model.parameters()
+
+    def train_mode(self):
+        """Go into training mode."""
+        self.model.train()
+
+    def eval_mode(self):
+        """Go into evaluation mode."""
+        self.model.eval()
 
     def sync_shared_memory(self):
         """Call in sampler master, after share_memory=True to initialize()."""
@@ -55,8 +63,8 @@ class BaseAgent(object):
 
 class BaseRecurrentAgent(BaseAgent):
 
-    _prev_rnn_state = None
     recurrent = True
+    _prev_rnn_state = None
 
     def reset(self):
         self._prev_rnn_state = None  # Gets passed as None; module makes zeros.
