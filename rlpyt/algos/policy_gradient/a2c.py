@@ -4,6 +4,8 @@ import torch
 from rlpyt.algos.policy_gradient.base import (PolicyGradient,
     OptData, OptInfo)
 from rlpyt.agents.base import AgentInputs
+from rlpyt.agents.base_recurrent import AgentTrainInputs
+
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.quick_args import save__init__args
 
@@ -42,8 +44,15 @@ class A2C(PolicyGradient):
         return opt_data, opt_info
 
     def loss(self, samples):
-        agent_inputs = AgentInputs(samples.env.observation,
-            samples.agent.prev_action, samples.env.prev_reward)
+        agent_inputs = AgentInputs(
+            observation=samples.env.observation,
+            prev_action=samples.agent.prev_action,
+            prev_reward=samples.env.prev_reward,
+        )
+        if self.agent.recurrent:
+            agent_inputs = AgentTrainInputs(*agent_inputs,
+                init_rnn_state=samples.agent.agent_info.prev_rnn_state[0],  # T=0
+            )
         dist_info, value = self.agent(*agent_inputs)
         # TODO: try to compute everyone on device.
         return_, advantage, valid = self.process_returns(samples)

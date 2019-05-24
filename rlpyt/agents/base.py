@@ -4,7 +4,9 @@ import torch
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
 
-AgentInputs = namedarraytuple("AgentInputs",
+AgentStepInputs = namedarraytuple("AgentStepInputs",
+    ["observation", "prev_action", "prev_reward"])
+AgentTrainInputs = namedarraytuple("AgentTrainInputs",
     ["observation", "prev_action", "prev_reward"])
 AgentStep = namedarraytuple("AgentStep", ["action", "agent_info"])
 
@@ -35,7 +37,7 @@ class BaseAgent(object):
 
     @torch.no_grad()  # Hint: apply this decorator on overriding method.
     def step(self, observation, prev_action, prev_reward):
-        raise NotImplementedError  # return types: action, AgentInfo
+        raise NotImplementedError  # return type: AgentStep
 
     def reset(self):
         pass
@@ -51,6 +53,10 @@ class BaseAgent(object):
         """Go into training mode."""
         self.model.train()
 
+    def sample_mode(self):
+        """Go into sampling mode."""
+        self.model.eval()
+
     def eval_mode(self):
         """Go into evaluation mode."""
         self.model.eval()
@@ -59,31 +65,3 @@ class BaseAgent(object):
         """Call in sampler master, after share_memory=True to initialize()."""
         if self.shared_model is not self.model:  # (self.model gets trained)
             self.shared_model.load_state_dict(self.model.state_dict())
-
-
-class BaseRecurrentAgent(BaseAgent):
-
-    recurrent = True
-    _prev_rnn_state = None
-
-    def reset(self):
-        self._prev_rnn_state = None  # Gets passed as None; module makes zeros.
-
-    def reset_one(self, idx):
-        self._reset_one(idx, self._prev_rnn_state)
-
-    def _reset_one(self, idx, prev_rnn_state):
-        """Assume each state is of shape: [B, ...], but can be nested tuples.
-        Reset chosen index in the Batch dimension."""
-        if isinstance(prev_rnn_state, tuple):
-            for prev_state in prev_rnn_state:
-                self._reset_one(idx, prev_state)
-        elif prev_rnn_state is not None:
-            prev_rnn_state[idx] = 0
-
-    def advance_rnn_state(self, new_rnn_state):
-        self._prev_rnn_state = new_rnn_state
-
-    @property
-    def prev_rnn_state(self):
-        return self._prev_rnn_state

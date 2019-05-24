@@ -15,12 +15,9 @@ class AtariLstmAgent(BaseRecurrentPgAgent):
     def __init__(self, ModelCls=AtariLstmModel, **kwargs):
         super().__init__(ModelCls=ModelCls, **kwargs)
 
-    def __call__(self, samples):
-        model_inputs = buffer_to((
-            samples.env.observation,
-            self.distribution.to_onehot(samples.agent.prev_action),
-            samples.env.prev_reward, samples.agent.agent_info.prev_rnn_state[0],
-            ), device=self.device)
+    def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
+        model_inputs = buffer_to((observation, prev_action, prev_reward,
+            init_rnn_state), device=self.device)
         pi, value, _next_rnn_state = self.model(*model_inputs)
         agent_train = AgentTrain(dist_info=DistInfo(prob=pi), value=value)
         return buffer_to(agent_train, device="cpu")  # TODO: try keeping on device.
@@ -45,7 +42,7 @@ class AtariLstmAgent(BaseRecurrentPgAgent):
         action = self.distribution.sample(dist_info)
         prev_rnn_state = buffer_func(rnn_state,  # Buffer does not handle None.
             torch.zeros_like) if prev_rnn_state is None else self.prev_rnn_state
-        agent_info = AgentInfo(dist_info=dist_info, value=value, 
+        agent_info = AgentInfo(dist_info=dist_info, value=value,
             prev_rnn_state=prev_rnn_state)
         action, agent_info = buffer_to((action, agent_info), device="cpu")
         self.advance_rnn_state(rnn_state)  # Do this last.  Keep on device?

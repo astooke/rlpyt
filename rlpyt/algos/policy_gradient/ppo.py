@@ -4,6 +4,7 @@ import torch
 from rlpyt.algos.policy_gradient.base import (PolicyGradient,
     OptData, OptInfo)
 from rlpyt.agents.base import AgentInputs
+from rlpyt.agents.base_recurrent import AgentTrainInputs
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.buffer import buffer_to
@@ -41,6 +42,10 @@ class PPO(PolicyGradient):
             prev_action=samples.agent.prev_action,
             prev_reward=samples.env.prev_reward,
         )
+        if self.agent.recurrent:
+            agent_inputs = AgentTrainInputs(*agent_inputs,
+                init_rnn_state=samples.agent.agent_info.prev_rnn_state[0],  # T=0
+            )
         agent_inputs = buffer_to(agent_inputs, device=self.agent.device)
         return_, advantage, valid = self.process_returns(samples)
         opt_data = OptData(return_=return_, advantage=advantage, valid=valid)

@@ -37,8 +37,7 @@ class AtariFfAgent(BasePgAgent):
         dist_info = DistInfo(prob=pi)
         action = self.distribution.sample(dist_info)
         agent_info = AgentInfo(dist_info=dist_info, value=value)
-        action, agent_info = buffer_to((action, agent_info),
-            device="cpu")
+        action, agent_info = buffer_to((action, agent_info), device="cpu")
         return AgentStep(action=action, agent_info=agent_info)
 
     @torch.no_grad()
