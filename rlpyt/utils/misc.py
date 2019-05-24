@@ -2,7 +2,6 @@
 import numpy as np
 
 
-
 def iterate_mb_idxs(data_length, minibatch_size, shuffle=False, horizon=1):
     if shuffle:
         indexes = np.arange(data_length)
