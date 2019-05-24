@@ -113,14 +113,13 @@ class DQN(RlAlgorithm):
             self.optimizer.zero_grad()
             loss, priority = self.loss(mb_samples)
             loss.backward()
-            if self.dueling:
-                self.scale_conv_grads()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 self.agent.model.parameters(), self.clip_grad_norm)
             self.optimizer.step()
             if self.prioritized_replay:
                 self.replay_buffer.update_priority(priority)
             opt_info.loss.append(loss.item())
+            opt_info.gradNorm.append(grad_norm)
             opt_info.priority.extend(priority[::8])  # Downsample for stats.
         if itr % self.update_target_itr == 0:
             self.agent.update_target()

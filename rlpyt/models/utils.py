@@ -1,15 +1,32 @@
 
+import torch
+
 
 def conv2d_output_shape(h, w, kernel_size=1, stride=1, padding=0, dilation=1):
     """
     Returns output H, W after convolution/pooling on input H, W.
     """
-    if not isinstance(kernel_size, tuple):
-        kernel_size = (kernel_size, kernel_size)
-    if not isinstance(stride, tuple):
-        stride = (stride, stride)
-    if not isinstance(padding, tuple):
-        padding = (padding, padding)
-    h = (h + (2 * padding[0]) - (dilation * (kernel_size[0] - 1)) - 1) // stride[0] + 1
-    w = (w + (2 * padding[1]) - (dilation * (kernel_size[1] - 1)) - 1) // stride[1] + 1
+    kh, kw = kernel_size if isinstance(kernel_size, tuple) else (kernel_size,) * 2
+    sh, sw = stride if isinstance(stride, tuple) else (stride,) * 2
+    ph, pw = padding if isinstance(padding, tuple) else (padding,) * 2
+    d = dilation
+    h = (h + (2 * ph) - (d * (kh - 1)) - 1) // sh + 1
+    w = (w + (2 * pw) - (d * (kw - 1)) - 1) // sw + 1
     return h, w
+
+
+class ScaleGrad(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, tensor, scale):
+        ctx.scale = scale
+        return tensor
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        # We return as many input gradients as there were arguments.
+        # Gradients of non-Tensor arguments to forward must be None.
+        return grad_output * ctx.scale, None
+
+
+scale_grad = ScaleGrad.apply

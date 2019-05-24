@@ -4,9 +4,7 @@ import torch
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
 
-AgentStepInputs = namedarraytuple("AgentStepInputs",
-    ["observation", "prev_action", "prev_reward"])
-AgentTrainInputs = namedarraytuple("AgentTrainInputs",
+AgentInputs = namedarraytuple("AgentStepInputs",
     ["observation", "prev_action", "prev_reward"])
 AgentStep = namedarraytuple("AgentStep", ["action", "agent_info"])
 

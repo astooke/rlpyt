@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 from rlpyt.models.utils import conv2d_output_shape
+from rlpyt.models.utils import scale_grad
 
 
 class AtariDqnModel(torch.nn.Module):
@@ -111,6 +112,7 @@ class AtariDqnModel(torch.nn.Module):
         return self.linear_q(fc_out)
 
     def _dueling_head(self, flat_img):
+        flat_img = scale_grad(flat_img, 2 ** (-1 / 2))
         fc_a_out = F.relu(self.fc_a(flat_img))
         adv = self.linear_a(fc_a_out) + self.bias_a  # Shared across output_dim.
         fc_v_out = F.relu(self.fc_v(flat_img))

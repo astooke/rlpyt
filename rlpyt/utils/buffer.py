@@ -82,3 +82,12 @@ def buffer_func(buffer_, func, *args, **kwargs):
     if type(buffer_) is tuple:
         return contents
     return type(buffer_)(*contents)
+
+
+def get_leading_dims(buffer_, n_dim=1):
+    if isinstance(buffer_, (torch.Tensor, np.ndarray)):
+        return buffer_.shape[:n_dim]
+    contents = tuple(get_leading_dims(b, n_dim) for b in buffer_)
+    if not len(set(contents)) == 1:
+        raise ValueError(f"Found mismatched leading dimensions: {contents}")
+    return contents[0]
