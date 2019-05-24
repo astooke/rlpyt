@@ -7,7 +7,10 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlpyt.replays.uniform import UniformReplayBuffer
 from rlpyt.replays.prioritized import PrioritizedReplayBuffer
+from rlpyt.utils.collections import namedarraytuple
 
+OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "priority"])
+OptData = None
 
 class DQN(RlAlgorithm):
 
@@ -45,6 +48,8 @@ class DQN(RlAlgorithm):
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset=False):
         self.agent = agent
+        agent.set_eps_greedy(self.eps_init)
+        agent.set_eps_greedy_eval(self.eps_eval)
         self.n_itr = n_itr
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
@@ -86,3 +91,25 @@ class DQN(RlAlgorithm):
         else:
             ReplayCls = UniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
+
+    def optimize_agent(self, samples, itr):
+        self.replay_buffer.append_samples(samples)
+        if itr < self.min_itr_learn:
+            return OptData(), OptInfo()  # TODO fix for empty
+        opt_info = OptInfo(loss=[], gradNorm=[], priority=[])
+        for _ in range(self.updates_per_optimize):
+            mb_samples = self.replay_buffer.sample(self.batch_size)
+            loss, priority = self.loss(mb_samples)
+            if self.prioritized_replay:
+                self.replay_buffer.update_priority(priority)
+            opt_info.loss.append(loss.item())
+            opt_info.priority.extend(priority[::8])  # Downsample for stats.
+        if itr % self.update_target_itr == 0:
+            self.agent.update_target()
+        self.update_eps_greedy(itr)
+        if self.prioritized_replay:
+            self.update_pri_beta(itr)
+        return OptData(), opt_info  # TODO: fix opt_data
+
+    def loss(self, samples):
+
