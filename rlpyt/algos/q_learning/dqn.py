@@ -11,11 +11,15 @@ from rlpyt.replays.prioritized import PrioritizedReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes
 
-OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "priority"])
+OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "tdAbsError"])
 OptData = None  # TODO
+ReplaySamples = namedarraytuple("ReplaySamples",
+    ["observation", "action", "reward", "done"])
 
 
 class DQN(RlAlgorithm):
+    """DQN with options for: Double-DQN, Dueling Architecture, n-step returns,
+    prioritized replay."""
 
     def __init__(
             self,
@@ -26,7 +30,8 @@ class DQN(RlAlgorithm):
             replay_size=int(1e6),
             training_intensity=8,  # Average number training uses per datum.
             target_update_steps=int(1e4),
-            reward_horizon=1,
+            n_step_return=1,
+            learning_rate=2.5e-4,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             initial_optim_state_dict=None,
@@ -39,18 +44,18 @@ class DQN(RlAlgorithm):
             dueling_dqn=False,
             priotized_replay=False,
             pri_alpha=0.6,
-            pri_beta_init=0.5,
+            pri_beta_init=0.4,
             pri_beta_final=1.,
             pri_beta_steps=int(50e6),
             default_priority=None,
             ):
         if optim_kwargs is None:
-            opt_kwargs = dict()
+            optim_kwargs = dict()
         if default_priority is None:
             default_priority = delta_clip
         save__init__args(locals())
 
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset=False):
+    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
         self.agent = agent
         if (self.eps_final_min is not None and
                 self.eps_final_min != self.eps_final):  # vector-valued epsilon
@@ -83,75 +88,76 @@ class DQN(RlAlgorithm):
         if self.prioritized_replay:
             self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
 
+        # Annoying TODO: make example--get from sampler?  Eat first.
+        replay_example = ReplaySamples(
+            observation=examples["observation"],
+            action=examples["action"],
+            reward=examples["reward"],
+            done=examples["done"],
+        )
         replay_kwargs = dict(
-            env_spec=agent.env_spec,  # TODO pass this directly?
+            example=replay_example,
             size=self.replay_size,
-            batch_spec=batch_spec,
-            reward_horizon=self.reward_horizon,
-            discount=self.discount,
+            B=batch_spec.B,
+            discount=self.dicount,
+            n_step_return=self.n_step_return,
         )
         if self.prioritize_replay:
             replay_kwargs.update(dict(
                 alpha=self.pri_alpha,
-                beta_init=self.pri_beta_init,
-                beta_final=self.pri_beta_final,
-                beta_itr=self.pri_beta_itr),
+                beta=self.pri_beta_init,
                 default_priority=self.default_priority,
-            )
+            ))
             ReplayCls = PrioritizedReplayBuffer
         else:
             ReplayCls = UniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, samples, itr):
-        self.replay_buffer.append_samples(samples)
+        replay_samples = ReplaySamples(
+            observation=samples.env.observation,
+            action=samples.agent.action,
+            reward=samples.env.reward,
+            done=samples.env.done,
+        )
+        self.replay_buffer.append_samples(replay_samples)
         if itr < self.min_itr_learn:
             return OptData(), OptInfo()  # TODO fix for empty
-        opt_info = OptInfo(loss=[], gradNorm=[], priority=[])
+        opt_info = OptInfo(loss=[], gradNorm=[], tdAbsError=[])
         for _ in range(self.updates_per_optimize):
             mb_samples = self.replay_buffer.sample(self.batch_size)
             self.optimizer.zero_grad()
-            loss, priority = self.loss(mb_samples)
+            loss, td_abs_errors = self.loss(mb_samples)
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 self.agent.model.parameters(), self.clip_grad_norm)
             self.optimizer.step()
             if self.prioritized_replay:
-                self.replay_buffer.update_priority(priority)
+                self.replay_buffer.update_batch_priorities(td_abs_errors)
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
-            opt_info.priority.extend(priority[::8])  # Downsample for stats.
+            opt_info.tdAbsError.extend(td_abs_errors[::8])  # Downsample for stats.
         if itr % self.update_target_itr == 0:
             self.agent.update_target()
-        self.update_itr_params(itr)
+        self.update_itr_hyperparams(itr)
         return OptData(), opt_info  # TODO: fix opt_data
 
     def loss(self, samples):
-        agent_inputs = AgentInputs(
-            observation=samples.env.observation,
-            prev_action=samples.agent.prev_action,
-            prev_reward=samples.env.prev_reward,
-        )
-        next_agent_inputs = AgentInputs(
-            observation=samples.env.next_observation,
-            prev_action=samples.agent.next_prev_action,
-            prev_reward=samples.env.next_prev_reward,
-        )
         if self.agent.recurrent:
             raise NotImplementedError
-
-        qs = self.agent(*agent_inputs)
-        q = select_at_indexes(samples.agent.action, qs)
-        if self.double_dqn:
-            next_qs = self.agent(*next_agent_inputs)
-            next_a = torch.argmax(next_qs, dim=-1)
-            next_qs = self.agent.target_q(*next_agent_inputs)
-            next_q = select_at_indexes(next_a, next_qs)
-        else:
-            next_qs = self.agent.target_q(*next_agent_inputs)
-            next_q = torch.argmax(next_qs, dim=-1)
-        disc_next_q = (self.discount ** self.reward_horizon) * next_q
-        y = samples.opt.return_ + (1 - samples.env.done) * disc_next_q
+        qs = self.agent(*samples.agent_inputs)
+        q = select_at_indexes(samples.action, qs)
+        with torch.no_grad():
+            if self.double_dqn:
+                next_qs = self.agent(*samples.next_agent_inputs)
+                next_a = torch.argmax(next_qs, dim=-1)
+                next_qs = self.agent.target_q(*next_agent_inputs)
+                next_q = select_at_indexes(next_a, next_qs)
+            else:
+                next_qs = self.agent.target_q(*next_agent_inputs)
+                next_q = torch.argmax(next_qs, dim=-1)
+        disc_next_q = (self.discount ** self.n_step_return) * next_q
+        y = samples.return_ + (1 - samples.done_n) * disc_next_q
         delta = y - q
         losses = 0.5 * delta ** 2
         abs_delta = abs(delta)
@@ -159,13 +165,13 @@ class DQN(RlAlgorithm):
             b = self.delta_clip * (abs_delta - self.delta_clip / 2)
             losses = torch.where(abs_delta <= self.delta_clip, losses, b)
         if self.prioritized_replay:
-            losses *= samples.opt.is_weight
+            losses *= samples.is_weights
         loss = torch.mean(losses)
         td_abs_errors = torch.clamp(abs_delta, 0, self.delta_clip)
 
-        return loss, td_abs_errors.view(-1)
+        return loss, td_abs_errors
 
-    def update_itr_params(self, itr):
+    def update_itr_hyperparams(self, itr):
         if itr < self.eps_itr:  # Epsilon can be vector-valued.
             prog = min(1, itr / self.eps_itr)
             new_eps = prog * self.eps_final + (1 - prog) * self.eps_init

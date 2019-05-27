@@ -43,7 +43,7 @@ class MinibatchRlBase(BaseRunner):
         if self.seed is None:
             self.seed = make_seed()
         set_seed(self.seed)
-        self.sampler.initialize(
+        examples = self.sampler.initialize(
             agent=self.agent,  # Agent gets intialized in sampler.
             affinity=self.affinity,
             seed=self.seed + 1,
@@ -52,7 +52,8 @@ class MinibatchRlBase(BaseRunner):
         )
         n_itr = self.get_n_itr(self.sampler.batch_spec.size)
         self.agent.initialize_cuda(self.affinity.get("cuda_idx", None))
-        self.algo.initialize(self.agent, n_itr, self.sampler.mid_batch_reset)
+        self.algo.initialize(self.agent, n_itr, self.sampler.mid_batch_reset,
+            examples=examples)
         self.initialize_logging()
         return n_itr
 

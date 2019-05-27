@@ -1,14 +1,14 @@
 
 import torch
 
-from rlpyt.agents.base import BaseAgent, AgentStep
+from rlpyt.agents.base import AgentStep
+from rlpyt.agents.q_learning.epsilon_greedy import EpsilonGreedyAgent
 from rlpyt.agents.q_learning.base import AgentInfo
 from rlpyt.models.q_learning.atari_dqn_model import AtariDqnModel
-from rlpyt.distributions import EpsilonGreedy
 from rlpyt.utils.buffer import buffer_to
 
 
-class AtariDqnAgent(BaseAgent):
+class AtariDqnAgent(EpsilonGreedyAgent):
 
     def __init__(self, ModelCls=AtariDqnModel, **kwargs):
         super().__init__(ModelCls=ModelCls, **kwargs)
@@ -20,8 +20,30 @@ class AtariDqnAgent(BaseAgent):
         return q.cpu()
 
     def initialize(self, env_spec, share_memory=False):
+        env_model_kwargs = self.make_env_to_model_kwargs(env_spec)
+        self.model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
+        if share_memory:
+            self.model.share_memory()
+            self.shared_model = self.model
+        if self.initial_model_state_dict is not None:
+            self.model.load_state_dict(self.initial_model_state_dict)
+        self.target_model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
+        self.target_model.load_state_dict(self.model.state_dict())
+        self.env_spec = env_spec
+        self.env_model_kwargs = env_model_kwargs
         super().initialize(env_spec, share_memory)
-        self.distribution = EpsilonGreedy()
+
+    def initialize_cuda(self, cuda_idx=None):
+        if cuda_idx is None:
+            return  # CPU
+        if self.shared_model is not None:
+            self.model = self.ModelCls(**self.env_model_kwargs,
+                **self.model_kwargs)
+            self.model.load_state_dict(self.shared_model.state_dict())
+        self.device = torch.device("cuda", index=cuda_idx)
+        self.model.to(self.device)
+        self.target_model.to(self.device)
+        logger.log(f"Initialized agent model on device: {self.device}.")
 
     def make_env_to_model_kwargs(self, env_spec):
         return dict(image_shape=env_spec.observation_space.shape,
@@ -43,24 +65,6 @@ class AtariDqnAgent(BaseAgent):
             device=self.device())
         target_q = self.target_model(*model_inputs)
         return target_q.cpu()
-
-    def set_epsilon_greedy(self, epsilon):
-        self.sample_epsilon = epsilon
-        self.distribution.set_epsilon(epsilon)
-
-    def give_eval_epsilon_greedy(self, epsilon):
-        self.eval_epsilon = epsilon
-
-    def train_mode(self):
-        self.model.train()
-
-    def sample_mode(self):
-        self.model.eval()
-        self.distribution.set_epsilon(self.sample_epsilon)
-
-    def eval_mode(self):
-        self.model.eval()
-        self.distribution.set_epsilon(self.eval_epsilon)
 
     def update_target(self):
         self.target_model.load_state_dict(self.model.state_dict())

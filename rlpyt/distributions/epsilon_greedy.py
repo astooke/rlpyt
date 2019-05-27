@@ -25,3 +25,15 @@ class EpsilonGreedy(Distribution):
 
     def set_epsilon(self, epsilon):
         self._epsilon = epsilon
+
+
+class CategoricalEpsilonGreedy(EpsilonGreedy):
+    """Input p to be shaped [T,B,Q,A] or [B,Q,A], Q: number of actions, A:
+    number of atoms.  Input z is domain of atom-values, shaped [A]."""
+
+    def sample(self, p, z=None):
+        q = torch.tensordot(p, z or self.z, dims=1)
+        return super().sample(q)
+
+    def give_z(self, z):
+        self.z = z

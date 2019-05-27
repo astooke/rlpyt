@@ -23,7 +23,7 @@ class GpuParallelSampler(BaseSampler):
         buffers = build_samples_buffer(agent, env, self.batch_spec,
             bootstrap_value, agent_shared=True, env_shared=True,
             build_step_buffer=True)
-        samples_pyt, samples_np, step_buffer_pyt, step_buffer_np = buffers
+        samples_pyt, samples_np, examples, step_buffer_pyt, step_buffer_np = buffers
         env.terminate()
         del env
 
@@ -66,6 +66,7 @@ class GpuParallelSampler(BaseSampler):
         self.sync = sync
 
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
+        return examples  # e.g. In case useful to build replay buffer
 
     def obtain_samples(self, itr):
         self.samples_np[:] = 0  # Reset all batch sample values (optional?).

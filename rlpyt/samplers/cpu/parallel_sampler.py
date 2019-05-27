@@ -18,7 +18,7 @@ class CpuParallelSampler(BaseSampler):
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
         agent.initialize(env.spec, share_memory=True)  # Actual agent initialization.
-        samples_pyt, samples_np = build_samples_buffer(agent, env,
+        samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value,
             agent_shared=True, env_shared=True, build_step_buffer=False)
         env.terminate()
@@ -59,6 +59,7 @@ class CpuParallelSampler(BaseSampler):
         self.agent = agent
 
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
+        return examples  # e.g. In case useful to build replay buffer.
 
     def obtain_samples(self, itr):
         self.agent.sync_shared_memory()  # New weights in workers, if needed.

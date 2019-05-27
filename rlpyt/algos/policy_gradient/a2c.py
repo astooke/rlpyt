@@ -28,9 +28,9 @@ class A2C(PolicyGradient):
             optim_kwargs = dict()
         save__init__args(locals())
 
-    def optimize_agent(self, train_samples, itr):
+    def optimize_agent(self, samples, itr):
         self.optimizer.zero_grad()
-        loss, entropy, perplexity, opt_data = self.loss(train_samples)
+        loss, entropy, perplexity, opt_data = self.loss(samples)
         loss.backward()
         grad_norm = torch.nn.utils.clip_grad_norm_(
             self.agent.model.parameters(), self.clip_grad_norm)

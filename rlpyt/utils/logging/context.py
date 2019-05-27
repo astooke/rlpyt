@@ -38,7 +38,7 @@ def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none")
     if log_params is None:
         log_params = dict()
     log_params["name"] = name
-    # log_params["run_ID"] = run_ID
+    log_params["run_ID"] = run_ID
     with open(params_log_file, "w") as f:
         json.dump(log_params, f)
 

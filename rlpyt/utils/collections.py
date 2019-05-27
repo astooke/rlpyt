@@ -3,7 +3,7 @@ import sys
 from collections import namedtuple
 
 
-RESERVED_NAMES = ("get_index", "get", "item")
+RESERVED_NAMES = ("get", "items")
 
 
 def tuple_itemgetter(i):
@@ -31,8 +31,6 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
     Points(x=0, y=10)               # (location can be index or slice)
     >>> p.get(0)                    # regular tuple-indexing into field
     array([0, 1])
-    >>> p.get_field('y')
-    array([10, 11])
     >>> x, y = p                    # unpack like a regular tuple
     >>> x
     array([0, 1])
@@ -92,20 +90,16 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
         "Checks presence of field name (unlike tuple; like dict)."
         return key in self._fields
 
-    def get_index(self, index):
+    def get(self, index):
         "Retrieve value as if indexing into regular tuple."
         return tuple.__getitem__(self, index)
-
-    def get(self, field_name, default=None):
-        "Retrieve value by field name (like dict.get())."
-        return getattr(self, field_name, None)
 
     def items(self):
         "Iterate ordered (field_name, value) pairs (like OrderedDict)."
         for k, v in zip(self._fields, self):
             yield k, v
 
-    for method in (__getitem__, __setitem__, get_index, get, items):
+    for method in (__getitem__, __setitem__, get, items):
         method.__qualname__ = f'{typename}.{method.__name__}'
 
     arg_list = repr(NtCls._fields).replace("'", "")[1:-1]
@@ -115,7 +109,6 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
         '__getitem__': __getitem__,
         '__setitem__': __setitem__,
         '__contains__': __contains__,
-        'get_index': get_index,
         'get': get,
         'items': items,
     }

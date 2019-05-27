@@ -55,7 +55,7 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
     samples_np = Samples(agent_buffer, env_buffer)
     samples_pyt = torchify_buffer(samples_np)
     if not build_step_buffer:
-        return samples_pyt, samples_np
+        return samples_pyt, samples_np, examples
 
     step_obs = buffer_from_example(examples["observation"], B, shared=True)
     step_act = buffer_from_example(examples["action"], B, shared=True)
@@ -70,7 +70,7 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
         agent_info=step_inf,
     )
     step_buffer_pyt = torchify_buffer(step_buffer_np)
-    return samples_pyt, samples_np, step_buffer_pyt, step_buffer_np
+    return samples_pyt, samples_np, examples, step_buffer_pyt, step_buffer_np
 
 
 def build_par_objs(n, sync=False, groups=1):

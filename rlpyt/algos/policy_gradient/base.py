@@ -17,7 +17,9 @@ class PolicyGradient(RlAlgorithm):
     bootstrap_value = True
     opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
-    def initialize(self, agent, n_itr, mid_batch_reset=False):
+    def initialize(self, agent, n_itr, batch_spec=None, mid_batch_reset=False,
+            examples=None):
+        """Params batch_spec and examples unused."""
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:

@@ -118,7 +118,7 @@ class AtariEnv(Env):
         self._get_screen(2)
         np.maximum(self._raw_frame_1, self._raw_frame_2, self._max_frame)
         img = cv2.resize(self._max_frame[1:-1], (W, H), cv2.INTER_NEAREST)
-        # NOTE: Order oldest to newest needed for ReplayFrameBuffer in DQN.
+        # NOTE: order OLDEST to NEWEST should match use in frame-wise buffer.
         self._obs = np.concatenate([self._obs[1:], img[np.newaxis]])
 
     def _reset_obs(self):
