@@ -2,8 +2,6 @@
 import torch
 
 from rlpyt.algos.base import RlAlgorithm
-from rlpyt.agents.base import AgentInputs
-from rlpyt.agents.base_recurrent import AgentTrainInputs
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlpyt.replays.uniform import UniformReplayBuffer
@@ -11,9 +9,9 @@ from rlpyt.replays.prioritized import PrioritizedReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes
 
-OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "tdAbsError"])
+OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "tdAbsErr"])
 OptData = None  # TODO
-ReplaySamples = namedarraytuple("ReplaySamples",
+SamplesToReplay = namedarraytuple("SamplesToReplay",
     ["observation", "action", "reward", "done"])
 
 
@@ -88,15 +86,14 @@ class DQN(RlAlgorithm):
         if self.prioritized_replay:
             self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
 
-        # Annoying TODO: make example--get from sampler?  Eat first.
-        replay_example = ReplaySamples(
+        example_to_replay = SamplesToReplay(
             observation=examples["observation"],
             action=examples["action"],
             reward=examples["reward"],
             done=examples["done"],
         )
         replay_kwargs = dict(
-            example=replay_example,
+            example=example_to_replay,
             size=self.replay_size,
             B=batch_spec.B,
             discount=self.dicount,
@@ -114,16 +111,16 @@ class DQN(RlAlgorithm):
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, samples, itr):
-        replay_samples = ReplaySamples(
+        samples_to_replay = SamplesToReplay(
             observation=samples.env.observation,
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
         )
-        self.replay_buffer.append_samples(replay_samples)
+        self.replay_buffer.append_samples(samples_to_replay)
         if itr < self.min_itr_learn:
             return OptData(), OptInfo()  # TODO fix for empty
-        opt_info = OptInfo(loss=[], gradNorm=[], tdAbsError=[])
+        opt_info = OptInfo(loss=[], gradNorm=[], tdAbsErr=[])
         for _ in range(self.updates_per_optimize):
             mb_samples = self.replay_buffer.sample(self.batch_size)
             self.optimizer.zero_grad()
@@ -136,28 +133,28 @@ class DQN(RlAlgorithm):
                 self.replay_buffer.update_batch_priorities(td_abs_errors)
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
-            opt_info.tdAbsError.extend(td_abs_errors[::8])  # Downsample for stats.
+            opt_info.tdAbsErr.extend(td_abs_errors[::8])  # Downsample for stats.
         if itr % self.update_target_itr == 0:
             self.agent.update_target()
         self.update_itr_hyperparams(itr)
         return OptData(), opt_info  # TODO: fix opt_data
 
     def loss(self, samples):
+        """Samples have leading batch dimension [B,..] (but not time)."""
         if self.agent.recurrent:
             raise NotImplementedError
         qs = self.agent(*samples.agent_inputs)
         q = select_at_indexes(samples.action, qs)
         with torch.no_grad():
+            target_qs = self.agent.target_q(*samples.next_agent_inputs)
             if self.double_dqn:
                 next_qs = self.agent(*samples.next_agent_inputs)
                 next_a = torch.argmax(next_qs, dim=-1)
-                next_qs = self.agent.target_q(*next_agent_inputs)
-                next_q = select_at_indexes(next_a, next_qs)
+                target_q = select_at_indexes(next_a, target_qs)
             else:
-                next_qs = self.agent.target_q(*next_agent_inputs)
-                next_q = torch.argmax(next_qs, dim=-1)
-        disc_next_q = (self.discount ** self.n_step_return) * next_q
-        y = samples.return_ + (1 - samples.done_n) * disc_next_q
+                target_q = torch.max(target_qs, dim=-1)
+        disc_target_q = (self.discount ** self.n_step_return) * target_q
+        y = samples.return_ + (1 - samples.done_n) * disc_target_q
         delta = y - q
         losses = 0.5 * delta ** 2
         abs_delta = abs(delta)

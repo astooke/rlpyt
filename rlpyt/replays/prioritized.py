@@ -1,10 +1,10 @@
 
-from rlpyt.replays.n_step import NStepReturnBuffer, SamplesBatch
+from rlpyt.replays.n_step import NStepReturnBuffer, SamplesFromReplay
 from rlpyt.replays.sum_tree import SumTree
 from rlpyt.utils.collections import namedarraytuple
 
-SamplesBatchPri = namedarraytuple("SamplesBatchPri",
-    SamplesBatch.fields + ("is_weights",))
+SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
+    SamplesFromReplay._fields + ("is_weights",))
 
 
 class PrioritizedReplayBuffer(NStepReturnBuffer):
@@ -40,7 +40,7 @@ class PrioritizedReplayBuffer(NStepReturnBuffer):
         batch = self.extract_batch(T_idxs, B_idxs)
         is_weights = (1. / priorities) ** self.beta  # Unnormalized.
         is_weights /= max(is_weights)  # Normalize.
-        return SamplesBatchPri(*batch, is_weights=is_weights)
+        return SamplesFromReplayPri(*batch, is_weights=is_weights)
 
     def update_batch_priorities(self, priorities):
         self.priority_tree.update_batch_priorities(priorities ** self.alpha)

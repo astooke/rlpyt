@@ -5,7 +5,7 @@ from rlpyt.agents.base import AgentInputs
 from rlpyt.algos.utils import discount_return_n_step
 from rlpyt.utils.collections import namedarraytuple
 
-SamplesBatch = namedarraytuple("SamplesBatch",
+SamplesFromReplay = namedarraytuple("SamplesFromReplay",
     ["agent_inputs", "action", "return_", "done_n", "next_agent_inputs"])
 
 
@@ -83,7 +83,7 @@ class NStepReturnBuffer(BaseReplayBuffer):
     def extract_batch(self, T_idxs, B_idxs):
         s = self.samples
         next_T_idxs = (T_idxs + self.n_step_return) % self.T
-        batch = SamplesBatch(
+        batch = SamplesFromReplay(
             agent_inputs=AgentInputs(
                 observation=s.observation[T_idxs, B_idxs],
                 prev_action=s.action[T_idxs - 1, B_idxs],
