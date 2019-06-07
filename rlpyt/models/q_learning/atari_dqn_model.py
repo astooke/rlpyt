@@ -85,7 +85,7 @@ class AtariDqnModel(torch.nn.Module):
             self.linear_q = torch.nn.Linear(fc_size, output_dim)
             self._head = self._q_head
 
-    def forward(self, image, _prev_action, _prev_reward):
+    def forward(self, image, prev_action, prev_reward):
         """Feedforward layers process as [T*B,H]. Return same leading dims as
         input, can be [T,B], [B], or []."""
         img = image.to(torch.float)  # Expect torch.uint8 inputs

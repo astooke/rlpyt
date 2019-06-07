@@ -30,3 +30,13 @@ class ScaleGrad(torch.autograd.Function):
 
 
 scale_grad = ScaleGrad.apply
+
+
+def update_state_dict(target_model, new_model, tau=1):
+    if tau == 1:
+        target_model.load_state_dict(new_model.state_dict())
+    elif tau > 0:
+        new_sd = new_model.state_dict()
+        update_sd = {k: tau * new_sd[k] + (1 - tau) * v
+            for k, v in target_model.state_dict().items()}
+        target_model.load_state_dict(update_sd)

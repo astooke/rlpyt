@@ -1,5 +1,5 @@
 
-from rlpyt.replays.frame.n_step_frame import NStepFrameBuffer
+from rlpyt.replays.frame.n_step import NStepFrameBuffer
 from rlpyt.replays.uniform import UniformReplayBuffer
 
 

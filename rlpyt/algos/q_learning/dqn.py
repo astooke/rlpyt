@@ -4,8 +4,8 @@ import torch
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
-from rlpyt.replays.uniform import UniformReplayBuffer
-from rlpyt.replays.prioritized import PrioritizedReplayBuffer
+from rlpyt.replays.frame.uniform import UniformFrameReplayBuffer
+from rlpyt.replays.frame.prioritized import PrioritizedFrameReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes
 
@@ -54,6 +54,9 @@ class DQN(RlAlgorithm):
         save__init__args(locals())
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
+        if self.agent.recurrent:
+            raise NotImplementedError
+
         self.agent = agent
         if (self.eps_final_min is not None and
                 self.eps_final_min != self.eps_final):  # vector-valued epsilon
@@ -69,13 +72,13 @@ class DQN(RlAlgorithm):
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
+
         sample_bs = batch_spec.size
         train_bs = self.batch_size
-
         assert (self.training_intensity * sample_bs) % train_bs == 0
         self.updates_per_optimize = int((self.training_intensity * sample_bs) //
             train_bs)
-        logger.log(f"From sampler batch size {sample_bs}, DQN "
+        logger.log(f"From sampler batch size {sample_bs}, training "
             f"batch size {train_bs}, and training intensity "
             f"{self.training_intensity}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
@@ -96,7 +99,7 @@ class DQN(RlAlgorithm):
             example=example_to_replay,
             size=self.replay_size,
             B=batch_spec.B,
-            discount=self.dicount,
+            discount=self.discount,
             n_step_return=self.n_step_return,
         )
         if self.prioritize_replay:
@@ -105,9 +108,9 @@ class DQN(RlAlgorithm):
                 beta=self.pri_beta_init,
                 default_priority=self.default_priority,
             ))
-            ReplayCls = PrioritizedReplayBuffer
+            ReplayCls = PrioritizedFrameReplayBuffer
         else:
-            ReplayCls = UniformReplayBuffer
+            ReplayCls = UniformFrameReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, samples, itr):
@@ -122,9 +125,9 @@ class DQN(RlAlgorithm):
             return OptData(), OptInfo()  # TODO fix for empty
         opt_info = OptInfo(loss=[], gradNorm=[], tdAbsErr=[])
         for _ in range(self.updates_per_optimize):
-            mb_samples = self.replay_buffer.sample(self.batch_size)
+            samples_from_replay = self.replay_buffer.sample(self.batch_size)
             self.optimizer.zero_grad()
-            loss, td_abs_errors = self.loss(mb_samples)
+            loss, td_abs_errors = self.loss(samples_from_replay)
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 self.agent.model.parameters(), self.clip_grad_norm)
@@ -141,8 +144,6 @@ class DQN(RlAlgorithm):
 
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
-        if self.agent.recurrent:
-            raise NotImplementedError
         qs = self.agent(*samples.agent_inputs)
         q = select_at_indexes(samples.action, qs)
         with torch.no_grad():

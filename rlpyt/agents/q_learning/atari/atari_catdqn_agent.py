@@ -3,9 +3,11 @@ import torch
 
 from rlpyt.agents.base import AgentStep
 from rlpyt.agents.q_learning.epsilon_greedy import EpsilonGreedyAgent
+from rlpyt.distributions.epislon_greedy import CatDistInfo
 from rlpyt.models.q_learning.atari_catdqn_model import AtariCatDqnModel
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.collections import namedarraytuple
+from rlpyt.utils.logging import logger
 
 AgentInfo = namedarraytuple("AgentInfo", ["p"])
 
@@ -62,7 +64,7 @@ class AtariCatDqnAgent(EpsilonGreedyAgent):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         p = self.model(*model_inputs)
-        action = self.distribution.sample(p)
+        action = self.distribution.sample(CatDistInfo(p=p))
         agent_info = AgentInfo(p=p)
         action, agent_info = buffer_to((action, agent_info), device="cpu")
         return AgentStep(action=action, agent_info=agent_info)

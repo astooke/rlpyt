@@ -65,7 +65,7 @@ class AtariFfModel(torch.nn.Module):
         self.linear_pi = torch.nn.Linear(fc_size, output_dim)
         self.linear_v = torch.nn.Linear(fc_size, 1)
 
-    def forward(self, image, _prev_action, _prev_reward):
+    def forward(self, image, prev_action, prev_reward):
         """Feedforward layers process as [T*B,H]. Return same leading dims as
         input, can be [T,B], [B], or []."""
         img = image.to(torch.float)  # Expect torch.uint8 inputs

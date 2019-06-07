@@ -8,7 +8,6 @@ from rlpyt.utils.tensor import (valid_mean, select_at_indexes, to_onehot,
 
 EPS = 1e-8
 
-
 DistInfo = namedarraytuple("DistInfo", ["prob"])
 
 
@@ -28,13 +27,13 @@ class Categorical(Distribution):
         q = new_dist_info.prob
         return torch.sum(p * (torch.log(p + EPS) - torch.log(q + EPS)), dim=-1)
 
-    def mean_kl(self, old_dist_info, new_dist_info, valid):
+    def mean_kl(self, old_dist_info, new_dist_info, valid=None):
         return valid_mean(self.kl(old_dist_info, new_dist_info), valid)
 
     def sample(self, dist_info):
         p = dist_info.prob
-        action = torch.multinomial(p.view(-1, self.dim), num_samples=1)
-        return action.view(p.shape[:-1]).type(self.dtype)  # Returns indexes.
+        sample = torch.multinomial(p.view(-1, self.dim), num_samples=1)
+        return sample.view(p.shape[:-1]).type(self.dtype)  # Returns indexes.
 
     def entropy(self, dist_info):
         p = dist_info.prob
