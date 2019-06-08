@@ -3,7 +3,7 @@ import torch
 
 from rlpyt.agents.dpg.ddpg_agent import DdpgAgent
 from rlpyt.utils.buffer import buffer_to
-from rlpyt.distributions.independent_gaussian import IndependentGaussian
+from rlpyt.distributions.independent_gaussian import Gaussian
 from rlpyt.models.utils import update_state_dict
 
 
@@ -22,7 +22,7 @@ class Td3Agent(DdpgAgent):
         self.target_q2_model = self.QModelCls(**self.env_model_kwargs,
             **self.q_model_kwargs)
         self.target_q2_model.load_state_dict(self.q2_model.state_dict())
-        self.target_distribution = IndependentGaussian(
+        self.target_distribution = Gaussian(
             dim=env_spec.action_space.size)
         self.target_distribution.set_clip(env_spec.action_space.high)
 
@@ -40,7 +40,6 @@ class Td3Agent(DdpgAgent):
         q2 = self.q2_model(*model_inputs)
         return q1.cpu(), q2.cpu()
 
-    @torch.no_grad()
     def target_q_at_mu(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)

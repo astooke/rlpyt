@@ -1,15 +1,12 @@
 
+import math
+
 from rlpyt.replays.base import BaseReplayBuffer
 from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
-from rlpyt.agents.base import AgentInputs
 from rlpyt.algos.utils import discount_return_n_step
-from rlpyt.utils.collections import namedarraytuple
-
-SamplesFromReplay = namedarraytuple("SamplesFromReplay",
-    ["agent_inputs", "action", "return_", "done_n", "next_agent_inputs"])
 
 
-class NStepReturnBuffer(BaseReplayBuffer):
+class BaseNStepReturnBuffer(BaseReplayBuffer):
     """Stores the most recent data and computes n_step returns. Operations are
     all vectorized, as data is stored with leading dimensions [T,B].  Cursor
     is next idx to be written.
@@ -26,11 +23,12 @@ class NStepReturnBuffer(BaseReplayBuffer):
     """
 
     def __init__(self, example, size, B, discount=1, n_step_return=1):
-        self.T = T = (size + B - 1) // B  # Ceiling div.
+        self.T = T = math.ceil(size / B)
         self.B = B
+        self.size = T * B
         self.discount = discount
         self.n_step_return = n_step_return
-        self.t = 0
+        self.t = 0  # Cursor (in T dimension).
         self.samples = buffer_from_example(example, (T, B))
         if self.n_step_return > 1:
             self.samples_return_ = buffer_from_example(example.reward, (T, B))
@@ -79,23 +77,3 @@ class NStepReturnBuffer(BaseReplayBuffer):
             self.samples_return_[:T - num_t] = return_[num_t:]
             self.samples_done_n[t - nm1:] = done_n[:num_t]
             self.samples_done_n[:T - num_t] = done_n[num_t:]
-
-    def extract_batch(self, T_idxs, B_idxs):
-        s = self.samples
-        next_T_idxs = (T_idxs + self.n_step_return) % self.T
-        batch = SamplesFromReplay(
-            agent_inputs=AgentInputs(
-                observation=s.observation[T_idxs, B_idxs],
-                prev_action=s.action[T_idxs - 1, B_idxs],
-                prev_reward=s.reward[T_idxs - 1, B_idxs],
-            ),
-            action=s.action[T_idxs, B_idxs],
-            return_=self.samples_return_[T_idxs, B_idxs],
-            done_n=self.samples_done_n[T_idxs, B_idxs],
-            next_agent_inputs=AgentInputs(
-                observation=s.observation[next_T_idxs, B_idxs],
-                prev_action=s.action[next_T_idxs - 1, B_idxs],
-                prev_reward=s.reward[next_T_idxs - 1, B_idxs],
-            ),
-        )
-        return batch

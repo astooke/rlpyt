@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from rlpyt.replays.n_step import NStepReturnBuffer
+from rlpyt.replays.non_sequence.n_step import NStepReturnBuffer
 
 
 class UniformReplayBuffer(NStepReturnBuffer):

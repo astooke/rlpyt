@@ -19,11 +19,13 @@ class DDPG(RlAlgorithm):
     def __init__(
             self,
             discount=0.99,
-            batch_size=32,
+            batch_size=64,
             min_steps_learn=int(5e4),
             replay_size=int(1e6),
-            training_intensity=8,  # Data_Consumption / Data_Generation
+            training_intensity=64,  # data_consumption / data_generation
             target_update_tau=0.01,
+            target_update_interval=1,
+            policy_update_interval=1,
             mu_learning_rate=1e-4,
             q_learning_rate=1e-3,
             OptimCls=torch.optim.Adam,
@@ -34,7 +36,6 @@ class DDPG(RlAlgorithm):
             policy_noise_clip=None,
             grad_norm_clip=1e6,
             q_target_clip=1e6,
-            policy_update_delay=1,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -65,7 +66,6 @@ class DDPG(RlAlgorithm):
             f"batch size {train_bs}, and training intensity "
             f"{self.training_intensity}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
-
         self.min_itr_learn = self.min_steps_learn // sample_bs
 
         example_to_replay = SamplesToReplay(
@@ -103,16 +103,17 @@ class DDPG(RlAlgorithm):
             self.q_optimizer.step()
             opt_info.qLoss.append(q_loss.item())
             opt_info.qGradNorm.append(q_grad_norm)
-            if self.update_counter % self.policy_update_delay == 0:
+            if self.update_counter % self.policy_update_interval == 0:
                 self.mu_optimizer.zero_grad()
                 mu_loss = self.mu_loss(samples_from_replay)
                 mu_loss.backward()
                 mu_grad_norm = torch.nn.utils.clip_grad_norm_(
                     self.agent.mu_parameters(), self.clip_grad_norm)
                 self.mu_optimizer.step()
-                self.agent.update_target(self.target_update_tau)
                 opt_info.muLoss.append(mu_loss.item())
                 opt_info.muGradNorm.append(mu_grad_norm)
+            if self.update_counter % self.target_update_interval == 0:
+                self.agent.update_target(self.target_update_tau)
         return OptData(), opt_info  # TODO: fix opt_data
 
     def mu_loss(self, samples):

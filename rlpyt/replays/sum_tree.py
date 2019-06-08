@@ -26,6 +26,8 @@ class SumTree(object):
         self.reset()
 
     def advance(self, T):
+        """Set priorities to zero in vicinity of new cursor position and turn
+        priorities on for new samples since previous cursor position."""
         t, b, f = self.t, self.off_backward, self.off_forward
         low_on_t = (t - b) % self.T
         low_off_t = (t + T - b) % self.T  # = high_on_t

@@ -3,8 +3,7 @@ import torch
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.utils.quick_args import save__init__args
-from rlpyt.distributions.independent_gaussian import (IndependentGaussian,
-    DistInfo)
+from rlpyt.distributions.gaussian import Gaussian, DistInfo
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.logging import logger
 from rlpyt.models.dpg.mlp import MlpMuModel, MlpQModel
@@ -17,7 +16,10 @@ AgentInfo = namedarraytuple("AgentInfo", ["mu"])
 
 class DdpgAgent(BaseAgent):
 
-    def __init__(self,
+    shared_mu_model = None
+
+    def __init__(
+            self,
             MuModelCls=MlpMuModel,
             QModelCls=MlpQModel,
             mu_model_kwargs=None,
@@ -50,7 +52,7 @@ class DdpgAgent(BaseAgent):
         self.target_q_model = self.QModelCls(**env_model_kwargs,
             **self.q_model_kwargs)
         self.target_q_model.load_state_dict(self.q_model.state_dict())
-        self.distribution = IndependentGaussian(dim=env_spec.action_space.size)
+        self.distribution = Gaussian(dim=env_spec.action_space.size)
         self.distribution.set_clip(env_spec.action_space.high)
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
@@ -89,6 +91,13 @@ class DdpgAgent(BaseAgent):
         q = self.q_model(*model_inputs, mu)
         return q.cpu()
 
+    def target_q_at_mu(self, observation, prev_action, prev_reward):
+        model_inputs = buffer_to((observation, prev_action, prev_reward),
+            device=self.device)
+        target_mu = self.target_mu_model(*model_inputs)
+        target_q_at_mu = self.target_q_model(*model_inputs, target_mu)
+        return target_q_at_mu.cpu()
+
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
@@ -98,14 +107,6 @@ class DdpgAgent(BaseAgent):
         agent_info = AgentInfo(mu=mu)
         action, agent_info = buffer_to((action, agent_info), device="cpu")
         return AgentStep(action=action, agent_info=agent_info)
-
-    @torch.no_grad()
-    def target_q_at_mu(self, observation, prev_action, prev_reward):
-        model_inputs = buffer_to((observation, prev_action, prev_reward),
-            device=self.device)
-        target_mu = self.target_mu_model(*model_inputs)
-        target_q_at_mu = self.target_q_model(*model_inputs, target_mu)
-        return target_q_at_mu.cpu()
 
     def update_target(self, tau=1):
         update_state_dict(self.target_mu_model, self.mu_model, tau)

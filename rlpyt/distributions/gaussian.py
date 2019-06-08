@@ -1,5 +1,6 @@
 
 import torch
+import torch.nn.Functional as F
 import math
 
 from rlpyt.distributions.base import Distribution
@@ -12,18 +13,38 @@ DistInfo = namedarraytuple("DistInfo", ["mean"])
 DistInfoStd = namedarraytuple("DistInfoStd", ["mean", "log_std"])
 
 
-class IndependentGaussian(Distribution):
-    """Multivariate Gaussian with diagonal covariance. Standard deviation can be
-    provided, as scalar or value per dimension, or it will be drawn from the
-    distribution_info (possibly learnable), where it is expected to have a value
-    per each dimension. Clipping optional during sampling, but not accounted for
-    in formulas."""
+class Gaussian(Distribution):
+    """Multivariate Gaussian with independent variables (diagonal covariance).
+    Standard deviation can be provided, as scalar or value per dimension, or it
+    will be drawn from the dist_info (possibly learnable), where it is expected
+    to have a value per each dimension.
+    Noise and sample clipping optional during sampling, but not accounted for in
+    formulas (e.g. entropy).
+    Clipping of standard deviation optional and accounted in formulas.
+    Squashing of samples to squash * tanh(sample) is optional and accounted for
+    in log_likelihood formula but not entropy.
+    """
 
-    def __init__(self, dim, std=None, clip=None, noise_clip=None):
+    def __init__(
+            self,
+            dim,
+            std=None,
+            clip=None,
+            noise_clip=None,
+            min_std=None,
+            max_std=None,
+            squash=None,  # None or > 0
+            ):
         self._dim = dim
         self.set_std(std)
         self.clip = clip
         self.noise_clip = noise_clip
+        self.min_std = min_std
+        self.max_std = max_std
+        self.min_log_std = math.log(min_std) if min_std is not None else None
+        self.max_log_std = math.log(max_std) if max_std is not None else None
+        self.squash = squash
+        assert not (clip and squash), "Choose one."
 
     @property
     def dim(self):
@@ -37,6 +58,11 @@ class IndependentGaussian(Distribution):
         if self.std is None:
             old_log_std = old_dist_info.log_std
             new_log_std = new_dist_info.log_std
+            if self.min_std is not None or self.max_std is not None:
+                old_log_std = torch.clamp(old_log_std, min=self.min_log_std,
+                    max=self.max_log_std)
+                new_log_std = torch.clamp(new_log_std, min=self.min_log_std,
+                    max=self.max_log_std)
             old_std = torch.exp(old_log_std)
             new_std = torch.exp(new_log_std)
             num += old_std ** 2 - new_std ** 2
@@ -51,8 +77,13 @@ class IndependentGaussian(Distribution):
         return valid_mean(self.kl(old_dist_info, new_dist_info), valid)
 
     def entropy(self, dist_info):
+        if self.squash is not None:
+            raise NotImplementedError
         if self.std is None:
             log_std = dist_info.log_std
+            if self.min_log_std is not None or self.max_log_std is not None:
+                log_std = torch.clamp(log_std, min=self.min_log_std,
+                    max=self.max_log_std)
         else:
             shape = dist_info.mean.shape[:-1]
             log_std = torch.log(self.std).repeat(*shape, 1)
@@ -70,12 +101,23 @@ class IndependentGaussian(Distribution):
 
     def log_likelihood(self, locations, dist_info):
         mean = dist_info.mean
-        log_std = dist_info.log_std if self.std is None else torch.log(self.std)
-        std = torch.exp(log_std) if self.std is None else self.std
+        if self.std is None:
+            log_std = dist_info.log_std
+            if self.min_log_std is not None or self.max_log_std is not None:
+                log_std = torch.clamp(log_std, min=self.min_log_std,
+                    max=self.max_log_std)
+            std = torch.exp(log_std)
+        else:
+            std, log_std = self.std, torch.log(self.std)
         z = (locations - mean) / std
-        return -(torch.sum(log_std, dim=-1) +
+        logli = -(torch.sum(log_std, dim=-1) +
             0.5 * torch.sum(z ** 2, dim=-1) +
             0.5 * mean.shape[-1] * math.log(2 * math.pi))
+        if self.squash is not None:
+            logli -= torch.sum(
+                torch.log(self.squash * (1 - torch.tanh(locations) ** 2) + EPS),
+                dim=-1)
+        return logli
 
     def likelihood_ratio(self, locations, old_dist_info, new_dist_info):
         logli_old = self.log_likelihood(locations, old_dist_info)
@@ -85,7 +127,11 @@ class IndependentGaussian(Distribution):
     def sample(self, dist_info):
         mean = dist_info.mean
         if self.std is None:
-            std = torch.exp(dist_info.log_std)
+            log_std = dist_info.log_std
+            if self.min_log_std is not None or self.max_log_std is not None:
+                log_std = torch.clamp(log_std, min=self.min_log_std,
+                    max=self.max_log_std)
+            std = torch.exp(log_std)
         else:
             shape = mean.shape[:-1]
             std = self.std.repeat(*shape, 1)
@@ -95,10 +141,17 @@ class IndependentGaussian(Distribution):
         sample = mean + noise
         if self.clip is not None:
             sample = torch.clamp(sample, -self.clip, self.clip)
+        elif self.squash is not None:
+            sample = self.squash * F.tanh(sample)
         return sample
 
     def set_clip(self, clip):
         self.clip = clip  # Can be None.
+        assert self.clip is None or self.squash is None
+
+    def set_squash(self, squash):
+        self.squash = squash  # Can be None.
+        assert self.clip is None or self.squash is None
 
     def set_noise_clip(self, noise_clip):
         self.noise_clip = noise_clip  # Can be None.

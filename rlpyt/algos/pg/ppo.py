@@ -53,7 +53,7 @@ class PPO(PolicyGradient):
             samples.agent.action, samples.agent.agent_info.dist_info)
 
         T, B = samples.env.reward.shape[:2]
-        opt_info = OptInfo(loss=[], gradNorm=[], entropy=[], perplexity=[])
+        opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         # If recurrent, use whole trajectories, only shuffle B; else shuffle all.
         batch_size = B if self.agent.recurrent else T * B
         mb_size = batch_size // self.minibatches

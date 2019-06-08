@@ -1,16 +1,14 @@
 
-import numpy as np
 
-from rlpyt.replays.n_step import NStepReturnBuffer, SamplesBatch
+from rlpyt.replays.n_step import BaseNStepReturnBuffer
 from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
-from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.collections import namedarraytuple
 
 
 ReplaySamples = None
 
 
-class NStepFrameBuffer(NStepReturnBuffer):
+class BaseFrameBuffer(BaseNStepReturnBuffer):
     """
     Like n-step return buffer but expects multi-frame input observation where
     each new observation has one new frame and the rest old; stores only
@@ -52,29 +50,3 @@ class NStepFrameBuffer(NStepReturnBuffer):
         replay_samples = ReplaySamples(*(v for k, v in samples.items()
             if k != "observation"))
         return super().append_samples(replay_samples)
-
-    def extract_batch(self, T_idxs, B_idxs):
-        """Like base class, but extract_observation."""
-        s = self.samples
-        next_T_idxs = (T_idxs + self.n_step_return) % self.T
-        batch = SamplesBatch(
-            agent_inputs=AgentInputs(
-                observation=self.extract_observation(T_idxs, B_idxs),
-                prev_action=s.action[T_idxs - 1, B_idxs],
-                prev_reward=s.reward[T_idxs - 1, B_idxs],
-            ),
-            action=s.action[T_idxs, B_idxs],
-            return_=self.samples_return_[T_idxs, B_idxs],
-            done_n=self.samples_done_n[T_idxs, B_idxs],
-            next_agent_inputs=AgentInputs(
-                observation=self.extract_observation(next_T_idxs, B_idxs),
-                prev_action=s.action[next_T_idxs - 1, B_idxs],
-                prev_reward=s.reward[next_T_idxs - 1, B_idxs],
-            ),
-        )
-        return batch
-
-    def extract_observation(self, T_idxs, B_idxs):
-        """Frames are returned OLDEST to NEWEST."""
-        return np.stack([self.samples.observation[T_idxs + f, B_idxs]
-            for f in range(self.n_frames)], axis=1)

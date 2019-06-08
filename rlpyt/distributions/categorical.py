@@ -23,7 +23,7 @@ class Categorical(Distribution):
         return self._dim
 
     def kl(self, old_dist_info, new_dist_info):
-        p = old_dist_info.prob  # TODO: check order of p and q.
+        p = old_dist_info.prob
         q = new_dist_info.prob
         return torch.sum(p * (torch.log(p + EPS) - torch.log(q + EPS)), dim=-1)
 

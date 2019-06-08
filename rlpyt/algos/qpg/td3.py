@@ -9,10 +9,13 @@ class TD3(DDPG):
 
     def __init__(
             self,
+            batch_size=100,
+            training_intensity=100,  # data_consumption / data_generation
             target_update_tau=0.005,
+            target_update_interval=2,
+            policy_update_interval=2,
             mu_learning_rate=1e-3,
             q_learning_rate=1e-3,
-            policy_update_delay=2,
             target_noise=0.2,
             target_noise_clip=0.5,
             **kwargs

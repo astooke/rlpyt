@@ -1,13 +1,15 @@
 
-from rlpyt.replays.frame.n_step import NStepFrameBuffer
-from rlpyt.replays.prioritized import PrioritizedReplayBuffer
+from rlpyt.replays.non_sequence.frame.n_step import NStepFrameBuffer
+from rlpyt.replays.non_sequence.prioritized import PrioritizedReplayBuffer
+from rlpyt.utils.quick_args import save__init__args
 
 
 class PrioritizedFrameBuffer(NStepFrameBuffer, PrioritizedReplayBuffer):
 
     def __init__(self, alpha, beta, default_priority, unique=False, **kwargs):
         NStepFrameBuffer.__init__(self, **kwargs)
-        self.init_priority_tree(alpha, beta, default_priority, unique)
+        save__init__args(locals())
+        self.init_priority_tree()
 
     def append_samples(self, samples):
         T = NStepFrameBuffer.append_samples(self, samples)

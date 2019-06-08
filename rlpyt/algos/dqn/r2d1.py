@@ -1,62 +1,61 @@
 
 import torch
 
-from rlpyt.algos.base import RlAlgorithm
+from rlpyt.aglos.base import RlAlgorithm
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
-from rlpyt.replays.frame.uniform import UniformFrameReplayBuffer
-from rlpyt.replays.frame.prioritized import PrioritizedFrameReplayBuffer
-from rlpyt.utils.collections import namedarraytuple
+from rlput.utils.collections import namedarraytuple
+from rlpyt.replays.sequence.frame.uniform import UniformSequenceFrameBuffer
+from rlpyt.replays.sequence.frame.prioritized import PrioritizedSequenceFrameBuffer
 from rlpyt.utils.tensor import select_at_indexes
 
-OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "tdAbsErr"])
-OptData = None  # TODO
+
 SamplesToReplay = namedarraytuple("SamplesToReplay",
-    ["observation", "action", "reward", "done"])
+    ["observation", "action", "reward", "done", "prev_rnn_state"])
 
 
-class DQN(RlAlgorithm):
-    """DQN with options for: Double-DQN, Dueling Architecture, n-step returns,
-    prioritized replay."""
+class R2D1(RlAlgorithm):
+    """Recurrent-replay DQN with options for: Double-DQN, Dueling Architecture,
+    n-step returns, prioritized_replay."""
 
     def __init__(
             self,
-            discount=0.99,
-            batch_size=32,
+            discount=0.997,
+            batch_T=80,
+            batch_B=64,
+            warmup_T=40,
+            use_stored_rnn_state=True,
             min_steps_learn=int(5e4),
-            delta_clip=1,
+            delta_clip=1.,
             replay_size=int(1e6),
-            training_intensity=8,  # Average number training uses per datum.
-            target_update_steps=int(1e4),
-            n_step_return=1,
-            learning_rate=2.5e-4,
+            training_intensity=1,
+            target_update_interval=2500,
+            n_step_return=5,
+            learning_rate=1e-4,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
-            initial_optim_state_dict=None,
             grad_norm_clip=10.,
             eps_init=1,
             eps_final=0.01,
-            eps_final_min=None,  # set < eps_final to use vector-valued eps.
+            eps_final_min=None,
             eps_steps=int(1e6),
             eps_eval=0.001,
-            dueling_dqn=False,
-            priotized_replay=False,
+            dueling_dqn=True,
+            prioritized_replay=True,
             pri_alpha=0.6,
-            pri_beta_init=0.4,
-            pri_beta_final=1.,
+            pri_beta_init=0.9,
+            pri_beta_final=0.9,
             pri_beta_steps=int(50e6),
             default_priority=None,
             ):
         if optim_kwargs is None:
-            optim_kwargs = dict()
+            optim_kwargs = dict(eps=1e-3)  # Assumes Adam.
         if default_priority is None:
             default_priority = delta_clip
         save__init__args(locals())
+        self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
-        if self.agent.recurrent:
-            raise NotImplementedError
-
         self.agent = agent
         if (self.eps_final_min is not None and
                 self.eps_final_min != self.eps_final):  # vector-valued epsilon
@@ -74,7 +73,7 @@ class DQN(RlAlgorithm):
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
 
         sample_bs = batch_spec.size
-        train_bs = self.batch_size
+        train_bs = self.batch_T * self.batch_B
         assert (self.training_intensity * sample_bs) % train_bs == 0
         self.updates_per_optimize = int((self.training_intensity * sample_bs) //
             train_bs)
@@ -84,7 +83,6 @@ class DQN(RlAlgorithm):
             f"updates per iteration.")
 
         self.eps_itr = max(1, self.eps_steps // sample_bs)
-        self.target_update_itr = max(1, self.target_update_steps // sample_bs)
         self.min_itr_learn = self.min_steps_learn // sample_bs
         if self.prioritized_replay:
             self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
@@ -94,6 +92,7 @@ class DQN(RlAlgorithm):
             action=examples["action"],
             reward=examples["reward"],
             done=examples["done"],
+            prev_rnn_state=examples["prev_rnn_state"],
         )
         replay_kwargs = dict(
             example=example_to_replay,
@@ -108,9 +107,9 @@ class DQN(RlAlgorithm):
                 beta=self.pri_beta_init,
                 default_priority=self.default_priority,
             ))
-            ReplayCls = PrioritizedFrameReplayBuffer
+            ReplayCls = PrioritizedSequenceFrameBuffer
         else:
-            ReplayCls = UniformFrameReplayBuffer
+            ReplayCls = UniformSequenceFrameBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, samples, itr):
@@ -119,63 +118,68 @@ class DQN(RlAlgorithm):
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
+            prev_rnn_state=samples.agent.agent_info.prev_rnn_state,
         )
         self.replay_buffer.append_samples(samples_to_replay)
         if itr < self.min_itr_learn:
             return OptData(), OptInfo()  # TODO fix for empty
-        opt_info = OptInfo(loss=[], gradNorm=[], tdAbsErr=[])
+        opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         for _ in range(self.updates_per_optimize):
+            self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample(self.batch_size)
             self.optimizer.zero_grad()
-            loss, td_abs_errors = self.loss(samples_from_replay)
+            loss, td_abs_errors, priorities = self.loss(samples_from_replay)
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 self.agent.model.parameters(), self.clip_grad_norm)
             self.optimizer.step()
             if self.prioritized_replay:
-                self.replay_buffer.update_batch_priorities(td_abs_errors)
+                self.replay_buffer.update_batch_priorities(priorities)
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
-            opt_info.tdAbsErr.extend(td_abs_errors[::8])  # Downsample for stats.
-        if itr % self.update_target_itr == 0:
-            self.agent.update_target()
+            opt_info.tdAbsErr.extend(td_abs_erros[::8].numpy())
+            opt_info.priority.extend(priorities)
+            if self.update_counter % self.target_update_interval == 0:
+                self.agent.update_target()
         self.update_itr_hyperparams(itr)
-        return OptData(), opt_info  # TODO: fix opt_data
+        return OptData(), opt_info
 
     def loss(self, samples):
-        """Samples have leading batch dimension [B,..] (but not time)."""
-        qs = self.agent(*samples.agent_inputs)
+        """Samples have leading Time and Batch dimentions [T,B,...]."""
+        agent_inputs = buffer_to(samples.agent_inputs, device=self.agent.device)
+        next_agent_inputs = buffer_to(samples.next_agent_inputs,
+            device=self.agent.device)  # Move to device once, re-use.
+        if self.use_stored_rnn_state:
+            init_rnn_state = samples.init_rnn_state
+            target_init_rnn_state = samples.next_init_rnn_state
+        else:
+            init_rnn_state = None
+            target_init_rnn_state = None
+        train_inputs = agent_inputs[self.warmup_T:]
+        next_train_inputs = next_agent_inputs[self.warmup_T:]
+        if self.warmup_T > 0:
+            warmup_inputs = agent_inputs[:self.warmup_T]
+            next_warmup_inputs = next_agent_inputs[:self.warmup_T]
+            with torch.no_grad():
+                init_rnn_state = self.agent.warmup(*warmup_inputs,
+                    init_rnn_state)
+                target_init_rnn_state = self.agent.target_warmup(
+                    *next_warmup_inputs, target_init_rnn_state)
+        qs = self.agent(*train_inputs, init_rnn_state)
         q = select_at_indexes(samples.action, qs)
         with torch.no_grad():
-            target_qs = self.agent.target_q(*samples.next_agent_inputs)
+            target_qs = self.agent.target_q(*next_train_inputs,
+                target_init_rnn_state)
             if self.double_dqn:
-                next_qs = self.agent(*samples.next_agent_inputs)
+                next_qs = self.agent(*next_train_inputs)
                 next_a = torch.argmax(next_qs, dim=-1)
                 target_q = select_at_indexes(next_a, target_qs)
             else:
                 target_q = torch.max(target_qs, dim=-1)
-        disc_target_q = (self.discount ** self.n_step_return) * target_q
-        y = samples.return_ + (1 - samples.done_n) * disc_target_q
-        delta = y - q
-        losses = 0.5 * delta ** 2
-        abs_delta = abs(delta)
-        if self.delta_clip is not None:  # Huber loss.
-            b = self.delta_clip * (abs_delta - self.delta_clip / 2)
-            losses = torch.where(abs_delta <= self.delta_clip, losses, b)
-        if self.prioritized_replay:
-            losses *= samples.is_weights
-        loss = torch.mean(losses)
-        td_abs_errors = torch.clamp(abs_delta, 0, self.delta_clip)
+        disc = self.discount ** self.n_step_return
+        y = h(samples.return_ + (1 - samples.done_n) * disc * h_inv(target_q))
+        # TODO:  implement h, implenet rest of loss...is it Huber?
+        # TODO:  get priorties by sequence.
 
-        return loss, td_abs_errors
 
-    def update_itr_hyperparams(self, itr):
-        if itr < self.eps_itr:  # Epsilon can be vector-valued.
-            prog = min(1, itr / self.eps_itr)
-            new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
-            self.agent.set_eps_greedy(new_eps)
-        if self.prioritized_replay and itr < self.pri_beta_itr:
-            prog = min(1, itr / self.pri_beta_itr)
-            new_beta = (prog * self.pri_beta_final +
-                (1 - prog) * self.pri_beta_init)
-            self.replay_buffer.set_beta(new_beta)
+
