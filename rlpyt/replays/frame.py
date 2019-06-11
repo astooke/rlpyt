@@ -1,14 +1,13 @@
 
 
-from rlpyt.replays.n_step import BaseNStepReturnBuffer
-from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
+from rlpyt.utils.buffer import buffer_from_example, get_leading_dims, buffer_put
 from rlpyt.utils.collections import namedarraytuple
 
 
 ReplaySamples = None
 
 
-class BaseFrameBuffer(BaseNStepReturnBuffer):
+class FrameBuffer(object):
     """
     Like n-step return buffer but expects multi-frame input observation where
     each new observation has one new frame and the rest old; stores only
@@ -31,22 +30,22 @@ class BaseFrameBuffer(BaseNStepReturnBuffer):
         super().__init__(replay_example, *args, **kwargs)
         # Equivalent to image.shape[0] if observation is image array (C,H,W):
         self.n_frames = n_frames = get_leading_dims(example.observation, n_dim=1)
+        # frames: oldest stored at t; newest_frames: shifted so newest stored at t.
         self.samples_frames = buffer_from_example(example.observation[0],
-            (self.T + n_frames - 1, self.B))
-        self.off_forward = max(1, self.n_frames - 1)
+            (self.T + n_frames - 1, self.B))  # n-minus-1 frames duplicated.
+        self.samples_new_frames = self.samples_frames[n_frames:]
+        self.off_forward = max(self.off_forward, max(1, self.n_frames - 1))
 
     def append_samples(self, samples):
-        T, B = get_leading_dims(samples, n_dim=2)
         t, fm1 = self.t, self.n_frames - 1
-        num_t = min(T, self.T - t)
-        # Oldest frame at time t stored at frames[t], so observation is frames[t:t+fm1].
-        # Wrap frames duplicated: frames[:fm1] == frames[-fm1:]; len(frames) == T + fm1.
-        # Write new frames (-1 idx for newest frame at time t):
-        self.samples_frames[t + fm1:t + fm1 + num_t] = samples.observation[:num_t, :, -1]
-        if num_t < T:  # Edge case: wrap end of buffer.
-            self.samples_frames[:T - num_t + fm1] = samples.observation[num_t - fm1:, :, -1]
-        elif t == 0:  # Edge case: write earlier frames.
-            self.samples_frames[:fm1] = samples.observation[0, :, -fm1:]
         replay_samples = ReplaySamples(*(v for k, v in samples.items()
             if k != "observation"))
-        return super().append_samples(replay_samples)
+        T = super().append_samples(replay_samples)
+        buffer_put(self.samples_new_frames, slice(t, t + T),
+            samples.observation[:, :, -1], wrap=True)  # New frames only.
+        if t == 0:  # Starting: write early frames
+            for f in range(fm1):
+                self.samples_frames[f] = samples.observation[0, :, f]
+        elif self.t < t:  # Wrapped: write duplicate frames.
+            self.samples_frames[:fm1] = self.samples_frames[-fm1:]
+        return T

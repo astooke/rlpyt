@@ -2,7 +2,7 @@
 import torch
 
 from rlpyt.algos.q_learning.dqn import DQN
-from rlpyt.utils.tensor import select_at_indexes
+from rlpyt.utils.tensor import select_at_indexes, valid_mean
 
 
 EPS = 1e-6  # (NaN-guard)
@@ -17,10 +17,12 @@ class CategoricalDQN(DQN):
         if "eps" not in self.optim_kwargs:  # Assume optim.Adam
             self.optim_kwargs["eps"] = 0.01 / self.batch_size
 
+    def initialize(self, agent, *args, **kwargs):
+        super().initialize(agent, *args, **kwargs)
+        agent.give_V_min_max(self.V_min, self.V_max)
+
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
-        if self.agent.recurrent:
-            raise NotImplementedError
         delta_z = (self.V_max - self.V_min) / (self.agent.n_atoms - 1)
         z = torch.linspace(self.V_min, self.V_max, self.agent.n_atoms)
         # Makde 2-D tensor of contracted z_domain for each data point,
@@ -58,11 +60,17 @@ class CategoricalDQN(DQN):
 
         if self.prioritized_replay:
             losses *= samples.is_weights
-        loss = torch.mean(losses)
 
         target_p = torch.clamp(target_p, EPS, 1)
         KL_div = torch.sum(target_p *
             (torch.log(target_p) - torch.log(p)), dim=1)
         KL_div = torch.clamp(KL_div, EPS, 1 / EPS)  # Avoid <0 from NaN-guard.
+
+        if not self.mid_batch_reset:
+            valid = samples.valid.type(losses.dtype)  # Convert to float.
+            loss = valid_mean(losses, valid)
+            KL_div *= valid
+        else:
+            loss = torch.mean(losses)
 
         return loss, KL_div

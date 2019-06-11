@@ -11,8 +11,7 @@ from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBsv,
 
 
 def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
-        agent_shared=True, env_shared=True, build_step_buffer=False,
-        subprocess=True):
+        agent_shared=True, env_shared=True, subprocess=True):
     """Recommended to step/reset agent and env in subprocess, so it doesn't
     affect settings in master before forking workers (e.g. torch num_threads
     (MKL) may be set at first forward computation.)"""
@@ -52,25 +51,16 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
         done=done,
         env_info=env_info,
     )
-    samples_np = Samples(agent_buffer, env_buffer)
-    samples_pyt = torchify_buffer(samples_np)
-    if not build_step_buffer:
-        return samples_pyt, samples_np, examples
+    return samples_pyt, samples_np, examples
 
-    step_obs = buffer_from_example(examples["observation"], B, shared=True)
-    step_act = buffer_from_example(examples["action"], B, shared=True)
-    step_rew = buffer_from_example(examples["reward"], B, shared=True)
-    step_don = buffer_from_example(examples["done"], B, shared=True)
-    step_inf = buffer_from_example(examples["agent_info"], B, shared=True)
-    step_buffer_np = StepBuffer(
-        observation=step_obs,
-        action=step_act,
-        reward=step_rew,
-        done=step_don,
-        agent_info=step_inf,
-    )
+
+def build_step_buffer(examples, B):
+    bufs = tuple(buffer_from_example(examples[k], B, shared=True)
+        for k in ["observation", "action", "reward", "done", "agent_info"])
+    need_reset = buffer_from_example(examples["done"], B, shared=True)
+    step_buffer_np = StepBuffer(*bufs, need_reset)
     step_buffer_pyt = torchify_buffer(step_buffer_np)
-    return samples_pyt, samples_np, examples, step_buffer_pyt, step_buffer_np
+    return step_buffer_pyt, step_buffer_np
 
 
 def build_par_objs(n, sync=False, groups=1):
@@ -78,6 +68,8 @@ def build_par_objs(n, sync=False, groups=1):
         quit=mp.RawValue(ctypes.c_bool, False),
         barrier_in=mp.Barrier(n * groups + 1),
         barrier_out=mp.Barrier(n * groups + 1),
+        do_eval=mp.RawValue(ctypes.c_bool, False),
+        stop_eval=mp.RawValue(ctypes.c_bool, False),
     )
     traj_infos_queue = mp.Queue()
     if sync:

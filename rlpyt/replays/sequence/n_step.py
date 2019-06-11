@@ -1,55 +1,81 @@
 
-import numpy as np
+import math
 
 from rlpyt.replays.n_step import BaseNStepReturnBuffer
-from rlpyt.agents.base_recurrent import AgentTrainInputs
-from rlpyt.utils.buffer import torchify_buffer
+from rlpyt.utils.buffer import (torchify_buffer, buffer_from_example, buffer_put,
+    buffer_func)
+from rlpyt.util.misc import extract_sequences
 from rlpyt.utils.collections import namedarraytuple
 
 SamplesFromReplay = namedarraytuple("SamplesFromReplay",
-    ["agent_inputs", "action", "return_", "done", "done_n", "next_agent_inputs"])
+    ["all_observation", "all_action", "all_reward", "return_", "done", "done_n",
+    "init_rnn_state", "valid"])
+
+SamplesToReplay = None
 
 
 class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
 
+    def __init__(self, example, size, B, rnn_state_interval, store_valid=False,
+            batch_T=None, **kwargs):
+        self.rnn_state_interval = rnn_state_interval
+        self.store_valid = store_valid
+        self.batch_T = batch_T  # Optional depending on sampling type.
+        if rnn_state_interval <= 1:  # Store no rnn state or every rnn state.
+            replay_example = example
+        else:
+            # Store some of rnn states; remove from samples.
+            field_names = [f for f in example._fields if f != "prev_rnn_state"]
+            global SamplesToReplay
+            SamplesToReplay = namedarraytuple("SamplesToReplay", field_names)
+            replay_example = SamplesToReplay(*(v for k, v in example.items()
+                if k != "prev_rnn_state"))
+            size = B * rnn_state_interval * math.ceil(  # T as multiple of interval.
+                math.ceil(size / B) / rnn_state_interval)
+            self.samples_prev_rnn_state = buffer_from_example(example.prev_rnn_state,
+                (size // (B * rnn_state_interval), self.B))
+        super().__init__(example=replay_example, size=size, B=B, **kwargs)
+        if rnn_state_interval > 1:
+            assert self.T % rnn_state_interval == 0
+
+    def append_samples(self, samples):
+        t, rsi = self.t, self.rnn_state_interval
+        if rsi <= 1:  # All or no rnn states stored.
+            return super().append_smaples(samples)
+        replay_samples = SamplesToReplay(*(v for k, v in samples.items()
+            if k != "prev_rnn_state"))
+        T = super().append_samples(replay_samples)
+        start, stop = math.ceil(t / rsi), (t + T) // rsi
+        offset = (rsi - t) % rsi
+        buffer_put(self.samples_prev_rnn_state, slice(start, stop),
+            samples.prev_rnn_state[offset::rsi], wrap=True)
+        return T
+
     def extract_batch(self, T_idxs, B_idxs, T):
+        """Return full sequence of each field which encompasses all subsequences to
+        be used, so algorithm can make subsequences by slicing on device, for reduced
+        memory usage."""
         s = self.samples
-        n_T_idxs = (T_idxs + self.n_step_return) % self.T  # Can wrap.
+        init_rnn_state = (self.samples_prev_rnn_state[T_idxs, B_idxs]
+            if self.rnn_state_interval > 0 else None)
+        valid = (extract_sequences(self.samples_valid, T_idxs, B_idxs, T)
+            if self.store_valid else None)
         batch = SamplesFromReplay(
-            agent_inputs=AgentTrainInputs(
-                observation=self.extract_observation(T_idxs, B_idxs, T),
-                prev_action=extract_sequences(s.action, T_idxs - 1, B_idxs, T),
-                prev_reward=extract_sequences(s.reward, T_idxs - 1, B_idxs, T),
-            ),
-            init_rnn_state=s.prev_rnn_state[T_idxs, B_idxs],
-            action=extract_sequences(s.action, T_idxs, B_idxs, T),
+            all_observation=self.extract_observation(T_idxs, B_idxs,
+                T + self.n_step_return),
+            all_action=buffer_func(s.action, extract_sequences, T_idxs - 1, B_idxs,
+                T + self.n_step_return),  # Starts at prev_action.
+            all_reward=extract_sequences(s.reward, T_idxs - 1, B_idxs,
+                T + self.n_step_return),  # Only prev_reward (agent + target).
             return_=extract_sequences(self.samples_return_, T_idxs, B_idxs, T),
             done=extract_sequences(s.done, T_idxs, B_idxs, T),
             done_n=extract_sequences(self.samples_done_n, T_idxs, B_idxs, T),
-            next_agent_inputs=AgentTrainInputs(
-                observation=self.extract_observation(n_T_idxs, B_idxs, T),
-                prev_action=extract_sequences(s.action, n_T_idxs - 1, B_idxs, T),
-                prev_reward=extract_sequences(s.reward, n_T_idxs - 1, B_idxs, T),
-            ),
-            next_init_rnn_state=s.prev_rnn_state[n_T_idxs, B_idxs],
+            init_rnn_state=init_rnn_state,  # (Use same rnn state for agent and target.)
+            valid=valid,
         )
         return torchify_buffer(batch)
 
     def extract_observation(self, T_idxs, B_idxs, T):
         """Generalization anticipating frame-buffer."""
-        return extract_sequences(self.samples.observation, T_idxs, B_idxs, T)
-
-
-def extract_sequences(array, T_idxs, B_idxs, T):
-    sequences = np.empty(shape=(T, len(B_idxs)) + array.shape[2:],
-        dtype=array.dtype)  # [T,B,..]
-    sequences = list()
-    for i, (t, b) in enumerate(zip(T_idxs, B_idxs)):
-        if t + T >= len(array):  # wrap
-            m = len(array) - t
-            w = T - m
-            sequences[:m, i] = array[t:, b]  # [m,..]
-            sequences[m:, i] = array[:w, b]  # [w,..]
-        else:
-            sequences[:, i] = array[t:t + T, b]  # [T,..]
-    return sequences
+        return buffer_func(self.samples.observation, extract_sequences,
+            T_idxs, B_idxs, T)

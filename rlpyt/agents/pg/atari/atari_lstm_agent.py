@@ -16,6 +16,7 @@ class AtariLstmAgent(BaseRecurrentPgAgent):
         super().__init__(ModelCls=ModelCls, **kwargs)
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
+        prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward,
             init_rnn_state), device=self.device)
         pi, value, _next_rnn_state = self.model(*model_inputs)

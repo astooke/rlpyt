@@ -7,7 +7,7 @@ from rlpyt.utils.logging import logger
 from rlpyt.replays.frame.uniform import UniformFrameReplayBuffer
 from rlpyt.replays.frame.prioritized import PrioritizedFrameReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.utils.tensor import select_at_indexes
+from rlpyt.utils.tensor import select_at_indexes, valid_mean
 
 OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "tdAbsErr"])
 OptData = None  # TODO
@@ -68,6 +68,7 @@ class DQN(RlAlgorithm):
         agent.set_epsilon_greedy(self.eps_init)
         agent.give_eval_epsilon_greedy(self.eps_eval)
         self.n_itr = n_itr
+        self.mid_batch_reset = mid_batch_reset
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
@@ -101,6 +102,7 @@ class DQN(RlAlgorithm):
             B=batch_spec.B,
             discount=self.discount,
             n_step_return=self.n_step_return,
+            store_valid=not self.mid_batch_reset,
         )
         if self.prioritize_replay:
             replay_kwargs.update(dict(
@@ -147,7 +149,7 @@ class DQN(RlAlgorithm):
         qs = self.agent(*samples.agent_inputs)
         q = select_at_indexes(samples.action, qs)
         with torch.no_grad():
-            target_qs = self.agent.target_q(*samples.next_agent_inputs)
+            target_qs = self.agent.target(*samples.next_agent_inputs)
             if self.double_dqn:
                 next_qs = self.agent(*samples.next_agent_inputs)
                 next_a = torch.argmax(next_qs, dim=-1)
@@ -164,8 +166,13 @@ class DQN(RlAlgorithm):
             losses = torch.where(abs_delta <= self.delta_clip, losses, b)
         if self.prioritized_replay:
             losses *= samples.is_weights
-        loss = torch.mean(losses)
         td_abs_errors = torch.clamp(abs_delta, 0, self.delta_clip)
+        if not self.mid_batch_reset:
+            valid = samples.valid.type(losses.dtype)  # Convert to float.
+            loss = valid_mean(losses, valid)
+            td_abs_errors *= valid
+        else:
+            loss = torch.mean(losses)
 
         return loss, td_abs_errors
 

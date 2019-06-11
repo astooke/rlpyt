@@ -18,7 +18,7 @@ class DecorrelatingStartCollector(BaseCollector):
         observation = buffer_from_example(observations[0], len(self.envs))
         for b, obs in enumerate(observations):
             observation[b] = obs  # numpy array or namedarraytuple
-        prev_action = env.action_space.sample(len(self.envs), null=True)
+        prev_action = self.envs[0].action_space.sample(len(self.envs), null=True)
         prev_reward = np.zeros(len(self.envs), dtype="float32")
         if self.rank == 0:
             logger.log("Sampler decorrelating envs, max steps: "

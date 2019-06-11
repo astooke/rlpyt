@@ -11,11 +11,7 @@ class MinibatchRl(MinibatchRlBase):
     """Runs RL on minibatches; tracks performance online using learning
     trajectories."""
 
-    def __init__(
-            self,
-            log_traj_window=100,
-            **kwargs
-            ):
+    def __init__(self, log_traj_window=100, **kwargs):
         super().__init__(**kwargs)
         self.log_traj_window = int(log_traj_window)
 
@@ -23,7 +19,7 @@ class MinibatchRl(MinibatchRlBase):
         n_itr = self.startup()
         for itr in range(n_itr):
             with logger.prefix(f"itr #{itr} "):
-                self.agent.eval_mode()  # Might not be this agent sampling.
+                self.agent.sample_mode()  # Might not be this agent sampling.
                 samples, traj_infos = self.sampler.obtain_samples(itr)
                 self.agent.train_mode()
                 _opt_data, opt_info = self.algo.optimize_agent(samples, itr)

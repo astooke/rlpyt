@@ -1,11 +1,12 @@
 
-from rlpyt.agents.dqn.dqn_agent import DqnAgent
-from rlpyt.models.dqn.atari_dqn_model import AtariDqnModel
+
+from rlpyt.agents.dqn.r2d1_agent import R2d1Agent
+from rlpyt.models.dqn.atari_r2d1_model import AtariR2d1Model
 
 
-class AtariDqnAgent(DqnAgent):
+class AtariR2d1Agent(R2d1Agent):
 
-    def __init__(self, ModelCls=AtariDqnModel, **kwargs):
+    def __init__(self, ModelCls=AtariR2d1Model, **kwargs):
         super().__init__(ModelCls=ModelCls, **kwargs)
 
     def make_env_to_model_kwargs(self, env_spec):

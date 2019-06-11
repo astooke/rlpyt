@@ -3,6 +3,7 @@ import torch
 
 from rlpyt.algos.dpg.ddpg import DDPG
 from rlpyt.utils.quick_args import save__init__args
+from rlpyt.utils.tensor import valid_mean
 
 
 class TD3(DDPG):
@@ -36,4 +37,5 @@ class TD3(DDPG):
         y = samples.reward + (1 - samples.done) * self.discount * target_q
         q1_losses = 0.5 * (y - q1) ** 2
         q2_losses = 0.5 * (y - q2) ** 2
-        return q1_losses.mean() + q2_losses.mean()
+        q_loss = valid_mean(q1_losses + q2_losses, samples.valid)  # valid can be None.
+        return q_loss

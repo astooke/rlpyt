@@ -5,6 +5,7 @@ import ctypes
 import torch
 
 from rlpyt.utils.collections import namedarraytuple_like
+from rlpyt.utils.misc import put
 
 
 def buffer_from_example(example, leading_dims, shared_memory=False):
@@ -91,3 +92,11 @@ def get_leading_dims(buffer_, n_dim=1):
     if not len(set(contents)) == 1:
         raise ValueError(f"Found mismatched leading dimensions: {contents}")
     return contents[0]
+
+
+def buffer_put(x, loc, y, axis=0, wrap=False):
+    if isinstance(x, (np.ndarray, torch.Tensor)):
+        put(x, loc, y, axis=axis, wrap=wrap)
+    else:
+        for vx, vy in zip(x, y):
+            buffer_put(vx, loc, vy, axis=axis, wrap=wrap)

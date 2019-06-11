@@ -1,4 +1,5 @@
 
+from rlpyt.samplers.base import BaseEvalCollector
 from rlpyt.samplers.collectors import DecorrelatingStartCollector
 
 
@@ -97,3 +98,41 @@ class WaitResetCollector(DecorrelatingStartCollector):
                 step.reward[b] = 0
                 self.need_reset[b] = False
         return None
+
+
+class EvalCollector(BaseEvalCollector):
+
+    def collect_evaluation(self):
+        traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
+        need_reset = [False] * len(self.envs)
+        act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
+        step = self.step_buffer_np
+        for b, env in enumerate(self.envs):
+            step.observation[b] = env.reset()
+        step_blocker.release()
+        completed_infos = list()
+        for t in range(self.max_T):
+            act_waiter.acquire()
+            if self.ctrl.stop_eval.value:
+                break
+            for b, env in enumerate(self.envs):
+                if step.need_reset[b]:
+                    if step.do_reset.value:
+                        step.observation[b] = env.reset()
+                        step.need_reset[b] = False
+                    continue
+                o, r, d, env_info = env.step(step.action[b])
+                traj_infos[b].step(step.observation[b], step.action[b], r,
+                    step.agent_info[b], env_info)
+                if getattr(env_info, "need_reset", d):
+                    completed_infos.append(traj_infos[b].terminate(o))
+                    traj_infos[b] = self.TrajInfoCls()
+                    need_reset[b] = True
+                    step.need_reset[b] = True
+                else:
+                    step.observation[b] = o
+                step.reward[b] = r
+                step.done[b] = d
+            step_blocker.release()
+
+        return completed_infos

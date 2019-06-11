@@ -30,10 +30,11 @@ def from_onehot(onehot, dim=-1, dtype=None):
     return indexes
 
 
-def valid_mean(tensor, valid=None):
+def valid_mean(tensor, valid=None, dim=None):
     if valid is None:
-        return tensor.mean()
-    return (tensor * valid).sum() / valid.sum()
+        return tensor.mean(dim=dim)
+    valid = valid.type(tensor.dtype)  # Convert as needed.
+    return (tensor * valid).sum(dim=dim) / valid.sum(dim=dim)
 
 
 def infer_leading_dims(tensor, dim):

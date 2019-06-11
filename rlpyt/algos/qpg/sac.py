@@ -9,6 +9,7 @@ from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.distributions.gaussian import Gaussian
 from rlpyt.distributions.gaussian import DistInfo as GaussianDistInfo
+from rlpyt.utils.tensor import valid_mean
 
 
 OptInfo = namedarraytuple("OptInfo",
@@ -121,8 +122,8 @@ class SAC(RlAlgorithm):
             target_v = self.agent.target_v(*next_agent_inputs)
         y = (self.scale_reward * samples.reward +
             (1 - samples.done) * self.discount * target_v)
-        q1_loss = 0.5 * torch.mean((y - q1) ** 2)
-        q2_loss = 0.5 * torch.mean((y - q2) ** 2)
+        q1_loss = 0.5 * valid_mean((y - q1) ** 2, samples.valid)
+        q2_loss = 0.5 * valid_mean((y - q2) ** 2, samples.valid)
 
         v = self.agent.v(*agent_inputs)
         new_action, log_pi, (pi_mean, pi_log_std) = self.agent.pi(*agent_inputs)
@@ -132,16 +133,17 @@ class SAC(RlAlgorithm):
         min_log_target = torch.minimum(log_target1, log_target2)
         prior_log_pi = self.get_action_prior(new_action.cpu())
         v_target = (min_log_target - log_pi + prior_log_pi).detach()  # No grad.
-        v_loss = 0.5 * torch.mean((v - v_target) ** 2)
+        v_loss = 0.5 * valid_mean((v - v_target) ** 2, samples.valid)
 
         if self.reparameratize:
-            pi_loss = torch.mean(log_pi - min_log_target)
+            pi_losses = log_pi - min_log_target
         else:
             pi_factor = (v_target + v).detach()  # No grad.
-            pi_loss = torch.mean(log_pi * pi_factor)
+            pi_losses = log_pi * pi_factor
         if self.policy_output_regularization > 0:
-            pi_loss += self.policy_output_regularization * 0.5 * torch.mean(
+            pi_losses += (self.policy_output_regularization * 0.5 *
                 pi_mean ** 2 + pi_log_std ** 2)
+        pi_loss = valid_mean(pi_losses, samples.valid)
 
         losses = (q1_loss, q2_loss, v_loss, pi_loss)
         values = (val.detach() for val in (q1, q2, v, pi_mean, pi_log_std))

@@ -4,7 +4,8 @@ from collections import namedtuple
 
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.algos.utils import discount_return, generalized_advantage_estimation
+from rlpyt.algos.utils import (discount_return, generalized_advantage_estimation,
+    valid_from_done)
 
 OptData = namedarraytuple("OptData", ["return_", "advantage", "valid"])
 # Convention: traj_info fields CamelCase, opt_info fields lowerCamelCase
@@ -39,7 +40,8 @@ class PolicyGradient(RlAlgorithm):
             advantage, return_ = generalized_advantage_estimation(
                 reward, value, done, bv, self.discount, self.gae_lambda)
 
-        valid = torch.ones_like(done)  # or None
-        if not self.mid_batch_reset:  # valid until 1 after first done
-            valid[1:] = 1 - torch.clamp(torch.cumsum(done[:-1], dim=0), max=1)
+        if not self.mid_batch_reset or self.agent.recurrent:
+            valid = valid_from_done(done)  # Recurrent: no reset during training.
+        else:
+            valid = torch.ones_like(done)  # or None?
         return return_, advantage, valid

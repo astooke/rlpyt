@@ -2,16 +2,20 @@
 import torch
 
 from rlpyt.aglos.base import RlAlgorithm
+from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlput.utils.collections import namedarraytuple
 from rlpyt.replays.sequence.frame.uniform import UniformSequenceFrameBuffer
 from rlpyt.replays.sequence.frame.prioritized import PrioritizedSequenceFrameBuffer
-from rlpyt.utils.tensor import select_at_indexes
+from rlpyt.utils.tensor import select_at_indexes, valid_mean
+from rlpyt.algos.utils import valid_from_done
 
 
 SamplesToReplay = namedarraytuple("SamplesToReplay",
-    ["observation", "action", "reward", "done", "prev_rnn_state"])
+    ["observation", "action", "reward", "done"])
+SamplesToReplayRnn = namedarraytuple("SamplesToReplayRnn",
+    SamplesToReplay._fields + ("prev_rnn_state,"))
 
 
 class R2D1(RlAlgorithm):
@@ -24,7 +28,7 @@ class R2D1(RlAlgorithm):
             batch_T=80,
             batch_B=64,
             warmup_T=40,
-            use_stored_rnn_state=True,
+            store_rnn_state_interval=40,  # 0 for none, 1 for all.
             min_steps_learn=int(5e4),
             delta_clip=1.,
             replay_size=int(1e6),
@@ -46,7 +50,9 @@ class R2D1(RlAlgorithm):
             pri_beta_init=0.9,
             pri_beta_final=0.9,
             pri_beta_steps=int(50e6),
+            pri_eta=0.9,
             default_priority=None,
+            value_scale_eps=1e-2,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict(eps=1e-3)  # Assumes Adam.
@@ -67,6 +73,7 @@ class R2D1(RlAlgorithm):
         agent.set_epsilon_greedy(self.eps_init)
         agent.give_eval_epsilon_greedy(self.eps_eval)
         self.n_itr = n_itr
+        self.mid_batch_reset = mid_batch_reset
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
@@ -74,12 +81,12 @@ class R2D1(RlAlgorithm):
 
         sample_bs = batch_spec.size
         train_bs = self.batch_T * self.batch_B
-        assert (self.training_intensity * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int((self.training_intensity * sample_bs) //
-            train_bs)
+        # assert (self.training_intensity * sample_bs) % train_bs == 0
+        self.updates_per_optimize = int(np.round(
+            (self.training_intensity * sample_bs) // train_bs))
         logger.log(f"From sampler batch size {sample_bs}, training "
             f"batch size {train_bs}, and training intensity "
-            f"{self.training_intensity}, computed {self.updates_per_optimize} "
+            f"{self.training_intensity}, rounded to {self.updates_per_optimize} "
             f"updates per iteration.")
 
         self.eps_itr = max(1, self.eps_steps // sample_bs)
@@ -92,14 +99,20 @@ class R2D1(RlAlgorithm):
             action=examples["action"],
             reward=examples["reward"],
             done=examples["done"],
-            prev_rnn_state=examples["prev_rnn_state"],
         )
+        if self.store_rnn_state_interval > 0:
+            example_to_replay = SamplesToReplayRnn(*example_to_replay,
+                prev_rnn_state=examples["prev_rnn_state"],
+            )
         replay_kwargs = dict(
             example=example_to_replay,
             size=self.replay_size,
             B=batch_spec.B,
             discount=self.discount,
             n_step_return=self.n_step_return,
+            rnn_state_interval=self.store_rnn_state_interval,
+            batch_T=self.batch_T + self.warmup_T,  # Fixed for prioritized replay.
+            store_valid=not self.mid_batch_reset,
         )
         if self.prioritize_replay:
             replay_kwargs.update(dict(
@@ -118,15 +131,18 @@ class R2D1(RlAlgorithm):
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
-            prev_rnn_state=samples.agent.agent_info.prev_rnn_state,
         )
+        if self.store_rnn_state_interval > 0:
+            samples_to_replay = SamplesToReplayRnn(*samples_to_replay,
+                prev_rnn_state=samples.agent.agent_info.prev_rnn_state,
+            )
         self.replay_buffer.append_samples(samples_to_replay)
         if itr < self.min_itr_learn:
             return OptData(), OptInfo()  # TODO fix for empty
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         for _ in range(self.updates_per_optimize):
             self.update_counter += 1
-            samples_from_replay = self.replay_buffer.sample(self.batch_size)
+            samples_from_replay = self.replay_buffer.sample(self.batch_B)
             self.optimizer.zero_grad()
             loss, td_abs_errors, priorities = self.loss(samples_from_replay)
             loss.backward()
@@ -137,7 +153,7 @@ class R2D1(RlAlgorithm):
                 self.replay_buffer.update_batch_priorities(priorities)
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
-            opt_info.tdAbsErr.extend(td_abs_erros[::8].numpy())
+            opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())
             opt_info.priority.extend(priorities)
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target()
@@ -145,41 +161,94 @@ class R2D1(RlAlgorithm):
         return OptData(), opt_info
 
     def loss(self, samples):
-        """Samples have leading Time and Batch dimentions [T,B,...]."""
-        agent_inputs = buffer_to(samples.agent_inputs, device=self.agent.device)
-        next_agent_inputs = buffer_to(samples.next_agent_inputs,
-            device=self.agent.device)  # Move to device once, re-use.
-        if self.use_stored_rnn_state:
-            init_rnn_state = samples.init_rnn_state
-            target_init_rnn_state = samples.next_init_rnn_state
-        else:
-            init_rnn_state = None
-            target_init_rnn_state = None
-        train_inputs = agent_inputs[self.warmup_T:]
-        next_train_inputs = next_agent_inputs[self.warmup_T:]
-        if self.warmup_T > 0:
-            warmup_inputs = agent_inputs[:self.warmup_T]
-            next_warmup_inputs = next_agent_inputs[:self.warmup_T]
+        """Samples have leading Time and Batch dimentions [T,B,..]. Move all
+        samples to device first, and then slice for sub-sequences.  Use same
+        init_rnn_state for agent and target; start both at same t."""
+        all_observation, all_action, all_reward = buffer_to(
+            (samples.all_observation, samples.all_action, samples.all_reward),
+            device=self.agent.device)
+        wT, bT, nsr = self.warmup_T, self.batch_T, self.n_step_return
+        if wT > 0:
+            warmup_slice = slice(None, wT)  # Same for agent and target.
+            warmup_inputs = AgentInputs(
+                observation=all_observation[warmup_slice],
+                prev_action=all_aciton[warmup_slice],
+                prev_reward=all_reward[warmup_slice],
+            )
+        agent_slice = slice(wT, wT + bT)
+        agent_inputs = AgentInputs(
+            observation=all_observation[agent_slice],
+            prev_action=all_action[agent_slice],
+            prev_reward=all_reward[agent_slice],
+        )
+        action = samples.all_action[wT + 1:wT + 1 + bT]  # CPU.
+        target_slice = slice(wT, wT + bT + nsr)  # Same start t as agent.
+        target_inputs = AgentInputs(
+            observation=all_observation[target_slice],
+            prev_action=all_action[target_slice],
+            prev_reward=all_reward[target_slice],
+        )
+        init_rnn_state = None if self.store_rnn_state_interval == 0 else buffer_to(
+            samples.init_rnn_state, device=self.agent.device)
+        if wT > 0:
             with torch.no_grad():
-                init_rnn_state = self.agent.warmup(*warmup_inputs,
-                    init_rnn_state)
-                target_init_rnn_state = self.agent.target_warmup(
-                    *next_warmup_inputs, target_init_rnn_state)
-        qs = self.agent(*train_inputs, init_rnn_state)
-        q = select_at_indexes(samples.action, qs)
+                _, init_rnn_state = self.agent(*warmup_inputs, init_rnn_state)
+                _, target_rnn_state = self.agent.target(*warmup_inputs, init_rnn_state)
+        else:
+            target_rnn_state = init_rnn_state
+
+        qs, _ = self.agent(*agent_inputs, init_rnn_state)
+        q = select_at_indexes(action, qs)
         with torch.no_grad():
-            target_qs = self.agent.target_q(*next_train_inputs,
-                target_init_rnn_state)
+            target_qs, _ = self.agent.target(*target_inputs, target_rnn_state)
             if self.double_dqn:
-                next_qs = self.agent(*next_train_inputs)
+                next_qs, _ = self.agent(*target_inputs, init_rnn_state)
                 next_a = torch.argmax(next_qs, dim=-1)
                 target_q = select_at_indexes(next_a, target_qs)
             else:
                 target_q = torch.max(target_qs, dim=-1)
+            target_q = target_q[:-bT]  # Same length as q.
+
         disc = self.discount ** self.n_step_return
-        y = h(samples.return_ + (1 - samples.done_n) * disc * h_inv(target_q))
-        # TODO:  implement h, implenet rest of loss...is it Huber?
-        # TODO:  get priorties by sequence.
+        y = self.value_scale(samples.return_ +  # [T,B]
+            (1 - samples.done_n) * disc * self.inv_value_scale(target_q))
+        delta = y - q
+        losses = 0.5 * delta ** 2
+        abs_delta = abs(delta)
+        if self.delta_clip is not None:  # Huber loss.
+            b = self.delta_clip * (abs_delta - self.delta_clip / 2)
+            losses = torch.where(abs_delta <= self.delta_clip, losses, b)
+        if self.prioritized_replay:
+            losses *= samples.is_weights
+        if self.mid_batch_reset:
+            valid = valid_from_done(samples.done)  # Turn off after first done.
+        if not self.mid_batch_reset:  # Replay must track valid.
+            valid = samples.valid  # [T,B]
+        loss = valid_mean(losses, valid)
+        td_abs_errors = torch.clamp(abs_delta, 0, self.delta_clip)  # [T,B]
+        valid_td_abs_errors = td_abs_errors * valid
+        max_d = torch.max(valid_td_abs_errors, dim=0)
+        mean_d = torch.mean(valid_td_abs_errors, dim=0)  # Lower where less valid.
+        priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
 
+        return loss, valid_td_abs_errors, priorities
 
+    def value_scale(self, x):
+        return (torch.sign(x) * (torch.sqrt(abs(x) + 1) - 1) +
+            self.value_scale_eps * x)
 
+    def inv_value_scale(self, z):
+        return torch.sign(z) * (((torch.sqrt(1 + 4 * self.value_scale_eps *
+            (abs(z) + 1 + self.value_scale_eps)) - 1) /
+            (2 * self.value_scale_eps)) ** 2 - 1)
+
+    def update_itr_hyperparams(self, itr):
+        if itr < self.eps_itr:  # Epsilon can be vector-valued.
+            prog = min(1, itr / self.eps_itr)
+            new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
+            self.agent.set_eps_greedy(new_eps)
+        if self.prioritized_replay and itr < self.pri_beta_itr:
+            prog = min(1, itr / self.pri_beta_itr)
+            new_beta = (prog * self.pri_beta_final +
+                (1 - prog) * self.pri_beta_init)
+            self.replay_buffer.set_beta(new_beta)

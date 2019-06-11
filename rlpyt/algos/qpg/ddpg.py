@@ -6,6 +6,7 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlpyt.replays.uniform import UniformReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
+from rlpyt.utils.tensor import valid_mean
 
 OptInfo = namedarraytuple("OptInfo",
     ["muLoss", "qLoss", "muGradNorm", "qGradNorm"])
@@ -48,6 +49,7 @@ class DDPG(RlAlgorithm):
         self.agent = agent
         agent.set_policy_noise(self.policy_noise, self.policy_noise_clip)
         self.n_itr = n_itr
+        self.mid_batch_reset = mid_batch_reset
         self.mu_optimizer = self.OptimCls(agent.mu_parameters(),
             lr=self.mu_learning_rate, **self.optim_kwargs)
         self.q_optimizer = self.OptimCls(agent.q_parameters(),
@@ -78,6 +80,7 @@ class DDPG(RlAlgorithm):
             example=example_to_replay,
             size=self.replay_size,
             B=batch_spec.B,
+            store_valid=not mid_batch_reset,
         )
         self.replay_buffer = UniformReplayBuffer(**replay_kwargs)
 
@@ -118,7 +121,8 @@ class DDPG(RlAlgorithm):
 
     def mu_loss(self, samples):
         mu_losses = self.agent.q_at_mu(*samples.agent_inputs)
-        return -torch.mean(mu_losses)
+        mu_loss = valid_mean(mu_losses, samples.valid)  # samples.valid can be None.
+        return -mu_loss
 
     def q_loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
@@ -128,4 +132,5 @@ class DDPG(RlAlgorithm):
         y = samples.reward + (1 - samples.done) * self.discount * target_q
         y = torch.clamp(y, -self.q_target_clip, self.q_target_clip)
         q_losses = 0.5 * (y - q) ** 2
-        return torch.mean(q_losses)
+        q_loss = valid_mean(q_losses, samples.valid)  # samples.valid can be None.
+        return q_loss

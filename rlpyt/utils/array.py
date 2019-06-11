@@ -24,10 +24,10 @@ def from_onehot(onehot, dtype=None):
     return np.asarray(np.argmax(onehot, axis=-1), dtype=dtype)
 
 
-def valid_mean(array, valid=None):
+def valid_mean(array, valid=None, axis=None):
     if valid is None:
-        return array.mean()
-    return (array * valid).sum() / valid.sum()
+        return array.mean(axis=axis)
+    return (array * valid).sum(axis=axis) / valid.sum(axis=axis)
 
 
 def infer_leading_dims(array, dim):

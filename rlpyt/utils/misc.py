@@ -11,3 +11,62 @@ def iterate_mb_idxs(data_length, minibatch_size, shuffle=False, horizon=1):
         if shuffle:
             batch = indexes[batch]
         yield batch
+
+
+def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
+    """Assumes array_or_tensor has [T,B] leading dims."""
+    shape = (T, len(B_idxs)) + array_or_tensor.shape[2:]
+    try:
+        sequences = type(array_or_tensor)(*shape)  # torch
+    except TypeError:
+        sequences = type(array_or_tensor)(shape)  # numpy
+    for i, (t, b) in enumerate(zip(T_idxs, B_idxs)):
+        if t + T > len(array_or_tensor):  # wrap
+            m = len(array_or_tensor) - t
+            w = T - m
+            sequences[:m, i] = array_or_tensor[t:, b]  # [m,..]
+            sequences[m:, i] = array_or_tensor[:w, b]  # [w,..]
+        else:
+            sequences[:, i] = array_or_tensor[t:t + T, b]  # [T,..]
+    return sequences
+
+
+def put(x, loc, y, axis=0, wrap=False):
+    """Write x[..,loc,..] = y, with loc at chosen axis; supports wrapping of
+    indexes or slice.  Param x can be torch tensor or numpy array."""
+    slc = [slice(None)] * x.ndim
+    if not wrap:
+        slc[axis] = loc
+        x[tuple(slc)] = y
+        return
+    ax_len = x.shape[axis]
+    if isinstance(loc, slice):
+        if loc.start is None or loc.stop is None:
+            start = None if loc.start is None else loc.start % ax_len
+            stop = None if loc.stop is None else loc.stop % ax_len
+            slc[axis] = slice(start, stop, loc.step)
+            x[tuple(slc)] = y
+        elif loc.start == loc.stop:
+            return
+        else:
+            assert 0 < loc.stop - loc.start <= ax_len
+            start = loc.start % ax_len
+            stop = loc.stop % ax_len
+            if stop > start:
+                slc[axis] = slice(start, stop, loc.step)
+                x[tuple(slc)] = y
+            else:
+                step = loc.step or 1
+                slc1 = slice(start, None, loc.step)
+                start2 = (step - ax_len + start) % step  # (0 if step==1)
+                slc2 = slice(start2, stop, loc.step)
+                yloc = int(np.ceil((ax_len - start) / step))
+                slc[axis] = slc1
+                x[tuple(slc)] = y[:yloc]
+                slc[axis] = slc2
+                x[tuple(slc)] = y[yloc:]
+    else:  # isinstance(loc, (int, tuple, list, ndarray, tensor))
+        if isinstance(loc, int):
+            loc = [loc]
+        slc[axis] = [loc_ % ax_len for loc_ in loc]
+        x[tuple(slc)] = y

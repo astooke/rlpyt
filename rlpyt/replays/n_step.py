@@ -2,8 +2,10 @@
 import math
 
 from rlpyt.replays.base import BaseReplayBuffer
-from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
+from rlpyt.utils.buffer import buffer_from_example, get_leading_dims, buffer_put
 from rlpyt.algos.utils import discount_return_n_step
+from rlpyt.utils.misc import put
+from rlpyt.algos.utils import valid_from_done
 
 
 class BaseNStepReturnBuffer(BaseReplayBuffer):
@@ -22,7 +24,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
     and reward overwritten (off_forward).
     """
 
-    def __init__(self, example, size, B, discount=1, n_step_return=1):
+    def __init__(self, example, size, B, discount=1, n_step_return=1, store_valid=False):
         self.T = T = math.ceil(size / B)
         self.B = B
         self.size = T * B
@@ -39,19 +41,23 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         self._buffer_full = False
         self.off_backward = n_step_return  # Current invalid samples.
         self.off_forward = 1  # i.e. current cursor, prev_action overwritten.
+        if self.store_valid:
+            self.samples_valid = buffer_from_example(example.done, (T, B))
 
     def append_samples(self, samples):
         T, B = get_leading_dims(samples, n_dim=2)
         assert B == self.B
         t = self.t
-        num_t = min(T, self.T - t)
-        self.samples[t:t + num_t] = samples[:num_t]
-        if num_t < T:
-            self.samples[:T - num_t] = samples[num_t:]
+        buffer_put(self.samples, slice(t, t + T), samples, wrap=True)
+        if self.store_valid:
+            # If no mid-batch-reset, samples after done will be invalid, but
+            # might still be sampled later in a training batch.
+            buffer_put(self.samples_valid, slice(t, t + T),
+                valid_from_done(samples.done), wrap=True)
         self.compute_returns(T)
-        self.t = (t + T) % self.T
         if t + T >= self.T:
             self._buffer_full = True  # Only changes on first around.
+        self.t = (t + T) % self.T
         return T
 
     def compute_returns(self, T):
@@ -59,21 +65,19 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
             return  # return = reward, done_n = done
         t, s = self.t, self.samples
         nm1 = self.n_step_return - 1
+        dest_slice = slice(t - nm1, t - nm1 + T)
         if t + T <= self.T:  # No wrap (operate in-place).
             reward = s.reward[t - nm1:t + T]
             done = s.done[t - nm1:t + T]
-            return_dest = self.samples_return_[t - nm1:t - nm1 + T]
-            done_n_dest = self.samples_done_n[t - nm1:t - nm1 + T]
+            return_dest = self.samples_return_[dest_slice]
+            done_n_dest = self.samples_done_n[dest_slice]
             discount_return_n_step(reward, done, n_step=self.n_step_return,
                 discount=self.discount, return_dest=return_dest,
                 done_n_dest=done_n_dest)
-        else:  # Wrap (makes copies).
+        else:  # Wrap (takes copies).
             reward = s.reward.take(range(t - nm1, t + T), axis=0, mode="wrap")
             done = s.done.take(range(t - nm1, t + T), axis=0, mode="wrap")
             return_, done_n = discount_return_n_step(reward, done,
                 n_step=self.n_step_return, discount=self.discount)
-            num_t = self.T - t + nm1
-            self.samples_return_[t - nm1:] = return_[:num_t]
-            self.samples_return_[:T - num_t] = return_[num_t:]
-            self.samples_done_n[t - nm1:] = done_n[:num_t]
-            self.samples_done_n[:T - num_t] = done_n[num_t:]
+            put(self.samples_return_, dest_slice, return_, wrap=True)
+            put(self.sapmles_done_n, dest_slice, done_n, wrap=True)

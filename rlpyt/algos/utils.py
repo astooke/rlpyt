@@ -44,3 +44,9 @@ def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
             return_ += (discount ** n) * reward[n:n + rl] * (1 - done_n)
             done_n += done[n:n + rl]
     return return_, done_n
+
+
+def valid_from_done(done):
+    valid = torch.ones_like(done)  # or Non
+    valid[1:] = 1 - torch.clamp(torch.cumsum(done[:-1], dim=0), max=1)
+    return valid

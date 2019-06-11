@@ -1,7 +1,10 @@
 
+import numpy as np
+
 from rlpyt.samplers.collectors import DecorrelatingStartCollector
+from rlpyt.samplers.base import BaseEvalCollector
 from rlpyt.agents.base import AgentInputs
-from rlpyt.utils.buffer import torchify_buffer, numpify_buffer
+from rlpyt.utils.buffer import torchify_buffer, numpify_buffer, buffer_from_example
 
 
 class ResetCollector(DecorrelatingStartCollector):
@@ -107,3 +110,36 @@ class WaitResetCollector(DecorrelatingStartCollector):
                 self.agent.reset_one(idx=b)
                 self.need_reset[b] = False
         return agent_inputs
+
+
+class EvalCollector(BaseEvalCollector):
+
+    def collect_evaluation(self):
+        traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
+        observations = list()
+        for env in enumerate(self.envs):
+            observations.append(env.reset())
+        observation = buffer_from_example(observations[0], len(self.envs))
+        action = buffer_from_example(self.envs[0].action_space.sample(
+            len(self.envs), null=True))
+        reward = np.zeros(len(self.envs), dtype="float32")
+        obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))
+        self.agent.reset()
+        completed_infos = list()
+        for t in range(self.max_T):
+            act_pyt, agent_info = self.agent.step(obs_pyt, act_pyt, rew_pyt)
+            action = numpify_buffer(act_pyt)
+            for b, env in enumerate(self.envs):
+                o, r, d, env_info = env.step(action[b])
+                traj_infos[b].step(observation[b], action[b], r,
+                    agent_info[b], env_info)
+                if getattr(env_info, "need_reset", d):
+                    completed_infos.append(traj_infos[b].terminate(o))
+                    traj_infos[b] = self.TrajInfoCls()
+                    o = env.reset()
+                    self.agent.reset_one(b)
+            observation[b] = o
+            reward[b] = o
+            if self.ctrl.stop_eval.value:
+                break
+        return completed_infos

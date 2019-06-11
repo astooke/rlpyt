@@ -16,6 +16,10 @@ class BaseSampler(object):
             max_decorrelation_steps=100,
             TrajInfoCls=TrajInfo,
             CollectorCls=None,
+            n_eval_envs_per=0,
+            eval_env_kwargs=None,
+            max_eval_T=None,  # int if using evaluation.
+            max_eval_trajectories=None,  # Optional earlier cutoff.
             ):
         save__init__args(locals())
         self.batch_spec = BatchSpec(batch_T, batch_B)
@@ -25,7 +29,10 @@ class BaseSampler(object):
         raise NotImplementedError
 
     def obtain_samples(self, itr):
-        return NotImplementedError  # type: Samples
+        raise NotImplementedError  # type: Samples
+
+    def evaluate_agent(self, itr):
+        raise NotImplementedError
 
     def shutdown(self):
         pass
@@ -63,3 +70,22 @@ class BaseCollector(object):
         """Reset agent and or env as needed, if doing between batches."""
         return agent_inputs
 
+
+class BaseEvalCollector(object):
+    """Does not record intermediate data."""
+
+    def __init__(
+            self,
+            rank,
+            envs,
+            TrajInfoCls,
+            max_T,
+            reset_threshold=None,
+            agent=None,
+            sync=None,
+            step_buffer_np=None,
+            ):
+        save__init__args(locals())
+
+    def collect_evaluation(self):
+        raise NotImplementedError

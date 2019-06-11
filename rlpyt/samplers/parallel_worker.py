@@ -42,6 +42,21 @@ def sampling_process(common_kwargs, worker_kwargs):
     )
     agent_inputs, traj_infos = collector.start_envs(c.max_decorrelation_steps)
     collector.start_agent()
+    if c.n_eval_envs > 0:  # May do evaluation.
+        if c.get("eval_env_kwargs", None) is None:
+            env_kwargs = c.env_kwargs
+        else:
+            env_kwargs = c.eval_env_kwargs
+        eval_envs = [C.EnvCls(**env_kwargs) for _ in range(c.n_eval_envs)]
+        eval_collector = c.EvalCollectorCls(
+            rank=w.rank,
+            envs=eval_envs,
+            max_T=c.max_T,
+            TrajInfoCls=c.TrajInfoCls,
+            agent=c.get("agent", None),
+            sync=w.get("sync", None),
+            step_buffer_np=w.get("eval_step_buffer_np", None),
+        )
     ctrl = c.ctrl
     ctrl.barrier_out.wait()
     while True:
@@ -49,11 +64,17 @@ def sampling_process(common_kwargs, worker_kwargs):
         ctrl.barrier_in.wait()
         if ctrl.quit.value:
             break
-        agent_inputs, traj_infos, completed_infos = collector.collect_batch(
-            agent_inputs, traj_infos)
+        if ctrl.do_eval.value:
+            completed_infos = eval_collector.collect_evaluation()
+        else:
+            agent_inputs, traj_infos, completed_infos = collector.collect_batch(
+                agent_inputs, traj_infos)
         for info in completed_infos:
             c.traj_infos_queue.put(info)
         ctrl.barrier_out.wait()
 
     for env in envs:
         env.terminate()
+    if c.n_eval_envs > 0:
+        for env in eval_envs:
+            env.terminate()

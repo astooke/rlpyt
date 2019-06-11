@@ -72,6 +72,19 @@ class CpuParallelSampler(BaseSampler):
             traj_infos.append(self.traj_infos_queue.get())
         return self.samples_pyt, traj_infos
 
+    def evaluate_agent(self, itr):
+        self.ctrl.do_eval.value = True
+        self.ctrl.barrier_in.wait()
+        if self.num_eval_trajectories is not None:
+            
+        # Workers step environments and sample actions here.
+        self.ctrl.barrier_out.wait()
+        traj_infos = list()
+        while self.traj_infos_queue.qsize():
+            traj_infos.append(self.traj_infos_queue.get())
+        self.ctrl.do_eval.value = False
+        return traj_infos
+
     def shutdown(self):
         self.ctrl.quit.value = True
         self.ctrl.barrier_in.wait()

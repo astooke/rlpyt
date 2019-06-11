@@ -10,7 +10,7 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
     SamplesFromReplay._fields + ("is_weights",))
 
 
-class PrioritizedReplayBuffer(NStepReturnBuffer):
+class PrioritizedReplay(object):
 
     def __init__(self, alpha, beta, default_priority, unique=False, **kwargs):
         super().__init__(**kwargs)
@@ -34,8 +34,8 @@ class PrioritizedReplayBuffer(NStepReturnBuffer):
         T = super().append_samples(samples)
         self.priority_tree.advance(T)  # Progress priority_tree cursor.
 
-    def sample_batch(self, batch_size):
-        (T_idxs, B_idxs), priorities = self.priority_tree.sample(batch_size,
+    def sample_batch(self, batch_B):
+        (T_idxs, B_idxs), priorities = self.priority_tree.sample(batch_B,
             unique=self.unique)
         batch = self.extract_batch(T_idxs, B_idxs)
         is_weights = (1. / priorities) ** self.beta  # Unnormalized.
@@ -44,3 +44,8 @@ class PrioritizedReplayBuffer(NStepReturnBuffer):
 
     def update_batch_priorities(self, priorities):
         self.priority_tree.update_batch_priorities(priorities ** self.alpha)
+
+
+class PrioritizedReplayBuffer(PrioritizedReplay, NStepReturnBuffer):
+
+    pass

@@ -1,12 +1,11 @@
 
-from rlpyt.agents.base import BaseAgent
 from rlpyt.utils.collections import namedarraytuple
 
 AgentTrainInputs = namedarraytuple("AgentTrainInputs",
     ["observation", "prev_action", "prev_reward", "init_rnn_state"])
 
 
-class BaseRecurrentAgent(BaseAgent):
+class RecurrentAgentMixin(object):
     """Manages recurrent state during sampling, so sampler remains agnostic."""
 
     recurrent = True
