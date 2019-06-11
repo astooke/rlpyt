@@ -18,10 +18,33 @@ ABBREVS = [N_GPU, CONTEXTS_PER_GPU, CONTEXTS_PER_RUN, N_CPU_CORES,
 
 # API
 
-def auto_affinity():
-    # TODO: get num_cpu and num_gpu automatically and do something with that.
-    raise NotImplementedError
-    
+def quick_affinity(n_parallel=None, use_gpu=True):
+    assert use_gpu or n_parallel
+    import psutil
+    n_cpu_cores = psutil.cpu_count(logical=False)
+    has_hyperthreads = psutil.cpu_count() == n_cpu_cores * 2
+    hyperthread_offset = n_cpu_cores if has_hyperthreads else 0
+    if use_gpu:
+        import torch
+        n_gpu = torch.cuda.device_count()
+    else:
+        n_gpu = 0
+    if n_gpu > 0:
+        if n_parallel is not None:
+            n_gpu = min(n_parallel, n_gpu)
+        n_cpu_cores = (n_cpu_cores // n_gpu) * n_gpu  # Same for all.
+        import subprocess
+        n_socket = max(1, int(subprocess.check_output(
+            'cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l', shell=True)))
+        return encode_affinity(n_cpu_cores=n_cpu_cores, n_gpu=n_gpu, 
+            hyperthread_offset=hyperthread_offset, n_socket=n_socket)
+    else:
+        n_parallel = min(n_parallel, n_cpu_cores)
+        n_cpu_cores = (n_cpu_cores // n_parallel) * n_parallel  # Same for all.
+        cpu_per_run = n_cpu_cores // n_parallel
+        return encode_affinity(n_cpu_cores=n_cpu_cores, n_gpu=0,
+            cpu_per_run=cpu_per_run, hyperthread_offset=hyperthread_offset)
+
 
 def encode_affinity(n_cpu_cores=1, n_gpu=0, cpu_reserved=0,
         contexts_per_gpu=1, contexts_per_run=1, cpu_per_run=1, cpu_per_worker=1,
