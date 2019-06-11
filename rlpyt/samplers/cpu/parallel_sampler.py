@@ -1,10 +1,16 @@
 
 import multiprocessing as mp
+import time
 
 
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer, build_par_objs
 from rlpyt.samplers.parallel_worker import sampling_process
+from rlpyt.samplers.cpu.collectors import EvalCollector
+from rlpyt.utils.logging import logger
+
+
+EVAL_TRAJ_CHECK = 1  # Seconds.
 
 
 class CpuParallelSampler(BaseSampler):
@@ -19,8 +25,7 @@ class CpuParallelSampler(BaseSampler):
         env = self.EnvCls(**self.env_kwargs)
         agent.initialize(env.spec, share_memory=True)  # Actual agent initialization.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
-            self.batch_spec, bootstrap_value,
-            agent_shared=True, env_shared=True, build_step_buffer=False)
+            self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True)
         env.terminate()
         del env
 
@@ -41,6 +46,10 @@ class CpuParallelSampler(BaseSampler):
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=affinity.get("worker_torch_threads", None),
+            eval_n_envs=self.eval_n_envs_per,
+            eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
+            eval_env_kwargs=self.eval_env_kwargs,
+            eval_max_T=self.eval_max_T,
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np, n_envs)
@@ -73,13 +82,27 @@ class CpuParallelSampler(BaseSampler):
         return self.samples_pyt, traj_infos
 
     def evaluate_agent(self, itr):
+        self.agent.sync_shared_memory()
         self.ctrl.do_eval.value = True
+        self.ctrl.stop_eval.value = False
         self.ctrl.barrier_in.wait()
-        if self.num_eval_trajectories is not None:
-            
-        # Workers step environments and sample actions here.
-        self.ctrl.barrier_out.wait()
         traj_infos = list()
+        # Workers step environments and sample actions here.
+        if self.max_eval_trajectories is not None:
+            while True:
+                time.sleep(EVAL_TRAJ_CHECK)
+                while self.traj_infos_queue.qsize():
+                    traj_infos.append(self.traj_infos_queue.get())
+                if len(traj_infos) >= self.max_eval_trajectories:
+                    self.ctrl.stop_eval.value = True
+                    logger.log("Evaluation reached max num trajectories "
+                        f"({self.eval__trajectories}).")
+                    break  # Stop before workers reach max_T.
+                if self.ctrl.barrier_out.parties - self.ctrl.barrier_out.n_waiting == 1:
+                    logger.log("Evaluation reached max num time steps "
+                        f"({self.eval_max_T}).")
+                    break  # Workers reached max_T.
+        self.ctrl.barrier_out.wait()
         while self.traj_infos_queue.qsize():
             traj_infos.append(self.traj_infos_queue.get())
         self.ctrl.do_eval.value = False

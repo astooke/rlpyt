@@ -62,6 +62,7 @@ class SacAgent(BaseAgent):
         self.target_v_model.load_state_dict(self.v_model.state_dict())
         self.distribution = Gaussian(dim=env_spec.action_space.size,
             squash=self.action_squash)
+        self.models = (self.q1_model, self.q2_model, self.v_model, self.pi_model)
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
 
@@ -78,6 +79,7 @@ class SacAgent(BaseAgent):
         self.v_model.to(self.device)
         self.pi_model.to(self.device)
         self.target_v_model.to(self.device)
+        self.models = (self.q1_model, self.q2_model, self.v_model, self.pi_model)
         logger.log(f"Initialized agent models on device: {self.device}.")
 
     def make_env_to_model_kwargs(self, env_spec):
@@ -131,15 +133,24 @@ class SacAgent(BaseAgent):
         update_state_dict(self.target_v_model, self.v_model, tau)
 
     def parameters(self):
-        yield from self.q1_model.parameters()
-        yield from self.q2_model.parameters()
-        yield from self.v_model.parameters()
-        yield from self.pi_model.parameters()
+        for model in self.models:
+            yield from model.parameters()
 
     def parameters_by_model(self):
-        return (self.q1_model.parameters(), self.q2_model.parameters(),
-            self.v_model.parameters(), self.pi_model.parameters())
+        return (model.parameters() for model in self.models)
 
     def sync_shared_memory(self):
         if self.shared_pi_model is not self.pi_model:
             self.shared_pi_model.load_state_dict(self.pi_model.state_dict())
+
+    def train_mode(self):
+        for model in self.models:
+            model.train()
+
+    def sample_mode(self):
+        for model in self.models:
+            model.eval()
+
+    def eval_mode(self):
+        for model in self.models:
+            model.eval()

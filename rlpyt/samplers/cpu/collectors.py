@@ -125,7 +125,6 @@ class EvalCollector(BaseEvalCollector):
         reward = np.zeros(len(self.envs), dtype="float32")
         obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))
         self.agent.reset()
-        completed_infos = list()
         for t in range(self.max_T):
             act_pyt, agent_info = self.agent.step(obs_pyt, act_pyt, rew_pyt)
             action = numpify_buffer(act_pyt)
@@ -134,7 +133,7 @@ class EvalCollector(BaseEvalCollector):
                 traj_infos[b].step(observation[b], action[b], r,
                     agent_info[b], env_info)
                 if getattr(env_info, "need_reset", d):
-                    completed_infos.append(traj_infos[b].terminate(o))
+                    self.traj_infos_queue.put(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
                     o = env.reset()
                     self.agent.reset_one(b)
@@ -142,4 +141,3 @@ class EvalCollector(BaseEvalCollector):
             reward[b] = o
             if self.ctrl.stop_eval.value:
                 break
-        return completed_infos

@@ -70,6 +70,7 @@ def build_par_objs(n, sync=False, groups=1):
         barrier_out=mp.Barrier(n * groups + 1),
         do_eval=mp.RawValue(ctypes.c_bool, False),
         stop_eval=mp.RawValue(ctypes.c_bool, False),
+        do_reset=mp.Rawvalue(ctypes.c_bool, False),
     )
     traj_infos_queue = mp.Queue()
     if sync:

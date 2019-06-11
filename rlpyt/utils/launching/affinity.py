@@ -18,6 +18,11 @@ ABBREVS = [N_GPU, CONTEXTS_PER_GPU, CONTEXTS_PER_RUN, N_CPU_CORES,
 
 # API
 
+def auto_affinity():
+    # TODO: get num_cpu and num_gpu automatically and do something with that.
+    raise NotImplementedError
+    
+
 def encode_affinity(n_cpu_cores=1, n_gpu=0, cpu_reserved=0,
         contexts_per_gpu=1, contexts_per_run=1, cpu_per_run=1, cpu_per_worker=1,
         hyperthread_offset=None, n_socket=1, run_slot=None):

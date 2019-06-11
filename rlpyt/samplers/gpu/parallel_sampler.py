@@ -3,10 +3,16 @@ import multiprocessing as mp
 
 
 from rlpyt.samplers.base import BaseSampler
-from rlpyt.samplers.utils import build_samples_buffer, build_par_objs
+from rlpyt.samplers.utils import (build_samples_buffer, build_par_objs,
+    build_step_buffer)
 from rlpyt.samplers.parallel_worker import sampling_process
+from rlpyt.samplers.gpu.collectors import EvalCollector
 from rlpyt.utils.collections import AttrDict
 from rlpyt.agents.base import AgentInputs
+from rlpyt.utils.logging import logger
+
+
+EVAL_TRAJ_CHECK = 20  # Time steps.
 
 
 class GpuParallelSampler(BaseSampler):
@@ -20,12 +26,20 @@ class GpuParallelSampler(BaseSampler):
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
         agent.initialize(env.spec, share_memory=False)  # Actual agent initialization, keep.
-        buffers = build_samples_buffer(agent, env, self.batch_spec,
-            bootstrap_value, agent_shared=True, env_shared=True,
-            build_step_buffer=True)
-        samples_pyt, samples_np, examples, step_buffer_pyt, step_buffer_np = buffers
+        samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
+            self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True)
         env.terminate()
         del env
+        step_buffer_pyt, step_buffer_np = build_step_buffer(examples, self.batch_spec.B)
+        if self.eval_n_envs_per > 0:
+            n_eval_envs = self.n_eval_envs_per * n_parallel
+            eval_step_buffer_pyt, eval_step_buffer_np = build_step_buffer(examples,
+                n_eval_envs)
+            self.eval_step_buffer_pyt = eval_step_buffer_pyt
+            self.eval_step_buffer_np = eval_step_buffer_np
+            assert self.eval_min_envs_reset <= n_eval_envs
+        else:
+            eval_step_buffer_np = None
 
         ctrl, traj_infos_queue, sync = build_par_objs(n_parallel, sync=True)
         if traj_info_kwargs:
@@ -44,10 +58,14 @@ class GpuParallelSampler(BaseSampler):
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=None,
+            eval_n_envs=self.eval_n_envs_per,
+            eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
+            eval_env_kwargs=self.eval_env_kwargs,
+            eval_max_T=self.eval_max_T,
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np,
-            n_envs, step_buffer_np, sync)
+            n_envs, step_buffer_np, sync, self.eval_n_envs_per, eval_step_buffer_np)
 
         workers = [mp.Process(target=sampling_process,
             kwargs=dict(common_kwargs=common_kwargs, worker_kwargs=w_kwargs))
@@ -78,6 +96,17 @@ class GpuParallelSampler(BaseSampler):
             traj_infos.append(self.traj_infos_queue.get())
         return self.samples_pyt, traj_infos
 
+    def evaluate_agent(self, itr):
+        self.ctrl.do_eval.value = True
+        self.ctrl.stop_eval.value = False
+        self.ctrl.barrier_in.wait()
+        traj_infos = self.serve_actions_evaluation(itr)
+        self.ctrl.barrier_out.wait()
+        while self.traj_infos_queue.qsize():
+            traj_infos.append(self.traj_infos_queue.get())
+        self.ctrl.do_eval.value = False
+        return traj_infos
+
     def shutdown(self):
         self.ctrl.quit.value = True
         self.ctrl.barrier_in.wait()
@@ -86,8 +115,7 @@ class GpuParallelSampler(BaseSampler):
 
     def serve_actions(self, itr):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
-        step_np = self.step_buffer_np
-        step_pyt = self.step_buffer_pyt
+        step_np, step_pyt = self.step_buffer_np, self.step_buffer_pyt
 
         agent_inputs = AgentInputs(step_pyt.observation, step_pyt.action,
             step_pyt.reward)  # Fixed buffer objects.
@@ -95,7 +123,7 @@ class GpuParallelSampler(BaseSampler):
         for t in range(self.batch_spec.T):
             for b in step_blockers:
                 b.acquire()  # Workers written obs and rew, first prev_act.
-            action, agent_info = self.agent.sample_action(*agent_inputs)
+            action, agent_info = self.agent.step(*agent_inputs)
             step_np.action[:] = action  # Worker applies to env.
             step_np.agent_info[:] = agent_info  # Worker sends to traj_info.
             for w in act_waiters:
@@ -108,14 +136,52 @@ class GpuParallelSampler(BaseSampler):
                 *agent_inputs)
 
         if any(step_np.done):  # Reset at end of batch; ready for next.
-            for i, d in enumerate(step_np.done):
+            for b, d in enumerate(step_np.done):
                 if d:
-                    self.agent.reset_one(idx=i)
+                    self.agent.reset_one(idx=b)
             step_np.done[:] = 0
+
+    def serve_actions_evaluation(self, itr):
+        step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
+        step_np, step_pyt = self.eval_step_buffer_np, self.eval_step_buffer_pyt
+        traj_infos = list()
+        agent_inputs = AgentInputs(step_pyt.observation, step_pyt.action,
+            step_pyt.reward)  # Fixed buffer objects.
+
+        for t in range(self.eval_max_T):
+            if t % EVAL_TRAJ_CHECK == 0:  # (While workers stepping.)
+                while self.traj_infos_queue.qsize():
+                    traj_infos.append(self.traj_infos_queue.get())
+            for b in step_blockers:
+                b.acquire()
+            action, agent_info = self.agent.step(*agent_inputs)
+            step_np.action[:] = action
+            step_np.agent_info[:] = agent_info
+
+            step_np.do_reset.value = sum(step_np.need_reset) >= self.eval_min_envs_reset
+            if step_np.do_reset.value:
+                for b, need in enumerate(step_np.need_reset):
+                    if need:
+                        self.agent.reset_one(idx=b)
+                        step_np.action[b] = 0  # Prev_action for next t.
+                    # Do not set need_reset[b] = False; worker needs it and will set False.
+            if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
+                self.ctrl.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
+                logger.log("Evaluation reach max num trajectories "
+                    f"({self.eval_max_trajectories}).")
+            for w in act_waiters:
+                w.release()
+            if self.ctrl.stop_eval.value:
+                break
+        if t == self.eval_max_T - 1 and self.eval_max_trajectories is not None:
+            logger.log("Evaluation reached max num time steps "
+                f"({self.eval_max_T}).")
+
+        return traj_infos
 
 
 def assemble_workers_kwargs(affinity, seed, samples_np, n_envs, step_buffer_np,
-        sync):
+        sync, eval_n_envs, eval_step_buffer_np):
     workers_kwargs = list()
     for rank in range(len(affinity["workers_cpus"])):
         slice_B = slice(rank * n_envs, (rank + 1) * n_envs)
@@ -131,5 +197,8 @@ def assemble_workers_kwargs(affinity, seed, samples_np, n_envs, step_buffer_np,
             step_buffer_np=step_buffer_np[slice_B],
             sync=w_sync,
         )
+        if eval_n_envs > 0:
+            eval_slice_B = slice(rank * eval_n_envs, (rank + 1) * eval_n_envs)
+            worker_kwargs["eval_step_buffer_np"] = eval_step_buffer_np[eval_slice_B]
         workers_kwargs.append(worker_kwargs)
     return workers_kwargs

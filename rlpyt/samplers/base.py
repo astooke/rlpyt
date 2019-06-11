@@ -15,11 +15,13 @@ class BaseSampler(object):
             batch_B,
             max_decorrelation_steps=100,
             TrajInfoCls=TrajInfo,
-            CollectorCls=None,
-            n_eval_envs_per=0,
+            CollectorCls=None,  # Not auto-populated.
+            eval_n_envs_per=0,  # 0 for no eval setup.
+            eval_CollectorCls=None,  # Maybe auto-populated.
             eval_env_kwargs=None,
-            max_eval_T=None,  # int if using evaluation.
-            max_eval_trajectories=None,  # Optional earlier cutoff.
+            eval_max_T=None,  # int if using evaluation.
+            eval_max_trajectories=None,  # Optional earlier cutoff.
+            eval_min_envs_reset=1,
             ):
         save__init__args(locals())
         self.batch_spec = BatchSpec(batch_T, batch_B)
@@ -79,8 +81,8 @@ class BaseEvalCollector(object):
             rank,
             envs,
             TrajInfoCls,
+            traj_infos_queue,
             max_T,
-            reset_threshold=None,
             agent=None,
             sync=None,
             step_buffer_np=None,

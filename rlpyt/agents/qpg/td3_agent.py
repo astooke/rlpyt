@@ -60,3 +60,15 @@ class Td3Agent(DdpgAgent):
     def set_target_noise(self, std, noise_clip=None):
         self.target_distribution.set_std(std)
         self.target_distribution.set_noise_clip(noise_clip)
+
+    def train_mode(self):
+        super().train_mode()
+        self.q2_model.train()
+
+    def sample_mode(self):
+        super().sample_mode()
+        self.q2_model.eval()
+
+    def eval_mode(self):
+        super().eval_mode()
+        self.q2_model.eval()

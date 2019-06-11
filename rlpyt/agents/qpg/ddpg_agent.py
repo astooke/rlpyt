@@ -125,3 +125,15 @@ class DdpgAgent(BaseAgent):
     def set_policy_noise(self, std, noise_clip=None):
         self.distribution.set_std(std)
         self.distribution.set_noise_clip(noise_clip)
+
+    def train_mode(self):
+        self.q_model.train()
+        self.mu_model.train()
+
+    def sample_mode(self):
+        self.q_model.eval()
+        self.mu_model.eval()
+
+    def eval_mode(self):
+        self.q_model.eval()
+        self.mu_model.eval()
