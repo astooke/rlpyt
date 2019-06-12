@@ -13,7 +13,10 @@ config = dict(
         gae_lambda=0.98,
         linear_lr_schedule=True,
     ),
-    env=dict(game="pong"),
+    env=dict(
+        game="pong",
+        num_img_obs=1,
+    ),
     model=dict(),
     optim=dict(),
     runner=dict(

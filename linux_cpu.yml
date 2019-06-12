@@ -7,6 +7,7 @@ dependencies:
 - numpy
 - psutil
 - opencv  # atari.
+- pip
 - pip:
   - atari-py
   - pyprind  # progbar.
