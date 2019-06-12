@@ -18,7 +18,7 @@ class CategoricalPgAgent(BasePgAgent):
 
     def initialize(self, env_spec, share_memory=False):
         super().initialize(env_spec, share_memory)
-        self.distribution = Categorical(env_spec.action_space.n)
+        self.distribution = Categorical(dim=env_spec.action_space.n)
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
@@ -52,7 +52,7 @@ class RecurrentCategoricalPgAgent(RecurrentAgentMixin, BasePgAgent):
 
     def initialize(self, env_spec, share_memory=False):
         super().initialize(env_spec, share_memory)
-        self.distribution = Categorical(env_spec.action_space.n)
+        self.distribution = Categorical(dim=env_spec.action_space.n)
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):

@@ -41,13 +41,13 @@ class R2D1(RlAlgorithm):
             learning_rate=1e-4,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
-            grad_norm_clip=10.,
+            clip_grad_norm=10.,
             eps_init=1,
             eps_final=0.01,
             eps_final_min=None,
             eps_steps=int(1e6),
             eps_eval=0.001,
-            dueling_dqn=True,
+            double_dqn=True,
             prioritized_replay=True,
             pri_alpha=0.6,
             pri_beta_init=0.9,
@@ -144,7 +144,7 @@ class R2D1(RlAlgorithm):
             return opt_info
         for _ in range(self.updates_per_optimize):
             self.update_counter += 1
-            samples_from_replay = self.replay_buffer.sample(self.batch_B)
+            samples_from_replay = self.replay_buffer.sample_batch(self.batch_B)
             self.optimizer.zero_grad()
             loss, td_abs_errors, priorities = self.loss(samples_from_replay)
             loss.backward()
@@ -209,12 +209,12 @@ class R2D1(RlAlgorithm):
                 next_a = torch.argmax(next_qs, dim=-1)
                 target_q = select_at_indexes(next_a, target_qs)
             else:
-                target_q = torch.max(target_qs, dim=-1)
+                target_q = torch.max(target_qs, dim=-1).values
             target_q = target_q[:-bT]  # Same length as q.
 
         disc = self.discount ** self.n_step_return
         y = self.value_scale(samples.return_ +  # [T,B]
-            (1 - samples.done_n) * disc * self.inv_value_scale(target_q))
+            (1 - samples.done_n.float()) * disc * self.inv_value_scale(target_q))
         delta = y - q
         losses = 0.5 * delta ** 2
         abs_delta = abs(delta)
@@ -224,11 +224,11 @@ class R2D1(RlAlgorithm):
         if self.prioritized_replay:
             losses *= samples.is_weights.unsqueeze(0)  # weights: [B] --> [1,B]
         if self.mid_batch_reset:
-            valid = valid_from_done(samples.done)  # Turn off after first done.
+            valid = valid_from_done(samples.done.float())  # 0 after first done.
         if not self.mid_batch_reset:  # Replay track valid, sampling can misalign.
-            valid = samples.valid  # [T,B]
+            valid = samples.valid.float()  # [T,B]
         loss = valid_mean(losses, valid)
-        td_abs_errors = torch.clamp(abs_delta, 0, self.delta_clip)  # [T,B]
+        td_abs_errors = torch.clamp(abs_delta.detach(), 0, self.delta_clip)  # [T,B]
         valid_td_abs_errors = td_abs_errors * valid
         max_d = torch.max(valid_td_abs_errors, dim=0)
         mean_d = torch.mean(valid_td_abs_errors, dim=0)  # Lower if less valid.

@@ -31,14 +31,14 @@ class SerialSampler(BaseSampler):
         )
         if self.eval_n_envs > 0:  # May do evaluation.
             eval_envs = [self.EnvCls(**self.eval_env_kwargs)
-                for _ in self.eval_n_envs_per]
+                for _ in self.eval_n_envs]
             eval_CollectorCls = self.eval_CollectorCls or SerialEvalCollector
             self.eval_collector = eval_CollectorCls(
                 envs=eval_envs,
                 agent=agent,
                 TrajInfoCls=self.TrajInfoCls,
-                max_T=self.eval_max_T,
-                eval_max_trajectories=self.eval_max_trajectories,
+                max_T=self.eval_max_steps // self.eval_n_envs,
+                max_trajectories=self.eval_max_trajectories,
             )
 
         agent_inputs, traj_infos = collector.start_envs(

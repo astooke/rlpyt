@@ -41,6 +41,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         self._buffer_full = False
         self.off_backward = n_step_return  # Current invalid samples.
         self.off_forward = 1  # i.e. current cursor, prev_action overwritten.
+        self.store_valid = store_valid
         if self.store_valid:
             self.samples_valid = buffer_from_example(example.done, (T, B))
 
@@ -53,7 +54,8 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
             # If no mid-batch-reset, samples after done will be invalid, but
             # might still be sampled later in a training batch.
             buffer_put(self.samples_valid, slice(t, t + T),
-                valid_from_done(samples.done), wrap=True)
+                valid_from_done(samples.done.float()).type(samples.done.dtype),
+                wrap=True)
         self.compute_returns(T)
         if t + T >= self.T:
             self._buffer_full = True  # Only changes on first around.

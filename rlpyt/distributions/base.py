@@ -1,4 +1,7 @@
 
+import torch
+
+from rlpyt.utils.tensor import valid_mean
 
 DistInfo = None
 
@@ -31,10 +34,10 @@ class Distribution(object):
         raise NotImplementedError
 
     def perplexity(self, dist_info):
-        raise NotImplementedError
+        return torch.exp(self.entropy(dist_info))
 
-    def mean_entropy(self, dist_info, valid):
-        raise NotImplementedError
+    def mean_entropy(self, dist_info, valid=None):
+        return valid_mean(self.entropy(dist_info), valid)
 
-    def mean_perplexity(self, dist_info, valid):
-        raise NotImplementedError
+    def mean_perplexity(self, dist_info, valid=None):
+        return valid_mean(self.perplexity(dist_info), valid)

@@ -62,7 +62,7 @@ class AtariR2d1Model(torch.nn.Module):
         h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
 
         self.conv3 = torch.nn.Conv2d(
-            in_channels=32,
+            in_channels=64,
             out_channels=64,
             kernel_size=3,
             stride=1,
@@ -70,7 +70,7 @@ class AtariR2d1Model(torch.nn.Module):
         )
         h, w = conv2d_output_shape(h, w, kernel_size=3, stride=1, padding=0)
 
-        fc_in_size = h * w * 32
+        fc_in_size = h * w * 64
         self.fc_from_conv = torch.nn.Linear(fc_in_size, fc_size)
         lstm_in_size = fc_size + output_dim + 1
         self.lstm = torch.nn.LSTM(lstm_in_size, lstm_size, lstm_layers)

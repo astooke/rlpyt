@@ -16,10 +16,10 @@ class BaseSampler(object):
             max_decorrelation_steps=100,
             TrajInfoCls=TrajInfo,
             CollectorCls=None,  # Not auto-populated.
-            eval_n_envs_per=0,  # 0 for no eval setup.
+            eval_n_envs=0,  # 0 for no eval setup.
             eval_CollectorCls=None,  # Maybe auto-populated.
             eval_env_kwargs=None,
-            eval_max_T=None,  # int if using evaluation.
+            eval_max_steps=None,  # int if using evaluation.
             eval_max_trajectories=None,  # Optional earlier cutoff.
             eval_min_envs_reset=1,
             ):

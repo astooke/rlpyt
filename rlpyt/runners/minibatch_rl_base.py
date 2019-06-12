@@ -30,7 +30,7 @@ class MinibatchRlBase(BaseRunner):
         if agent.recurrent and sampler.mid_batch_reset:
             raise NotImplementedError("Cannot train recurrent agents with"
                 " resets mid-batch (unless custom implemented--then remove this"
-                " error).")
+                " error; or if using replay buffer).")
 
     def startup(self):
         p = psutil.Process()
@@ -52,8 +52,13 @@ class MinibatchRlBase(BaseRunner):
         )
         n_itr = self.get_n_itr(self.sampler.batch_spec.size)
         self.agent.initialize_cuda(self.affinity.get("cuda_idx", None))
-        self.algo.initialize(self.agent, n_itr, self.sampler.mid_batch_reset,
-            examples=examples)
+        self.algo.initialize(
+            agent=self.agent,
+            n_itr=n_itr,
+            batch_spec=self.sampler.batch_spec,
+            mid_batch_reset=self.sampler.mid_batch_reset,
+            examples=examples
+        )
         self.initialize_logging()
         return n_itr
 
@@ -69,7 +74,6 @@ class MinibatchRlBase(BaseRunner):
     def initialize_logging(self):
         self._opt_infos = {k: list() for k in self.algo.opt_info_fields}
         self._start_time = self._last_time = time.time()
-        self.pbar = ProgBarCounter(self.log_interval_itrs)
 
     def shutdown(self):
         logger.log("Training complete.")

@@ -7,7 +7,7 @@ from rlpyt.models.utils import conv2d_output_shape
 from rlpyt.models.utils import scale_grad
 
 
-class AtariDqnModel(torch.nn.Module):
+class AtariCatDqnModel(torch.nn.Module):
 
     def __init__(
             self,
@@ -58,7 +58,7 @@ class AtariDqnModel(torch.nn.Module):
         h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
 
         self.conv3 = torch.nn.Conv2d(
-            in_channels=32,
+            in_channels=64,
             out_channels=64,
             kernel_size=3,
             stride=1,
@@ -66,7 +66,7 @@ class AtariDqnModel(torch.nn.Module):
         )
         h, w = conv2d_output_shape(h, w, kernel_size=3, stride=1, padding=0)
 
-        fc_in_size = h * w * 32
+        fc_in_size = h * w * 64
 
         # DON'T do this in __init__().
         # test_mat = torch.zeros(1, *image_shape)

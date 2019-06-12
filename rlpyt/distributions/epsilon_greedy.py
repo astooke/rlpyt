@@ -2,13 +2,15 @@
 import torch
 
 from rlpyt.distributions.base import Distribution
+from rlpyt.distributions.discrete import DiscreteMixin
 
 
-class EpsilonGreedy(Distribution):
+class EpsilonGreedy(DiscreteMixin, Distribution):
     """Input can be shaped [T,B,Q] or [B,Q], and vector epsilon of length
     B will apply across the Batch dimension (same epsilon for all T)."""
 
-    def __init__(self, epsilon=1):
+    def __init__(self, epsilon=1, **kwargs):
+        super().__init__(**kwargs)
         self._epsilon = epsilon
 
     def sample(self, q):

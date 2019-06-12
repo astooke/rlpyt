@@ -34,6 +34,7 @@ class MinibatchRl(MinibatchRlBase):
         self._new_completed_trajs = 0
         logger.log(f"Optimizing over {self.log_interval_itrs} iterations.")
         super().initialize_logging()
+        self.pbar = ProgBarCounter(self.log_interval_itrs)
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
         self._cum_completed_trajs += len(traj_infos)

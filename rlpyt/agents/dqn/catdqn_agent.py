@@ -2,7 +2,7 @@
 import torch
 
 from rlpyt.agents.base import AgentStep
-from rlpyt.agent.dqn.dqn_agent import DqnAgent
+from rlpyt.agents.dqn.dqn_agent import DqnAgent
 from rlpyt.distributions.epsilon_greedy import CategoricalEpsilonGreedy
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.collections import namedarraytuple
@@ -17,8 +17,8 @@ class CatDqnAgent(DqnAgent):
         self.model_kwargs["n_atoms"] = n_atoms
 
     def initialize(self, env_spec, share_memory=False):
-        super().initialize(env_spec, share_memory)
-        self.distribution = CategoricalEpsilonGreedy()  # Overwrite.
+        super().initialize(env_spec, share_memory)  # Then overwrite distribution.
+        self.distribution = CategoricalEpsilonGreedy(dim=env_spec.action_space.n)
 
     def give_V_min_max(self, V_min, V_max):
         self.V_min = V_min
@@ -31,6 +31,7 @@ class CatDqnAgent(DqnAgent):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         p = self.model(*model_inputs)
+        p = p.cpu()
         action = self.distribution.sample(p)
         agent_info = AgentInfo(p=p)  # Only change from DQN: q -> p.
         action, agent_info = buffer_to((action, agent_info), device="cpu")

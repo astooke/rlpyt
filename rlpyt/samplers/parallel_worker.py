@@ -45,8 +45,8 @@ def sampling_process(common_kwargs, worker_kwargs):
     collector.start_agent()
 
     if c.eval_n_envs > 0:  # May do evaluation.
-        eval_envs = [C.EnvCls(**c.eval_env_kwargs) for _ in range(c.eval_n_envs)]
-        eval_collector = c.EvalCollectorCls(
+        eval_envs = [c.EnvCls(**c.eval_env_kwargs) for _ in range(c.eval_n_envs)]
+        eval_collector = c.eval_CollectorCls(
             rank=w.rank,
             envs=eval_envs,
             TrajInfoCls=c.TrajInfoCls,

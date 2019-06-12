@@ -67,7 +67,7 @@ def restore_leading_dims(tensors, T=1, B=1, put_T=False, put_B=False):
         tensors = (tensors,)
         is_seq = False
     if put_T:
-        return tuple(t.view((T, B) + t.shape[1:]) for t in tensors)
+        tensors = tuple(t.view((T, B) + t.shape[1:]) for t in tensors)
     if not put_B:  # Assume B=1 leading dim.
-        return tuple(t.squeeze(0) for t in tensors)
+        tensors = tuple(t.squeeze(0) for t in tensors)
     return tensors if is_seq else tensors[0]

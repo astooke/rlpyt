@@ -10,9 +10,9 @@ class EpsilonGreedyAgentMixin(object):
         self.eval_epsilon = epsilon
 
     def sample_mode(self, itr):
-        super().sample_mode()
+        super().sample_mode(itr)
         self.distribution.set_epsilon(self.sample_epsilon)
 
     def eval_mode(self, itr):
-        super().eval_mode()
+        super().eval_mode(itr)
         self.distribution.set_epsilon(self.eval_epsilon)

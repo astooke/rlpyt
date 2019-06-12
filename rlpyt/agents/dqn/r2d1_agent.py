@@ -1,10 +1,9 @@
 
 import torch
 
-from rlpyt.agents.base import AgentStep
-from rlpyt.agents.recurrent import RecurrentAgentMixin
-from rlpyt.agents.dqn import DqnAgent
-from rlpyt.utils.buffer import buffer_to
+from rlpyt.agents.base import AgentStep, RecurrentAgentMixin
+from rlpyt.agents.dqn.dqn_agent import DqnAgent
+from rlpyt.utils.buffer import buffer_to, buffer_func
 from rlpyt.utils.collections import namedarraytuple
 
 
@@ -26,11 +25,13 @@ class R2d1Agent(RecurrentAgentMixin, DqnAgent):
         agent_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         q, rnn_state = self.model(*agent_inputs, self.prev_rnn_state)  # Model handles None.
+        q = q.cpu()
         action = self.distribution.sample(q)
-        prev_rnn_state = buffer_func(rnn_state.cpu(),  # Buffer does not handle None.
-            torch.zeros_like) if self.prev_rnn_state is None else self.prev_rnn_state
-        agent_info = AgentInto(q=q, prev_rnn_state=prev_rnn_state)
-        action, agent_info = buffer_to((action, agent_info), device="cpu")
+        prev_rnn_state = buffer_func(buffer_to(rnn_state, "cpu"),  # Buffer does not handle None.
+            torch.zeros_like) if self.prev_rnn_state is None else buffer_to(
+            self.prev_rnn_state, "cpu")
+        agent_info = AgentInfo(q=q, prev_rnn_state=prev_rnn_state)
+        # action, agent_info = buffer_to((action, agent_info), device="cpu")
         self.advance_rnn_state(rnn_state)  # Keep on device?
         return AgentStep(action=action, agent_info=agent_info)
 

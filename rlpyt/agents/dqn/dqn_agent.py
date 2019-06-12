@@ -4,9 +4,12 @@ import torch
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.agents.dqn.epsilon_greedy import EpsilonGreedyAgentMixin
 from rlpyt.distributions.epsilon_greedy import EpsilonGreedy
-from rlpyt.agents.q_learning.base import AgentInfo
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.logging import logger
+from rlpyt.utils.collections import namedarraytuple
+
+
+AgentInfo = namedarraytuple("AgentInfo", "q")
 
 
 class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
@@ -28,7 +31,7 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
             self.model.load_state_dict(self.initial_model_state_dict)
         self.target_model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
         self.target_model.load_state_dict(self.model.state_dict())
-        self.distribution = EpsilonGreedy()
+        self.distribution = EpsilonGreedy(dim=env_spec.action_space.n)
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
 
@@ -53,9 +56,10 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         q = self.model(*model_inputs)
+        q = q.cpu()
         action = self.distribution.sample(q)
         agent_info = AgentInfo(q=q)
-        action, agent_info = buffer_to((action, agent_info), device="cpu")
+        # action, agent_info = buffer_to((action, agent_info), device="cpu")
         return AgentStep(action=action, agent_info=agent_info)
 
     def target(self, observation, prev_action, prev_reward):

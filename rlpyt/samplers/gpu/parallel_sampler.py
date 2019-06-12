@@ -31,17 +31,24 @@ class GpuParallelSampler(BaseSampler):
         env.terminate()
         del env
         step_buffer_pyt, step_buffer_np = build_step_buffer(examples, self.batch_spec.B)
-        if self.eval_n_envs_per > 0:
-            n_eval_envs = self.n_eval_envs_per * n_parallel
+
+        if self.eval_n_envs > 0:
+            # assert self.eval_n_envs % n_parallel == 0
+            eval_n_envs_per = max(1, self.eval_n_envs // n_parallel)
+            eval_n_envs = eval_n_envs_per * n_parallel
+            logger.log(f"Total parallel evaluation envs: {eval_n_envs}")
+            self.eval_max_T = eval_max_T = self.eval_max_steps // eval_n_envs
             eval_step_buffer_pyt, eval_step_buffer_np = build_step_buffer(examples,
-                n_eval_envs)
+                eval_n_envs)
             self.eval_step_buffer_pyt = eval_step_buffer_pyt
             self.eval_step_buffer_np = eval_step_buffer_np
-            assert self.eval_min_envs_reset <= n_eval_envs
+            assert self.eval_min_envs_reset <= eval_n_envs
         else:
+            eval_n_envs_per = 0
             eval_step_buffer_np = None
+            eval_max_T = None
 
-        ctrl, traj_infos_queue, sync = build_par_objs(n_parallel, sync=True)
+        ctrl, traj_infos_queue, sync = build_par_objs(n_parallel)
         if traj_info_kwargs:
             for k, v in traj_info_kwargs.items():
                 setattr(self.TrajInfoCls, "_" + k, v)  # Avoid passing at init.
@@ -58,14 +65,14 @@ class GpuParallelSampler(BaseSampler):
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=None,
-            eval_n_envs=self.eval_n_envs_per,
+            eval_n_envs=eval_n_envs_per,
             eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
             eval_env_kwargs=self.eval_env_kwargs,
             eval_max_T=self.eval_max_T,
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np,
-            n_envs, step_buffer_np, sync, self.eval_n_envs_per, eval_step_buffer_np)
+            n_envs, step_buffer_np, sync, eval_n_envs_per, eval_step_buffer_np)
 
         workers = [mp.Process(target=sampling_process,
             kwargs=dict(common_kwargs=common_kwargs, worker_kwargs=w_kwargs))
@@ -99,7 +106,7 @@ class GpuParallelSampler(BaseSampler):
 
     def evaluate_agent(self, itr):
         self.ctrl.do_eval.value = True
-        self.ctrl.stop_eval.value = False
+        self.sync.stop_eval.value = False
         self.agent.eval_mode(itr)
         self.ctrl.barrier_in.wait()
         traj_infos = self.serve_actions_evaluation(itr)
@@ -160,20 +167,20 @@ class GpuParallelSampler(BaseSampler):
             step_np.action[:] = action
             step_np.agent_info[:] = agent_info
 
-            step_np.do_reset.value = sum(step_np.need_reset) >= self.eval_min_envs_reset
-            if step_np.do_reset.value:
+            self.sync.do_reset.value = sum(step_np.need_reset) >= self.eval_min_envs_reset
+            if self.sync.do_reset.value:
                 for b, need in enumerate(step_np.need_reset):
                     if need:
                         self.agent.reset_one(idx=b)
                         step_np.action[b] = 0  # Prev_action for next t.
                     # Do not set need_reset[b] = False; worker needs it and will set False.
             if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
-                self.ctrl.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
+                self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
                 logger.log("Evaluation reach max num trajectories "
                     f"({self.eval_max_trajectories}).")
             for w in act_waiters:
                 w.release()
-            if self.ctrl.stop_eval.value:
+            if self.sync.stop_eval.value:
                 break
         if t == self.eval_max_T - 1 and self.eval_max_trajectories is not None:
             logger.log("Evaluation reached max num time steps "
@@ -190,6 +197,8 @@ def assemble_workers_kwargs(affinity, seed, samples_np, n_envs, step_buffer_np,
         w_sync = AttrDict(
             step_blocker=sync.step_blockers[rank],
             act_waiter=sync.act_waiters[rank],
+            do_reset=sync.do_reset,
+            stop_eval=sync.stop_eval,
         )
         worker_kwargs = dict(
             rank=rank,

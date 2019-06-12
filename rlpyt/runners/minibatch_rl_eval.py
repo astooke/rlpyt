@@ -23,7 +23,8 @@ class MinibatchRlEval(MinibatchRlBase):
         self.shutdown()
 
     def evaluate_agent(self, itr):
-        self.pbar.stop()
+        if itr > 0:
+            self.pbar.stop()
         logger.log("Evaluating agent...")
         self.agent.eval_mode(itr)  # Might be agent in sampler.
         eval_start_time = time.time()
@@ -66,9 +67,9 @@ class MinibatchRlEval(MinibatchRlBase):
         train_samples_per_second = (float('nan') if itr == 0 else
             self.log_interval_itrs * self.sampler.batch_spec.size / new_train_time)
 
-        logger.record_tabular('CumTrainTime', self._cum_train_time)
-        logger.record_tabular('CumEvalTime', self._cum_eval_time)
-        logger.record_tabular('CumTotalTime', self._cum_total_time)
+        logger.record_tabular('CumTrainTime', self.cum_train_time)
+        logger.record_tabular('CumEvalTime', self.cum_eval_time)
+        logger.record_tabular('CumTotalTime', self.cum_total_time)
         logger.record_tabular('TrainSamplesPerSecond', train_samples_per_second)
 
         logger.dump_tabular(with_prefix=False)

@@ -143,5 +143,5 @@ class EvalCollector(BaseEvalCollector):
                     self.agent.reset_one(b)
             observation[b] = o
             reward[b] = r
-            if self.ctrl.stop_eval.value:
+            if self.sync.stop_eval.value:
                 break

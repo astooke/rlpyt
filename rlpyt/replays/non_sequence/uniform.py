@@ -12,8 +12,9 @@ class UniformReplay(object):
 
     def sample_idxs(self, batch_B):
         t, b, f = self.t, self.off_backward, self.off_forward
-        high = self.T - b - f if self._buffer_full else t - b - f
-        T_idxs = np.random.randint(low=0, high=high, size=(batch_B,))
+        high = self.T - b - f if self._buffer_full else t - b
+        low = 0 if self._buffer_full else f
+        T_idxs = np.random.randint(low=low, high=high, size=(batch_B,))
         T_idxs[T_idxs >= t - b] += min(t, b) + f  # min for invalid high t.
         B_idxs = np.random.randint(low=0, high=self.B, size=(batch_B,))
         return T_idxs, B_idxs

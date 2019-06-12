@@ -118,14 +118,14 @@ class SAC(RlAlgorithm):
 
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
-        agent_inputs, next_agent_inputs, action = buffer_to(
-            (samples.agent_inputs, samples.next_agent_inputs, samples.action),
+        agent_inputs, target_inputs, action = buffer_to(
+            (samples.agent_inputs, samples.target_inputs, samples.action),
             device=self.agent.device)  # Move to device once, re-use.
         q1, q2 = self.agent.q(*agent_inputs, action)
         with torch.no_grad():
-            target_v = self.agent.target_v(*next_agent_inputs)
+            target_v = self.agent.target_v(*target_inputs)
         y = (self.scale_reward * samples.reward +
-            (1 - samples.done) * self.discount * target_v)
+            (1 - samples.done.float()) * self.discount * target_v)
         q1_loss = 0.5 * valid_mean((y - q1) ** 2, samples.valid)
         q2_loss = 0.5 * valid_mean((y - q2) ** 2, samples.valid)
 

@@ -7,7 +7,7 @@ from rlpyt.utils.collections import namedarraytuple
 ReplaySamples = None
 
 
-class FrameBuffer(object):
+class FrameBufferMixin(object):
     """
     Like n-step return buffer but expects multi-frame input observation where
     each new observation has one new frame and the rest old; stores only
@@ -29,7 +29,8 @@ class FrameBuffer(object):
             if k != "observation"))
         super().__init__(replay_example, *args, **kwargs)
         # Equivalent to image.shape[0] if observation is image array (C,H,W):
-        self.n_frames = n_frames = get_leading_dims(example.observation, n_dim=1)
+        self.n_frames = n_frames = get_leading_dims(example.observation,
+            n_dim=1)[0]
         # frames: oldest stored at t; newest_frames: shifted so newest stored at t.
         self.samples_frames = buffer_from_example(example.observation[0],
             (self.T + n_frames - 1, self.B))  # n-minus-1 frames duplicated.

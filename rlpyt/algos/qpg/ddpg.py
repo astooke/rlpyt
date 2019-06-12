@@ -128,8 +128,8 @@ class DDPG(RlAlgorithm):
         """Samples have leading batch dimension [B,..] (but not time)."""
         q = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
-            target_q = self.agent.target_q_at_mu(*samples.next_agent_inputs)
-        y = samples.reward + (1 - samples.done) * self.discount * target_q
+            target_q = self.agent.target_q_at_mu(*samples.target_inputs)
+        y = samples.reward + (1 - samples.done.float()) * self.discount * target_q
         y = torch.clamp(y, -self.q_target_clip, self.q_target_clip)
         q_losses = 0.5 * (y - q) ** 2
         q_loss = valid_mean(q_losses, samples.valid)  # samples.valid can be None.

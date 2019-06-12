@@ -65,25 +65,28 @@ def build_step_buffer(examples, B):
     return step_buffer_pyt, step_buffer_np
 
 
-def build_par_objs(n, sync=False, groups=1):
+def build_par_objs(n, groups=1):
     ctrl = AttrDict(
         quit=mp.RawValue(ctypes.c_bool, False),
         barrier_in=mp.Barrier(n * groups + 1),
         barrier_out=mp.Barrier(n * groups + 1),
         do_eval=mp.RawValue(ctypes.c_bool, False),
-        stop_eval=mp.RawValue(ctypes.c_bool, False),
-        do_reset=mp.RawValue(ctypes.c_bool, False),
         itr=mp.RawValue(ctypes.c_long, 0),
     )
     traj_infos_queue = mp.Queue()
-    if sync:
-        step_blockers = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
-        act_waiters = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
-        if groups == 1:
-            step_blockers = step_blockers[0]
-            act_waiters = act_waiters[0]
-        sync = AttrDict(step_blockers=step_blockers, act_waiters=act_waiters)
-        return ctrl, traj_infos_queue, sync
+
+    step_blockers = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
+    act_waiters = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
+    if groups == 1:
+        step_blockers = step_blockers[0]
+        act_waiters = act_waiters[0]
+    sync = AttrDict(
+        step_blockers=step_blockers,
+        act_waiters=act_waiters,
+        do_reset=mp.RawValue(ctypes.c_bool, False),
+        stop_eval=mp.RawValue(ctypes.c_bool, False),
+    )
+    return ctrl, traj_infos_queue, sync
     return ctrl, traj_infos_queue
 
 

@@ -26,9 +26,9 @@ class TD3(DDPG):
         q1, q2 = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
             target_q1, target_q2 = self.agent.target_q_at_mu(
-                *samples.next_agent_inputs)  # Includes target action noise.
+                *samples.target_inputs)  # Includes target action noise.
             target_q = torch.min(target_q1, target_q2)
-        y = samples.reward + (1 - samples.done) * self.discount * target_q
+        y = samples.reward + (1 - samples.done.float()) * self.discount * target_q
         q1_losses = 0.5 * (y - q1) ** 2
         q2_losses = 0.5 * (y - q2) ** 2
         q_loss = valid_mean(q1_losses + q2_losses, samples.valid)  # valid can be None.

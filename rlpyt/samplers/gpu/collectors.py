@@ -116,11 +116,11 @@ class EvalCollector(BaseEvalCollector):
 
         for t in range(self.max_T):
             act_waiter.acquire()
-            if self.ctrl.stop_eval.value:
+            if self.sync.stop_eval.value:
                 break
             for b, env in enumerate(self.envs):
                 if step.need_reset[b]:
-                    if step.do_reset.value:
+                    if self.sync.do_reset.value:
                         step.observation[b] = env.reset()
                         step.reward[b] = 0  # Prev_reward for next t.
                         step.need_reset[b] = False

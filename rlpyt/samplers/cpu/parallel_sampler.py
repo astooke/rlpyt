@@ -29,10 +29,20 @@ class CpuParallelSampler(BaseSampler):
         env.terminate()
         del env
 
-        ctrl, traj_infos_queue = build_par_objs(n_parallel, sync=False)
+        ctrl, traj_infos_queue, sync = build_par_objs(n_parallel)
         if traj_info_kwargs:
             for k, v in traj_info_kwargs.items():
                 setattr(self.TrajInfoCls, "_" + k, v)  # Avoid passing at init.
+
+        if self.eval_n_envs > 0:
+            # assert self.eval_n_envs % n_parallel == 0
+            eval_n_envs_per = max(1, self.eval_n_envs // n_parallel)
+            eval_n_envs = eval_n_envs_per * n_paralell
+            logger.log(f"Total parallel evaluation envs: {eval_n_envs}")
+            eval_max_T = self.eval_max_steps // eval_n_envs
+        else:
+            eval_n_envs_per = 0
+            eval_max_T = None
 
         common_kwargs = dict(
             EnvCls=self.EnvCls,
@@ -46,13 +56,14 @@ class CpuParallelSampler(BaseSampler):
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=affinity.get("worker_torch_threads", None),
-            eval_n_envs=self.eval_n_envs_per,
+            eval_n_envs=eval_n_envs_per,
             eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
             eval_env_kwargs=self.eval_env_kwargs,
-            eval_max_T=self.eval_max_T,
+            eval_max_T=eval_max_T,
         )
 
-        workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np, n_envs)
+        workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np,
+            n_envs, sync)
 
         workers = [mp.Process(target=sampling_process,
             kwargs=dict(common_kwargs=common_kwargs, worker_kwargs=w_kwargs))
@@ -85,7 +96,7 @@ class CpuParallelSampler(BaseSampler):
     def evaluate_agent(self, itr):
         self.agent.sync_shared_memory()
         self.ctrl.do_eval.value = True
-        self.ctrl.stop_eval.value = False
+        self.sync.stop_eval.value = False
         self.ctrl.itr.value = itr
         self.ctrl.barrier_in.wait()
         traj_infos = list()
@@ -96,7 +107,7 @@ class CpuParallelSampler(BaseSampler):
                 while self.traj_infos_queue.qsize():
                     traj_infos.append(self.traj_infos_queue.get())
                 if len(traj_infos) >= self.max_eval_trajectories:
-                    self.ctrl.stop_eval.value = True
+                    self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
                         f"({self.eval__trajectories}).")
                     break  # Stop before workers reach max_T.
@@ -117,7 +128,7 @@ class CpuParallelSampler(BaseSampler):
             w.join()
 
 
-def assemble_workers_kwargs(affinity, seed, samples_np, n_envs):
+def assemble_workers_kwargs(affinity, seed, samples_np, n_envs, sync):
     workers_kwargs = list()
     for rank in range(len(affinity["workers_cpus"])):
         slice_B = slice(rank * n_envs, (rank + 1) * n_envs)
@@ -126,6 +137,7 @@ def assemble_workers_kwargs(affinity, seed, samples_np, n_envs):
             seed=seed + rank,
             cpus=affinity["workers_cpus"][rank],
             samples_np=samples_np[:, slice_B],
+            sync=sync,  # (only for eval, on cpu.)
         )
         workers_kwargs.append(worker_kwargs)
     return workers_kwargs

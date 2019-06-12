@@ -12,15 +12,15 @@ class SumTree(object):
     Provides efficient sampling from non-uniform probability masses.
     """
 
-    def __init__(self, size, B, off_backward, off_forward,
+    def __init__(self, T, B, off_backward, off_forward,
             default_value=1):
-        self.T = T = (size + B - 1) // B  # Ceiling div.
+        self.T = T
         self.B = B
         self.off_backward = off_backward
         self.off_forward = off_forward
         self.default_value = default_value
         self.tree_levels = int(np.ceil(np.log2(T * B + 1)) + 1)
-        self.tree = np.zeros(2 ** self.tree_levels - 1)
+        self.tree = np.zeros(2 ** self.tree_levels - 1, dtype="float32")
         self.low_idx = 2 ** (self.tree_levels - 1) - 1  # leaf_idx + low_idx -> tree_idx
         self.high_idx = T * B + self.low_idx
         self.reset()
@@ -75,10 +75,10 @@ class SumTree(object):
     def reset(self):
         """For wrapped turn-on during first advance, prep negative values."""
         self.tree[:] = 0
-        low_t = self.T - self.n_step
+        low_t = self.T - self.off_backward
         low_idx = low_t * self.B + self.low_idx
         tree_idxs = np.arange(low_idx, self.high_idx)
-        diffs = -self.default_value * np.ones(self.n_step * self.B)
+        diffs = -self.default_value * np.ones(self.off_backward * self.B)
         self.reconstruct(tree_idxs, diffs)
         self.t = 0
 
