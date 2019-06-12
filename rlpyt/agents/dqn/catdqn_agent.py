@@ -27,6 +27,7 @@ class CatDqnAgent(DqnAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
+        prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         p = self.model(*model_inputs)

@@ -11,7 +11,7 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.samplers.collections import TrajInfo
 
 
-W, H = (80, 104)  # Fixed size: crop two rows, then downsample by 2x.
+W, H = (80, 104)  # Crop two rows, then downsample by 2x (fast, clean image).
 
 
 EnvInfo = namedtuple("EnvInfo", ["game_score", "need_reset"])
@@ -23,8 +23,8 @@ class AtariTrajInfo(TrajInfo):
         super().__init__(**kwargs)
         self.GameScore = 0
 
-    def step(self, _observation, _action, reward, _agent_info, env_info):
-        super().step(_observation, _action, reward, _agent_info, env_info)
+    def step(self, observation, action, reward, agent_info, env_info):
+        super().step(observation, action, reward, agent_info, env_info)
         self.GameScore += getattr(env_info, "game_score", 0)
 
 
@@ -32,8 +32,8 @@ class AtariEnv(Env):
 
     def __init__(self,
                  game="pong",
-                 frame_skip=4,  # frames per step (>=1)
-                 num_img_obs=4,
+                 frame_skip=4,  # Frames per step (>=1).
+                 num_img_obs=4,  # Number of (past) frames in observation.
                  clip_reward=True,
                  episodic_lives=True,
                  max_start_noops=30,
@@ -218,4 +218,3 @@ ACTION_MEANING = {
 }
 
 ACTION_INDEX = {v: k for k, v in ACTION_MEANING.items()}
-

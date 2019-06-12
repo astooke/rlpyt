@@ -26,12 +26,15 @@ class DdpgAgent(BaseAgent):
             q_model_kwargs=None,
             initial_mu_model_state_dict=None,
             initial_q_model_state_dict=None,
+            action_std=0.1,
+            action_noise_clip=None,
             ):
         if mu_model_kwargs is None:
             mu_model_kwargs = dict(hidden_sizes=[400, 300])
         if q_model_kwargs is None:
             q_model_kwargs = dict(hidden_sizes=[400, 300])
         save__init__args(locals())
+        self.min_itr_learn = 0  # Used in TD3
 
     def initialize(self, env_spec, share_memory=False):
         env_model_kwargs = self.make_env_to_model_kwargs(env_spec)
@@ -52,8 +55,9 @@ class DdpgAgent(BaseAgent):
         self.target_q_model = self.QModelCls(**env_model_kwargs,
             **self.q_model_kwargs)
         self.target_q_model.load_state_dict(self.q_model.state_dict())
-        self.distribution = Gaussian(dim=env_spec.action_space.size)
-        self.distribution.set_clip(env_spec.action_space.high)
+        self.distribution = Gaussian(dim=env_spec.action_space.size,
+            std=self.action_std, noise_clip=self.action_noise_clip,
+            clip=env_spec.action_space.high)  # Assume symmetric low=-high.
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
 
@@ -77,6 +81,9 @@ class DdpgAgent(BaseAgent):
             action_size=env_spec.action_space.size,
             obs_n_dim=len(env_spec.observation_space.shape),
         )
+
+    def give_min_itr_learn(self, min_itr_learn):
+        self.min_itr_learn = min_itr_learn  # Used in TD3
 
     def q(self, observation, prev_action, prev_reward, action):
         model_inputs = buffer_to((observation, prev_action, prev_reward,
@@ -122,18 +129,16 @@ class DdpgAgent(BaseAgent):
     def mu_parameters(self):
         return self.mu_model.parameters()
 
-    def set_policy_noise(self, std, noise_clip=None):
-        self.distribution.set_std(std)
-        self.distribution.set_noise_clip(noise_clip)
-
-    def train_mode(self):
+    def train_mode(self, itr):
         self.q_model.train()
         self.mu_model.train()
 
-    def sample_mode(self):
+    def sample_mode(self, itr):
         self.q_model.eval()
         self.mu_model.eval()
+        self.distribution.set_std(self.action_std)
 
-    def eval_mode(self):
+    def eval_mode(self, itr):
         self.q_model.eval()
         self.mu_model.eval()
+        self.distribution.set_std(0.)  # Deterministic

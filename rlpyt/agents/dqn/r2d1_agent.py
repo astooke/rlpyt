@@ -14,6 +14,7 @@ AgentInfo = namedarraytuple("AgentInfo", ["q", "prev_rnn_state"])
 class R2d1Agent(RecurrentAgentMixin, DqnAgent):
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
+        prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward,
             init_rnn_state), device=self.device)
         q, next_rnn_state = self.model(*model_inputs)
@@ -34,6 +35,7 @@ class R2d1Agent(RecurrentAgentMixin, DqnAgent):
         return AgentStep(action=action, agent_info=agent_info)
 
     def target(self, observation, prev_action, prev_reward, init_rnn_state):
+        prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward, init_rnn_state),
             device=self.device)
         target_q, rnn_state = self.target_model(*model_inputs)

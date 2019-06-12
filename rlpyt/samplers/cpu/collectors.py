@@ -11,7 +11,7 @@ class ResetCollector(DecorrelatingStartCollector):
 
     mid_batch_reset = True
 
-    def collect_batch(self, agent_inputs, traj_infos):
+    def collect_batch(self, agent_inputs, traj_infos, itr):
         # Numpy arrays can be written to from numpy arrays or torch tensors
         # (whereas torch tensors can only be written to from torch tensors).
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
@@ -20,6 +20,7 @@ class ResetCollector(DecorrelatingStartCollector):
         obs_pyt, act_pyt, rew_pyt = torchify_buffer(agent_inputs)
         agent_buf.prev_action[0] = action  # Leading prev_action.
         env_buf.prev_reward[0] = reward
+        self.agent.sample_mode(itr)
         for t in range(self.batch_T):
             env_buf.observation[t] = observation
             # Agent inputs and outputs are torch tensors.
@@ -60,7 +61,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
         super().__init__(*args, **kwargs)
         self.need_reset = [False] * len(self.envs)
 
-    def collect_batch(self, agent_inputs, traj_infos):
+    def collect_batch(self, agent_inputs, traj_infos, itr):
         # Numpy arrays can be written to from numpy arrays or torch tensors
         # (whereas torch tensors can only be written to from torch tensors).
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
@@ -69,6 +70,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
         obs_pyt, act_pyt, rew_pyt = torchify_buffer(agent_inputs)
         agent_buf.prev_action[0] = action  # Leading prev_action.
         env_buf.prev_reward[0] = reward
+        self.agent.sample_mode(itr)
         for t in range(self.batch_T):
             env_buf.observation[t] = observation
             # Agent inputs and outputs are torch tensors.
@@ -114,7 +116,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
 
 class EvalCollector(BaseEvalCollector):
 
-    def collect_evaluation(self):
+    def collect_evaluation(self, itr):
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
         observations = list()
         for env in enumerate(self.envs):
@@ -125,6 +127,7 @@ class EvalCollector(BaseEvalCollector):
         reward = np.zeros(len(self.envs), dtype="float32")
         obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))
         self.agent.reset()
+        self.agent.eval_mode(itr)
         for t in range(self.max_T):
             act_pyt, agent_info = self.agent.step(obs_pyt, act_pyt, rew_pyt)
             action = numpify_buffer(act_pyt)
@@ -136,8 +139,9 @@ class EvalCollector(BaseEvalCollector):
                     self.traj_infos_queue.put(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
                     o = env.reset()
+                    r = 0
                     self.agent.reset_one(b)
             observation[b] = o
-            reward[b] = o
+            reward[b] = r
             if self.ctrl.stop_eval.value:
                 break

@@ -51,13 +51,15 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
         done=done,
         env_info=env_info,
     )
+    samples_np = Samples(agent=agent_buffer, env=env_buffer)
+    samples_pyt = torchify_buffer(samples_np)
     return samples_pyt, samples_np, examples
 
 
 def build_step_buffer(examples, B):
-    bufs = tuple(buffer_from_example(examples[k], B, shared=True)
+    bufs = tuple(buffer_from_example(examples[k], B, shared_memory=True)
         for k in ["observation", "action", "reward", "done", "agent_info"])
-    need_reset = buffer_from_example(examples["done"], B, shared=True)
+    need_reset = buffer_from_example(examples["done"], B, shared_memory=True)
     step_buffer_np = StepBuffer(*bufs, need_reset)
     step_buffer_pyt = torchify_buffer(step_buffer_np)
     return step_buffer_pyt, step_buffer_np
@@ -70,7 +72,8 @@ def build_par_objs(n, sync=False, groups=1):
         barrier_out=mp.Barrier(n * groups + 1),
         do_eval=mp.RawValue(ctypes.c_bool, False),
         stop_eval=mp.RawValue(ctypes.c_bool, False),
-        do_reset=mp.Rawvalue(ctypes.c_bool, False),
+        do_reset=mp.RawValue(ctypes.c_bool, False),
+        itr=mp.RawValue(ctypes.c_long, 0),
     )
     traj_infos_queue = mp.Queue()
     if sync:
@@ -92,8 +95,8 @@ def get_example_outputs(agent, env, examples):
     o, r, d, env_info = env.step(a)
     r = np.asarray(r, dtype="float32")  # Must match torch float dtype here.
     agent.reset()
-    agent_input = torchify_buffer(AgentInputs(o, a, r))
-    a, agent_info = agent.step(*agent_input)
+    agent_inputs = torchify_buffer(AgentInputs(o, a, r))
+    a, agent_info = agent.step(*agent_inputs)
     examples["observation"] = o
     examples["reward"] = r
     examples["done"] = d

@@ -1,16 +1,14 @@
 
 import torch
 
-from rlpyt.algos.policy_gradient.base import (PolicyGradient,
-    OptData, OptInfo)
-from rlpyt.agents.base import AgentInputs
-from rlpyt.agents.base_recurrent import AgentTrainInputs
+from rlpyt.algos.pg.base import PolicyGradientAlgo, OptInfo
+from rlpyt.agents.base import AgentInputs, AgentInputsRnn
 
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.quick_args import save__init__args
 
 
-class A2C(PolicyGradient):
+class A2C(PolicyGradientAlgo):
 
     def __init__(
             self,
@@ -30,10 +28,10 @@ class A2C(PolicyGradient):
 
     def optimize_agent(self, samples, itr):
         self.optimizer.zero_grad()
-        loss, entropy, perplexity, opt_data = self.loss(samples)
+        loss, entropy, perplexity = self.loss(samples)
         loss.backward()
         grad_norm = torch.nn.utils.clip_grad_norm_(
-            self.agent.model.parameters(), self.clip_grad_norm)
+            self.agent.parameters(), self.clip_grad_norm)
         self.optimizer.step()
         opt_info = OptInfo(
             loss=loss.item(),
@@ -41,7 +39,7 @@ class A2C(PolicyGradient):
             entropy=entropy.item(),
             perplexity=perplexity.item(),
         )
-        return opt_data, opt_info
+        return opt_info
 
     def loss(self, samples):
         agent_inputs = AgentInputs(
@@ -50,9 +48,9 @@ class A2C(PolicyGradient):
             prev_reward=samples.env.prev_reward,
         )
         if self.agent.recurrent:
-            agent_inputs = AgentTrainInputs(*agent_inputs,
-                init_rnn_state=samples.agent.agent_info.prev_rnn_state[0],  # T=0
-            )
+            agent_inputs = AgentInputsRnn(*agent_inputs,
+                init_rnn_state=samples.agent.agent_info.prev_rnn_state[0])  # T=0.
+
         dist_info, value = self.agent(*agent_inputs)
         # TODO: try to compute everyone on device.
         return_, advantage, valid = self.process_returns(samples)
@@ -71,4 +69,4 @@ class A2C(PolicyGradient):
 
         perplexity = dist.mean_perplexity(dist_info, valid)
 
-        return loss, entropy, perplexity, OptData(return_, advantage, valid)
+        return loss, entropy, perplexity

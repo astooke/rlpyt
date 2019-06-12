@@ -11,7 +11,7 @@ class EpisodicLivesResetCollector(DecorrelatingStartCollector):
 
     mid_batch_reset = True
 
-    def collect_batch(self, agent_inputs, traj_infos):
+    def collect_batch(self, agent_inputs, traj_infos, itr):
         # Numpy arrays can be written to from numpy arrays or torch tensors
         # (whereas torch tensors can only be written to from torch tensors).
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
@@ -20,6 +20,7 @@ class EpisodicLivesResetCollector(DecorrelatingStartCollector):
         obs_pyt, act_pyt, rew_pyt = torchify_buffer(agent_inputs)
         agent_buf.prev_action[0] = action  # Leading prev_action.
         env_buf.prev_reward[0] = reward
+        self.agent.sample_mode(itr)
         for t in range(self.batch_T):
             env_buf.observation[t] = observation
             # Agent inputs and outputs are torch tensors.
@@ -66,7 +67,7 @@ class EpisodicLivesWaitResetCollector(DecorrelatingStartCollector):
         self.need_env_reset = [False] * len(self.envs)
         self.need_agent_reset = [False] * len(self.envs)
 
-    def collect_batch(self, agent_inputs, traj_infos):
+    def collect_batch(self, agent_inputs, traj_infos, itr):
         # Numpy arrays can be written to from numpy arrays or torch tensors
         # (whereas torch tensors can only be written to from torch tensors).
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
@@ -75,6 +76,7 @@ class EpisodicLivesWaitResetCollector(DecorrelatingStartCollector):
         obs_pyt, act_pyt, rew_pyt = torchify_buffer(agent_inputs)
         agent_buf.prev_action[0] = action  # Leading prev_action.
         env_buf.prev_reward[0] = reward
+        self.agent.sample_mode(itr)
         for t in range(self.batch_T):
             env_buf.observation[t] = observation
             # Agent inputs and outputs are torch tensors.

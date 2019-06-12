@@ -3,7 +3,7 @@ import numpy as np
 
 from rlpyt.samplers.base import BaseCollector
 from rlpyt.agents.base import AgentInputs
-from rlpyt.utils.buffer import buffer_from_example
+from rlpyt.utils.buffer import buffer_from_example, torchify_buffer, numpify_buffer
 from rlpyt.utils.logging import logger
 
 
@@ -40,3 +40,49 @@ class DecorrelatingStartCollector(BaseCollector):
             prev_action[b] = a
             prev_reward[b] = r
         return AgentInputs(observation, prev_action, prev_reward), traj_infos
+
+
+class SerialEvalCollector(object):
+    """Does not record intermediate data."""
+
+    def __init__(
+            self,
+            envs,
+            agent,
+            TrajInfoCls,
+            max_T,
+            max_trajectories=None,
+            ):
+        save__init__args(locals())
+
+    def collect_evaluation(self, itr):
+        traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
+        completed_traj_infos = list()
+        observations = list()
+        for env in enumerate(self.envs):
+            observations.append(env.reset())
+        observation = buffer_from_example(observations[0], len(self.envs))
+        action = buffer_from_example(self.envs[0].action_space.sample(
+            len(self.envs), null=True))
+        reward = np.zeros(len(self.envs), dtype="float32")
+        obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))
+        self.agent.reset()
+        for t in range(self.max_T):
+            act_pyt, agent_info = self.agent.step(obs_pyt, act_pyt, rew_pyt)
+            action = numpify_buffer(act_pyt)
+            for b, env in enumerate(self.envs):
+                o, r, d, env_info = env.step(action[b])
+                traj_infos[b].step(observation[b], action[b], r,
+                    agent_info[b], env_info)
+                if getattr(env_info, "need_reset", d):
+                    completed_traj_infos.append(traj_infos[b].terminate(o))
+                    traj_infos[b] = self.TrajInfoCls()
+                    o = env.reset()
+                    r = 0
+                    self.agent.reset_one(b)
+            observation[b] = o
+            reward[b] = r
+            if (self.max_trajectories is not None and
+                    len(completed_traj_infos) >= self.max_trajectories):
+                break
+        return completed_traj_infos

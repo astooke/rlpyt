@@ -8,7 +8,8 @@ class ResetCollector(DecorrelatingStartCollector):
 
     mid_batch_reset = True
 
-    def collect_batch(self, _agent_inputs, traj_infos):
+    def collect_batch(self, agent_inputs, traj_infos, itr):
+        """Params agent_inputs and itr unused."""
         act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
         step = self.step_buffer_np
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
@@ -36,7 +37,7 @@ class ResetCollector(DecorrelatingStartCollector):
                     env_buf.env_info[t, b] = env_info
             agent_buf.action[t] = step.action  # OPTIONAL BY SERVER
             env_buf.reward[t] = step.reward
-            env_buf.dones[t] = step.done
+            env_buf.done[t] = step.done
             if step.agent_info:
                 agent_buf.agent_info[t] = step.agent_info  # OPTIONAL BY SERVER
             step_blocker.release()  # Ready for server to use/write step buffer.
@@ -53,7 +54,8 @@ class WaitResetCollector(DecorrelatingStartCollector):
         super().__init__(*args, **kwargs)
         self.need_reset = [False] * len(self.envs)
 
-    def collect_batch(self, _agent_inputs, traj_infos):
+    def collect_batch(self, agent_inputs, traj_infos, itr):
+        """Params agent_inputs and itr unused."""
         act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
         step = self.step_buffer_np
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
@@ -82,15 +84,16 @@ class WaitResetCollector(DecorrelatingStartCollector):
                     env_buf.env_info[t, b] = env_info
             agent_buf.action[t] = step.action  # OPTIONAL BY SERVER
             env_buf.reward[t] = step.reward
-            env_buf.dones[t] = step.done
+            env_buf.done[t] = step.done
             if step.agent_info:
                 agent_buf.agent_info[t] = step.agent_info  # OPTIONAL BY SERVER
             step_blocker.release()  # Ready for server to use/write step buffer.
 
         return None, traj_infos, completed_infos
 
-    def reset_if_needed(self, _agent_inputs):
-        step = self.step_buffer
+    def reset_if_needed(self, agent_inputs):
+        """Param agent_inputs unused."""
+        step = self.step_buffer_np
         for b, need in enumerate(self.need_reset):
             if need:
                 step.observation[b] = self.envs[b].reset()
@@ -102,7 +105,8 @@ class WaitResetCollector(DecorrelatingStartCollector):
 
 class EvalCollector(BaseEvalCollector):
 
-    def collect_evaluation(self):
+    def collect_evaluation(self, itr):
+        """Param itr unused."""
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
         act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
         step = self.step_buffer_np

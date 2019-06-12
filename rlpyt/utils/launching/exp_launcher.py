@@ -12,7 +12,7 @@ from rlpyt.utils.launching.variant import save_variant
 def log_exps_tree(exp_dir, log_dirs, runs_per_setting):
     os.makedirs(exp_dir, exist_ok=True)
     with open(osp.join(exp_dir, "experiments_tree.txt"), "w") as f:
-        f.write(f"Experiment manager process ID: {os.getpid()}\n.")
+        f.write(f"Experiment manager process ID: {os.getpid()}.\n")
         f.write("Number of settings (experiments) to run: "
             f"{len(log_dirs)}  ({runs_per_setting * len(log_dirs)}).\n\n")
         [f.write(log_dir + "\n") for log_dir in log_dirs]

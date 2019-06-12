@@ -21,8 +21,8 @@ class AtariLstmModel(torch.nn.Module):
             # conv_strides,
             # conv_pads,
             # pool_sizes,
-            hidden_size=256,
-            lstm_size=256,
+            hidden_size=512,
+            lstm_size=512,
             lstm_layers=1,
             # name="atari_cnn_lstm",
             ):

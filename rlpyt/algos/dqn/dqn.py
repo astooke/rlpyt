@@ -1,5 +1,6 @@
 
 import torch
+from collections import namedtuple
 
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.quick_args import save__init__args
@@ -9,8 +10,7 @@ from rlpyt.replays.frame.prioritized import PrioritizedFrameReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
 
-OptInfo = namedarraytuple("OptInfo", ["loss", "gradNorm", "tdAbsErr"])
-OptData = None  # TODO
+OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr"])
 SamplesToReplay = namedarraytuple("SamplesToReplay",
     ["observation", "action", "reward", "done"])
 
@@ -19,6 +19,8 @@ class DQN(RlAlgorithm):
     """DQN with options for: Double-DQN, Dueling Architecture, n-step returns,
     prioritized replay."""
 
+    opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
+
     def __init__(
             self,
             discount=0.99,
@@ -26,7 +28,7 @@ class DQN(RlAlgorithm):
             min_steps_learn=int(5e4),
             delta_clip=1.,
             replay_size=int(1e6),
-            training_intensity=8,  # Average number training uses per datum.
+            training_ratio=8,  # Average number training uses per datum.
             target_update_steps=int(1e4),
             n_step_return=1,
             learning_rate=2.5e-4,
@@ -76,12 +78,12 @@ class DQN(RlAlgorithm):
 
         sample_bs = batch_spec.size
         train_bs = self.batch_size
-        assert (self.training_intensity * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int((self.training_intensity * sample_bs) //
+        assert (self.training_ratio * sample_bs) % train_bs == 0
+        self.updates_per_optimize = int((self.training_ratio * sample_bs) //
             train_bs)
         logger.log(f"From sampler batch size {sample_bs}, training "
-            f"batch size {train_bs}, and training intensity "
-            f"{self.training_intensity}, computed {self.updates_per_optimize} "
+            f"batch size {train_bs}, and training ratio "
+            f"{self.training_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
 
         self.eps_itr = max(1, self.eps_steps // sample_bs)
@@ -123,35 +125,35 @@ class DQN(RlAlgorithm):
             done=samples.env.done,
         )
         self.replay_buffer.append_samples(samples_to_replay)
-        if itr < self.min_itr_learn:
-            return OptData(), OptInfo()  # TODO fix for empty
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
+        if itr < self.min_itr_learn:
+            return opt_info
         for _ in range(self.updates_per_optimize):
             samples_from_replay = self.replay_buffer.sample(self.batch_size)
             self.optimizer.zero_grad()
             loss, td_abs_errors = self.loss(samples_from_replay)
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
-                self.agent.model.parameters(), self.clip_grad_norm)
+                self.agent.parameters(), self.clip_grad_norm)
             self.optimizer.step()
             if self.prioritized_replay:
                 self.replay_buffer.update_batch_priorities(td_abs_errors)
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
-            opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())  # Downsample for stats.
+            opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())  # Downsample.
         if itr % self.update_target_itr == 0:
             self.agent.update_target()
         self.update_itr_hyperparams(itr)
-        return OptData(), opt_info  # TODO: fix opt_data
+        return opt_info
 
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
         qs = self.agent(*samples.agent_inputs)
         q = select_at_indexes(samples.action, qs)
         with torch.no_grad():
-            target_qs = self.agent.target(*samples.next_agent_inputs)
+            target_qs = self.agent.target(*samples.target_inputs)
             if self.double_dqn:
-                next_qs = self.agent(*samples.next_agent_inputs)
+                next_qs = self.agent(*samples.target_inputs)
                 next_a = torch.argmax(next_qs, dim=-1)
                 target_q = select_at_indexes(next_a, target_qs)
             else:

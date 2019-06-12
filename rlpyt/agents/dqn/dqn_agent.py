@@ -12,6 +12,7 @@ from rlpyt.utils.logging import logger
 class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
 
     def __call__(self, observation, prev_action, prev_reward):
+        prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         q = self.model(*model_inputs)
@@ -48,6 +49,7 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
+        prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         q = self.model(*model_inputs)
@@ -57,6 +59,7 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         return AgentStep(action=action, agent_info=agent_info)
 
     def target(self, observation, prev_action, prev_reward):
+        prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         target_q = self.target_model(*model_inputs)

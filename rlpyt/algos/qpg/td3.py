@@ -11,22 +11,16 @@ class TD3(DDPG):
     def __init__(
             self,
             batch_size=100,
-            training_intensity=100,  # data_consumption / data_generation
+            training_ratio=100,  # data_consumption / data_generation
             target_update_tau=0.005,
             target_update_interval=2,
             policy_update_interval=2,
             mu_learning_rate=1e-3,
             q_learning_rate=1e-3,
-            target_noise=0.2,
-            target_noise_clip=0.5,
             **kwargs
             ):
         save__init__args(locals())
         super().__init__(**kwargs)
-
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
-        super().initialize(agent, n_itr, batch_spec, mid_batch_reset, examples)
-        agent.set_target_noise(self.target_noise, self.target_noise_clip)
 
     def q_loss(self, samples):
         q1, q2 = self.agent.q(*samples.agent_inputs, samples.action)

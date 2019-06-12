@@ -18,7 +18,7 @@ ABBREVS = [N_GPU, CONTEXTS_PER_GPU, CONTEXTS_PER_RUN, N_CPU_CORES,
 
 # API
 
-def quick_affinity(n_parallel=None, use_gpu=True):
+def quick_affinity_code(n_parallel=None, use_gpu=True):
     assert use_gpu or n_parallel
     import psutil
     n_cpu_cores = psutil.cpu_count(logical=False)
@@ -36,7 +36,7 @@ def quick_affinity(n_parallel=None, use_gpu=True):
         import subprocess
         n_socket = max(1, int(subprocess.check_output(
             'cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l', shell=True)))
-        return encode_affinity(n_cpu_cores=n_cpu_cores, n_gpu=n_gpu, 
+        return encode_affinity(n_cpu_cores=n_cpu_cores, n_gpu=n_gpu,
             hyperthread_offset=hyperthread_offset, n_socket=n_socket)
     else:
         n_parallel = min(n_parallel, n_cpu_cores)

@@ -15,17 +15,17 @@ class MinibatchRlEval(MinibatchRlBase):
                 if itr % self.log_interval_itrs == 0:
                     eval_traj_infos, eval_time = self.evaluate_agent(itr)
                     self.log_diagnostics(itr, eval_traj_infos, eval_time)
-                self.agent.sample_mode()
+                self.agent.sample_mode(itr)
                 samples, traj_infos = self.sampler.obtain_samples(itr)
-                self.agent.train_mode()
-                _opt_data, opt_info = self.algo.optimize_agent(samples, itr)
+                self.agent.train_mode(itr)
+                opt_info = self.algo.optimize_agent(samples, itr)
                 self.store_diagnostics(itr, traj_infos, opt_info)
         self.shutdown()
 
     def evaluate_agent(self, itr):
         self.pbar.stop()
         logger.log("Evaluating agent...")
-        self.agent.eval_mode()  # Might be agent in sampler.
+        self.agent.eval_mode(itr)  # Might be agent in sampler.
         eval_start_time = time.time()
         traj_infos = self.sampler.evaluate_agent(itr)
         eval_end_time = time.time()

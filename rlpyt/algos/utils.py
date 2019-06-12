@@ -47,6 +47,6 @@ def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
 
 
 def valid_from_done(done):
-    valid = torch.ones_like(done)  # or Non
+    valid = torch.ones_like(done)
     valid[1:] = 1 - torch.clamp(torch.cumsum(done[:-1], dim=0), max=1)
     return valid

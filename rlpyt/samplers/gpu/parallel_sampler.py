@@ -88,6 +88,7 @@ class GpuParallelSampler(BaseSampler):
 
     def obtain_samples(self, itr):
         self.samples_np[:] = 0  # Reset all batch sample values (optional?).
+        self.agent.sample_mode(itr)
         self.ctrl.barrier_in.wait()
         self.serve_actions(itr)  # Worker step environments here.
         self.ctrl.barrier_out.wait()
@@ -99,6 +100,7 @@ class GpuParallelSampler(BaseSampler):
     def evaluate_agent(self, itr):
         self.ctrl.do_eval.value = True
         self.ctrl.stop_eval.value = False
+        self.agent.eval_mode(itr)
         self.ctrl.barrier_in.wait()
         traj_infos = self.serve_actions_evaluation(itr)
         self.ctrl.barrier_out.wait()

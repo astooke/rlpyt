@@ -30,7 +30,8 @@ class SacAgent(BaseAgent):
             initial_q2_model_state_dict=None,
             initial_v_model_state_dict=None,
             initial_pi_model_state_dict=None,
-            action_squash=None,  # int or float for max magnitude
+            action_squash=1,  # Max magnitude (or None).
+            pretrain_std=5.,  # High value to make near uniform sampling.
             ):
         if q_model_kwargs is None:
             q_model_kwargs = dict(hidden_sizes=[256, 256])
@@ -39,6 +40,7 @@ class SacAgent(BaseAgent):
         if pi_model_kwargs is None:
             pi_model_kwargs = dict(hidden_sizes=[256, 256])
         save__init__args(locals())
+        self.min_itr_learn = 0  # Get from algo.
 
     def initialize(self, env_spec, share_memory=False):
         env_model_kwargs = self.make_env_to_model_kwargs(env_spec)
@@ -62,7 +64,6 @@ class SacAgent(BaseAgent):
         self.target_v_model.load_state_dict(self.v_model.state_dict())
         self.distribution = Gaussian(dim=env_spec.action_space.size,
             squash=self.action_squash)
-        self.models = (self.q1_model, self.q2_model, self.v_model, self.pi_model)
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
 
@@ -79,8 +80,10 @@ class SacAgent(BaseAgent):
         self.v_model.to(self.device)
         self.pi_model.to(self.device)
         self.target_v_model.to(self.device)
-        self.models = (self.q1_model, self.q2_model, self.v_model, self.pi_model)
         logger.log(f"Initialized agent models on device: {self.device}.")
+
+    def give_min_itr_learn(self, min_itr_learn):
+        self.min_itr_learn = min_itr_learn  # From algo.
 
     def make_env_to_model_kwargs(self, env_spec):
         return dict(
@@ -132,6 +135,10 @@ class SacAgent(BaseAgent):
     def update_target(self, tau=1):
         update_state_dict(self.target_v_model, self.v_model, tau)
 
+    @property
+    def models(self):
+        return self.q1_model, self.q2_model, self.v_model, self.pi_model
+
     def parameters(self):
         for model in self.models:
             yield from model.parameters()
@@ -143,14 +150,17 @@ class SacAgent(BaseAgent):
         if self.shared_pi_model is not self.pi_model:
             self.shared_pi_model.load_state_dict(self.pi_model.state_dict())
 
-    def train_mode(self):
+    def train_mode(self, itr):
         for model in self.models:
             model.train()
 
-    def sample_mode(self):
+    def sample_mode(self, itr):
         for model in self.models:
             model.eval()
+        std = None if itr >= self.min_itr_learn else self.pretrain_std
+        self.distribution.set_std(std)  # If None: std from policy dist_info.
 
-    def eval_mode(self):
+    def eval_mode(self, itr):
         for model in self.models:
             model.eval()
+        self.distribution.set_std(0.)  # Deterministic (dist_info std ignored).

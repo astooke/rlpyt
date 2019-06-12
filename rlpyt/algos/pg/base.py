@@ -3,17 +3,15 @@ import torch
 from collections import namedtuple
 
 from rlpyt.algos.base import RlAlgorithm
-from rlpyt.utils.collections import namedarraytuple
 from rlpyt.algos.utils import (discount_return, generalized_advantage_estimation,
     valid_from_done)
 
-OptData = namedarraytuple("OptData", ["return_", "advantage", "valid"])
 # Convention: traj_info fields CamelCase, opt_info fields lowerCamelCase
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "entropy", "perplexity"])
 AgentTrain = namedtuple("AgentTrain", ["dist_info", "value"])
 
 
-class PolicyGradient(RlAlgorithm):
+class PolicyGradientAlgo(RlAlgorithm):
 
     bootstrap_value = True
     opt_info_fields = tuple(f for f in OptInfo._fields)  # copy

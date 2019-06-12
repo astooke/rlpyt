@@ -5,13 +5,13 @@ from rlpyt.utils.launching.affinity import get_affinity
 from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
 from rlpyt.samplers.gpu.collectors import WaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
-from rlpyt.algos.pg.a2c import A2C
-from rlpyt.agents.pg.atari import AtariLstmAgent
+from rlpyt.algos.pg.ppo import PPO
+from rlpyt.agents.pg.atari import AtariFfAgent
 from rlpyt.runners.minibatch_rl import MinibatchRl
 from rlpyt.utils.logging.context import logger_context
 from rlpyt.utils.launching.variant import load_variant, update_config
 
-from rlpyt.experiments.configs.atari.pg.atari_lstm_a2c import configs
+from rlpyt.experiments.configs.atari.pg.atari_ff_ppo import configs
 
 
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
@@ -27,8 +27,8 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         TrajInfoCls=AtariTrajInfo,
         **config["sampler"]
     )
-    algo = A2C(optim_kwargs=config["optim"], **config["algo"])
-    agent = AtariLstmAgent(model_kwargs=config["model"], **config["agent"])
+    algo = PPO(optim_kwargs=config["optim"], **config["algo"])
+    agent = AtariFfAgent(model_kwargs=config["model"], **config["agent"])
     runner = MinibatchRl(
         algo=algo,
         agent=agent,

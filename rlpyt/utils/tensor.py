@@ -31,6 +31,7 @@ def from_onehot(onehot, dim=-1, dtype=None):
 
 
 def valid_mean(tensor, valid=None, dim=None):
+    dim = () if dim is None else dim
     if valid is None:
         return tensor.mean(dim=dim)
     valid = valid.type(tensor.dtype)  # Convert as needed.

@@ -5,6 +5,8 @@ from rlpyt.agents.base import BaseAgent
 from rlpyt.utils.logging import logger
 
 AgentInfo = namedarraytuple("AgentInfo", ["dist_info", "value"])
+AgentInfoRnn = namedarraytuple("AgentInfoRnn",
+    ["dist_info", "value", "prev_rnn_state"])
 
 
 class BasePgAgent(BaseAgent):
@@ -34,4 +36,4 @@ class BasePgAgent(BaseAgent):
         logger.log(f"Initialized agent model on device: {self.device}.")
 
     def make_env_to_model_kwargs(self, env_spec):
-        return {}
+        raise NotImplementedError

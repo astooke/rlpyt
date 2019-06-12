@@ -73,6 +73,7 @@ class CpuParallelSampler(BaseSampler):
     def obtain_samples(self, itr):
         self.agent.sync_shared_memory()  # New weights in workers, if needed.
         self.samples_np[:] = 0  # Reset all batch sample values (optional?).
+        self.ctrl.itr.value = itr
         self.ctrl.barrier_in.wait()
         # Workers step environments and sample actions here.
         self.ctrl.barrier_out.wait()
@@ -85,6 +86,7 @@ class CpuParallelSampler(BaseSampler):
         self.agent.sync_shared_memory()
         self.ctrl.do_eval.value = True
         self.ctrl.stop_eval.value = False
+        self.ctrl.itr.value = itr
         self.ctrl.barrier_in.wait()
         traj_infos = list()
         # Workers step environments and sample actions here.

@@ -1,5 +1,6 @@
 
 import torch
+from collections import namedtuple
 
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.quick_args import save__init__args
@@ -12,24 +13,25 @@ from rlpyt.distributions.gaussian import DistInfo as GaussianDistInfo
 from rlpyt.utils.tensor import valid_mean
 
 
-OptInfo = namedarraytuple("OptInfo",
+OptInfo = namedtuple("OptInfo",
     ["q1Loss", "q2Loss", "vLoss", "piLoss",
     "q1GradNorm", "q2GradNorm", "vGradNorm", "piGradNorm",
     "q1", "q2", "v", "piMu", "piLogStd", "qMeanDiff"])
 SamplesToReplay = namedarraytuple("SamplesToRepay",
     ["observation", "action", "reward", "done"])
-OptData = None
 
 
 class SAC(RlAlgorithm):
+
+    opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
     def __init__(
             self,
             discount=0.99,
             batch_size=256,
-            min_steps_learn=int(5e4),
+            min_steps_learn=int(1e4),
             replay_size=int(1e6),
-            training_intensity=256,  # data_consumption / data_generation
+            training_ratio=256,  # data_consumption / data_generation
             target_update_tau=0.005,  # tau=1 for hard update.
             target_update_interval=1,  # interval=1000 for hard update.
             learning_rate=3e-4,
@@ -61,14 +63,15 @@ class SAC(RlAlgorithm):
 
         sample_bs = batch_spec.size
         train_bs = self.batch_size
-        assert (self.training_intensity * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int((self.training_intensity * sample_bs) //
+        assert (self.training_ratio * sample_bs) % train_bs == 0
+        self.updates_per_optimize = int((self.training_ratio * sample_bs) //
             train_bs)
         logger.log(f"From sampler batch size {sample_bs}, training "
-            f"batch size {train_bs}, and training intensity "
-            f"{self.training_intensity}, computed {self.updates_per_optimize} "
+            f"batch size {train_bs}, and training ratio "
+            f"{self.training_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
         self.min_itr_learn = self.min_steps_learn // sample_bs
+        self.agent.give_min_itr_learn(self.min_itr_learn)
 
         example_to_replay = SamplesToReplay(
             observation=examples["observation"],
@@ -95,9 +98,9 @@ class SAC(RlAlgorithm):
             done=samples.env.done,
         )
         self.replay_buffer.append_samples(samples_to_replay)
-        if itr < self.min_itr_learn:
-            return OptData(), OptInfo()  # TODO fix for empty
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
+        if itr < self.min_itr_learn:
+            return opt_info
         for _ in range(self.updates_per_optimize):
             self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample(self.batch_size)
@@ -111,6 +114,7 @@ class SAC(RlAlgorithm):
             self.append_opt_info_(opt_info, losses, grad_norms, values)
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target(self.target_update_tau)
+        return opt_info
 
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""

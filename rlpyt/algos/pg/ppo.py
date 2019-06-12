@@ -1,27 +1,25 @@
 
 import torch
 
-from rlpyt.algos.policy_gradient.base import (PolicyGradient,
-    OptData, OptInfo)
-from rlpyt.agents.base import AgentInputs
-from rlpyt.agents.base_recurrent import AgentTrainInputs
+from rlpyt.algos.pg.base import PolicyGradientAlgo, OptInfo
+from rlpyt.agents.base import AgentInputs, AgentInputsRnn
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.quick_args import save__init__args
-from rlpyt.utils.buffer import buffer_to
+from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.misc import iterate_mb_idxs
 
-LossInputs = namedarraytuple("LossInputs", ["agent_inputs", "opt_data",
-    "action", "old_dist_info"])
+LossInputs = namedarraytuple("LossInputs",
+    ["agent_inputs", "action", "return_", "advantage", "valid", "old_dist_info"])
 
 
-class PPO(PolicyGradient):
+class PPO(PolicyGradientAlgo):
 
     def __init__(
             self,
             discount=0.99,
             learning_rate=0.001,
-            value_loss_coeff=0.5,
+            value_loss_coeff=1.,
             entropy_loss_coeff=0.01,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
@@ -31,27 +29,41 @@ class PPO(PolicyGradient):
             minibatches=4,
             epochs=4,
             ratio_clip=0.1,
+            linear_lr_schedule=True,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
         save__init__args(locals())
 
+    def initialize(self, agent, n_itr, batch_spec=None, mid_batch_reset=False,
+            examples=None):
+        super().initialize(agent, n_itr, batch_spec, mid_batch_reset, examples)
+        if self.linear_lr_schedule:
+            self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+                optimizer=self.optimizer,
+                lr_lambda=lambda itr: (n_itr - itr) / n_itr)  # Step once per itr.
+            self._ratio_clip = self.ratio_clip  # Save base value.
+
     def optimize_agent(self, samples, itr):
+        recurrent = self.agent.recurrent
         agent_inputs = AgentInputs(  # Move inputs to device once, index there.
             observation=samples.env.observation,
             prev_action=samples.agent.prev_action,
             prev_reward=samples.env.prev_reward,
         )
-        if self.agent.recurrent:
-            agent_inputs = AgentTrainInputs(*agent_inputs,
-                init_rnn_state=samples.agent.agent_info.prev_rnn_state[0],  # T=0
-            )
         agent_inputs = buffer_to(agent_inputs, device=self.agent.device)
         return_, advantage, valid = self.process_returns(samples)
-        opt_data = OptData(return_=return_, advantage=advantage, valid=valid)
-        loss_inputs = LossInputs(agent_inputs, opt_data,  # So can slice all.
-            samples.agent.action, samples.agent.agent_info.dist_info)
-
+        loss_inputs = LossInputs(  # So can slice all.
+            agent_inputs=agent_inputs,
+            action=samples.agent.action,
+            return_=return_,
+            advantage=advantage,
+            valid=valid,
+            old_dist_info=samples.agent.agent_info.dist_info,
+        )
+        init_rnn_state = (None if not recurrent else
+            buffer_to(samples.agent.agent_info.prev_rnn_state[0],
+                device=self.agent.device))
         T, B = samples.env.reward.shape[:2]
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         # If recurrent, use whole trajectories, only shuffle B; else shuffle all.
@@ -59,27 +71,33 @@ class PPO(PolicyGradient):
         mb_size = batch_size // self.minibatches
         for _ in range(self.epochs):
             for idxs in iterate_mb_idxs(batch_size, mb_size, shuffle=True):
-                T_idxs = slice(None) if self.agent.recurrent else idxs // T
-                B_idxs = idxs if self.agent.recurrent else idxs % T
+                T_idxs = slice(None) if recurrent else idxs % T
+                B_idxs = idxs if recurrent else idxs // T
                 self.optimizer.zero_grad()
+                rnn_state = init_rnn_state[B_idxs] if recurrent else None
                 # NOTE: if not recurrent, will lose leading T dim, should be OK.
                 loss, entropy, perplexity = self.loss(
-                    *loss_inputs[T_idxs, B_idxs])
+                    *loss_inputs[T_idxs, B_idxs], rnn_state)
                 loss.backward()
                 grad_norm = torch.nn.utils.clip_grad_norm_(
-                    self.agent.model.parameters(), self.clip_grad_norm)
+                    self.agent.parameters(), self.clip_grad_norm)
                 self.optimizer.step()
 
                 opt_info.loss.append(loss.item())
                 opt_info.gradNorm.append(grad_norm)
                 opt_info.entropy.append(entropy.item())
                 opt_info.perplexity.append(perplexity.item())
+        if self.linear_lr_schedule:
+            self.lr_scheduler.step()
+            self.ratio_clip = self._ratio_clip * (self.n_itr - itr) / self.n_itr
 
-        return opt_data, opt_info
+        return opt_info
 
-    def loss(self, agent_inputs, opt_data, action, old_dist_info):
+    def loss(self, agent_inputs, action, return_, advantage, valid, old_dist_info,
+            init_rnn_state=None):
+        if init_rnn_state is not None:
+            agent_inputs = AgentInputsRnn(*agent_inputs, init_rnn_state)
         dist_info, value = self.agent(*agent_inputs)
-        return_, advantage, valid = opt_data
         dist = self.agent.distribution
 
         ratio = dist.likelihood_ratio(action, old_dist_info=old_dist_info,

@@ -51,6 +51,8 @@ class Gaussian(Distribution):
         return self._dim
 
     def kl(self, old_dist_info, new_dist_info):
+        if self.squash is not None:
+            raise NotImplementedError
         old_mean = old_dist_info.mean
         new_mean = new_dist_info.mean
         # Formula: {[(m1 - m2)^2 + (s1^2 - s2^2)] / (2*s2^2)} + ln(s1/s2)

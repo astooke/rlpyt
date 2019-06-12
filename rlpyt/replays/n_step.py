@@ -45,7 +45,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
             self.samples_valid = buffer_from_example(example.done, (T, B))
 
     def append_samples(self, samples):
-        T, B = get_leading_dims(samples, n_dim=2)
+        T, B = get_leading_dims(samples, n_dim=2)  # samples.env.reward.shape[:2]
         assert B == self.B
         t = self.t
         buffer_put(self.samples, slice(t, t + T), samples, wrap=True)

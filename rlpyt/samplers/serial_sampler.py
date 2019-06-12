@@ -2,6 +2,7 @@
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer
 from rlpyt.utils.logging import logger
+from rlpyt.samplers.collectors import SerialEvalCollector
 
 
 class SerialSampler(BaseSampler):
@@ -28,6 +29,17 @@ class SerialSampler(BaseSampler):
             TrajInfoCls=self.TrajInfoCls,
             agent=agent,
         )
+        if self.eval_n_envs > 0:  # May do evaluation.
+            eval_envs = [self.EnvCls(**self.eval_env_kwargs)
+                for _ in self.eval_n_envs_per]
+            eval_CollectorCls = self.eval_CollectorCls or SerialEvalCollector
+            self.eval_collector = eval_CollectorCls(
+                envs=eval_envs,
+                agent=agent,
+                TrajInfoCls=self.TrajInfoCls,
+                max_T=self.eval_max_T,
+                eval_max_trajectories=self.eval_max_trajectories,
+            )
 
         agent_inputs, traj_infos = collector.start_envs(
             self.max_decorrelation_steps)
@@ -44,8 +56,11 @@ class SerialSampler(BaseSampler):
     def obtain_samples(self, itr):
         self.samples_np[:] = 0
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
-            self.agent_inputs, self.traj_infos)
+            self.agent_inputs, self.traj_infos, itr)
         agent_inputs = self.collector.reset_if_needed(agent_inputs)
         self.agent_inputs = agent_inputs
         self.traj_infos = traj_infos
         return self.samples_pyt, completed_infos
+
+    def evaluate_agent(self, itr):
+        return self.eval_collector.collect_evaluation(itr)
