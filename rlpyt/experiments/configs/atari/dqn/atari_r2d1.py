@@ -35,7 +35,7 @@ config = dict(
     model=dict(dueling=True),
     optim=dict(),
     runner=dict(
-        n_steps=50e6,
+        n_steps=100e6,
         log_interval_steps=1e6,
     ),
     sampler=dict(
