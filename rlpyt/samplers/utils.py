@@ -22,7 +22,8 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
         w.start()
         w.join()
     else:
-        examples = get_example_outputs(agent, env, dict())
+        examples = dict()
+        get_example_outputs(agent, env, examples)
 
     T, B = batch_spec
     all_action = buffer_from_example(examples["action"], (T + 1, B), agent_shared)
