@@ -27,7 +27,8 @@ class GpuParallelSampler(BaseSampler):
         env = self.EnvCls(**self.env_kwargs)
         agent.initialize(env.spec, share_memory=False)  # Actual agent initialization, keep.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
-            self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True)
+            self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
+            subprocess=False)
         env.terminate()
         del env
         step_buffer_pyt, step_buffer_np = build_step_buffer(examples, self.batch_spec.B)

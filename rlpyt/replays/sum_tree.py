@@ -107,12 +107,12 @@ class SumTree(object):
         low_off_idx = high_on_idx = high_on_t * self.B + self.low_idx
         high_off_idx = high_off_t * self.B + self.low_idx
         if high_on_t >= low_on_t:  # Equal for initial_wrap_guard -> empty arrays.
-            on_diffs = on_value - self.priorities[low_on_t:high_on_t]
+            on_diffs = on_value - self.priorities[low_on_t:high_on_t]  # zeros.
             self.priorities[low_on_t:high_on_t] = on_value
             on_idxs = np.arange(low_on_idx, high_on_idx)
         else:  # Wrap.
             on_diffs = on_value - np.concatenate([self.priorities[low_on_t:],
-                self.priorities[:high_on_t]])
+                self.priorities[:high_on_t]], axis=0)
             self.priorities[low_on_t:] += on_diffs[:-high_on_t]
             self.priorities[:high_on_t] += on_diffs[-high_on_t:]
             on_idxs = np.concatenate([np.arange(low_on_idx, self.high_idx),
@@ -123,7 +123,7 @@ class SumTree(object):
             off_idxs = np.arange(low_off_idx, high_off_idx)
         else:  # Wrap.
             off_diffs = -np.concatenate([self.priorities[low_off_t:],
-                self.priorities[:high_on_t]])
+                self.priorities[:high_off_t]], axis=0)
             self.priorities[low_off_t:] = 0
             self.priorities[:high_off_t] = 0
             off_idxs = np.concatenate([np.arange(low_off_idx, self.high_idx),
