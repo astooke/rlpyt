@@ -69,7 +69,7 @@ class GpuParallelSampler(BaseSampler):
             eval_n_envs=eval_n_envs_per,
             eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
             eval_env_kwargs=self.eval_env_kwargs,
-            eval_max_T=self.eval_max_T,
+            eval_max_T=eval_max_T,
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np,
