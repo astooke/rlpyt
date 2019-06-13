@@ -39,7 +39,7 @@ config = dict(
         log_interval_steps=1e6,
     ),
     sampler=dict(
-        batch_T=120,  # Match the algo, for training_ratio.
+        batch_T=30,  # Match the algo / training_ratio.
         batch_B=32,
         max_decorrelation_steps=1000,
         eval_n_envs=4,
