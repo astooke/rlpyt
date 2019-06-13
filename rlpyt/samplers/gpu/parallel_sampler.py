@@ -155,6 +155,7 @@ class GpuParallelSampler(BaseSampler):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
         step_np, step_pyt = self.eval_step_buffer_np, self.eval_step_buffer_pyt
         traj_infos = list()
+        self.agent.reset()
         agent_inputs = AgentInputs(step_pyt.observation, step_pyt.action,
             step_pyt.reward)  # Fixed buffer objects.
 
@@ -177,11 +178,11 @@ class GpuParallelSampler(BaseSampler):
                     # Do not set need_reset[b] = False; worker needs it and will set False.
             if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
                 self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
-                logger.log("Evaluation reach max num trajectories "
-                    f"({self.eval_max_trajectories}).")
             for w in act_waiters:
                 w.release()
             if self.sync.stop_eval.value:
+                logger.log("Evaluation reach max num trajectories "
+                    f"({self.eval_max_trajectories}).")
                 break
         if t == self.eval_max_T - 1 and self.eval_max_trajectories is not None:
             logger.log("Evaluation reached max num time steps "

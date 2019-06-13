@@ -24,7 +24,8 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
     and reward overwritten (off_forward).
     """
 
-    def __init__(self, example, size, B, discount=1, n_step_return=1, store_valid=False):
+    def __init__(self, example, size, B, discount=1, n_step_return=1,
+            store_valid=False):
         self.T = T = math.ceil(size / B)
         self.B = B
         self.size = T * B

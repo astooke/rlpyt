@@ -4,7 +4,7 @@ import math
 from rlpyt.replays.n_step import BaseNStepReturnBuffer
 from rlpyt.utils.buffer import (torchify_buffer, buffer_from_example, buffer_put,
     buffer_func)
-from rlpyt.util.misc import extract_sequences
+from rlpyt.utils.misc import extract_sequences
 from rlpyt.utils.collections import namedarraytuple
 
 SamplesFromReplay = namedarraytuple("SamplesFromReplay",
@@ -16,10 +16,9 @@ SamplesToReplay = None
 
 class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
 
-    def __init__(self, example, size, B, rnn_state_interval, store_valid=False,
-            batch_T=None, **kwargs):
+    def __init__(self, example, size, B, rnn_state_interval, batch_T=None,
+            **kwargs):
         self.rnn_state_interval = rnn_state_interval
-        self.store_valid = store_valid
         self.batch_T = batch_T  # Optional depending on sampling type.
         if rnn_state_interval <= 1:  # Store no rnn state or every rnn state.
             replay_example = example
@@ -33,7 +32,7 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
             size = B * rnn_state_interval * math.ceil(  # T as multiple of interval.
                 math.ceil(size / B) / rnn_state_interval)
             self.samples_prev_rnn_state = buffer_from_example(example.prev_rnn_state,
-                (size // (B * rnn_state_interval), self.B))
+                (size // (B * rnn_state_interval), B))
         super().__init__(example=replay_example, size=size, B=B, **kwargs)
         if rnn_state_interval > 1:
             assert self.T % rnn_state_interval == 0
@@ -52,12 +51,12 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         return T
 
     def extract_batch(self, T_idxs, B_idxs, T):
-        """Return full sequence of each field which encompasses all subsequences to
-        be used, so algorithm can make subsequences by slicing on device, for reduced
-        memory usage."""
-        s = self.samples
-        init_rnn_state = (self.samples_prev_rnn_state[T_idxs, B_idxs]
-            if self.rnn_state_interval > 0 else None)
+        """Return full sequence of each field which encompasses all subsequences
+        to be used, so algorithm can make sub-sequences by slicing on device,
+        for reduced memory usage."""
+        s, rsi = self.samples, self.rnn_state_interval
+        init_rnn_state = (self.samples_prev_rnn_state[T_idxs // rsi, B_idxs]
+            if rsi > 0 else None)
         valid = (extract_sequences(self.samples_valid, T_idxs, B_idxs, T)
             if self.store_valid else None)
         batch = SamplesFromReplay(
@@ -70,7 +69,7 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
             return_=extract_sequences(self.samples_return_, T_idxs, B_idxs, T),
             done=extract_sequences(s.done, T_idxs, B_idxs, T),
             done_n=extract_sequences(self.samples_done_n, T_idxs, B_idxs, T),
-            init_rnn_state=init_rnn_state,  # (Use same rnn state for agent and target.)
+            init_rnn_state=init_rnn_state,  # (Same state for agent and target.)
             valid=valid,
         )
         return torchify_buffer(batch)

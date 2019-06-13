@@ -21,13 +21,13 @@ class FrameBufferMixin(object):
     observation frames overwritten.
     """
 
-    def __init__(self, example, *args, **kwargs):
+    def __init__(self, example, **kwargs):
         field_names = [f for f in example._fields if f != "observation"]
         global ReplaySamples
         ReplaySamples = namedarraytuple("ReplaySamples", field_names)
         replay_example = ReplaySamples(*(v for k, v in example.items()
             if k != "observation"))
-        super().__init__(replay_example, *args, **kwargs)
+        super().__init__(example=replay_example, **kwargs)
         # Equivalent to image.shape[0] if observation is image array (C,H,W):
         self.n_frames = n_frames = get_leading_dims(example.observation,
             n_dim=1)[0]

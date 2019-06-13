@@ -2,21 +2,22 @@
 import torch
 from collections import namedtuple
 
-from rlpyt.aglos.base import RlAlgorithm
+from rlpyt.algos.base import RlAlgorithm
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
-from rlput.utils.collections import namedarraytuple
-from rlpyt.replays.sequence.frame.uniform import UniformSequenceFrameBuffer
-from rlpyt.replays.sequence.frame.prioritized import PrioritizedSequenceFrameBuffer
+from rlpyt.utils.collections import namedarraytuple
+from rlpyt.replays.sequence.frame import UniformSequenceReplayFrameBuffer
+from rlpyt.replays.sequence.frame import PrioritizedSequenceReplayFrameBuffer
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
 from rlpyt.algos.utils import valid_from_done
+from rlpyt.utils.buffer import buffer_to
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr", "priority"])
 SamplesToReplay = namedarraytuple("SamplesToReplay",
     ["observation", "action", "reward", "done"])
 SamplesToReplayRnn = namedarraytuple("SamplesToReplayRnn",
-    SamplesToReplay._fields + ("prev_rnn_state,"))
+    SamplesToReplay._fields + ("prev_rnn_state",))
 
 
 class R2D1(RlAlgorithm):
@@ -41,6 +42,7 @@ class R2D1(RlAlgorithm):
             learning_rate=1e-4,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
+            initial_optim_state_dict=None,
             clip_grad_norm=10.,
             eps_init=1,
             eps_final=0.05,
@@ -83,10 +85,10 @@ class R2D1(RlAlgorithm):
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
 
         sample_bs = batch_spec.size
-        train_bs = self.batch_T * self.batch_B
+        train_bs = (self.batch_T + self.warmup_T) * self.batch_B
         # assert (self.training_ratio * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int(np.round(
-            (self.training_ratio * sample_bs) // train_bs))
+        self.updates_per_optimize = max(1,
+            round(self.training_ratio * sample_bs / train_bs))
         logger.log(f"From sampler batch size {sample_bs}, training "
             f"batch size {train_bs}, and training ratio "
             f"{self.training_ratio}, rounded to {self.updates_per_optimize} "
@@ -105,7 +107,7 @@ class R2D1(RlAlgorithm):
         )
         if self.store_rnn_state_interval > 0:
             example_to_replay = SamplesToReplayRnn(*example_to_replay,
-                prev_rnn_state=examples["prev_rnn_state"],
+                prev_rnn_state=examples["agent_info"].prev_rnn_state,
             )
         replay_kwargs = dict(
             example=example_to_replay,
@@ -117,15 +119,15 @@ class R2D1(RlAlgorithm):
             batch_T=self.batch_T + self.warmup_T,  # Fixed for prioritized replay.
             store_valid=not self.mid_batch_reset,
         )
-        if self.prioritize_replay:
+        if self.prioritized_replay:
             replay_kwargs.update(dict(
                 alpha=self.pri_alpha,
                 beta=self.pri_beta_init,
                 default_priority=self.default_priority,
             ))
-            ReplayCls = PrioritizedSequenceFrameBuffer
+            ReplayCls = PrioritizedSequenceReplayFrameBuffer
         else:
-            ReplayCls = UniformSequenceFrameBuffer
+            ReplayCls = UniformSequenceReplayFrameBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, samples, itr):
@@ -190,8 +192,10 @@ class R2D1(RlAlgorithm):
             prev_reward=all_reward[target_slice],
         )
         action = samples.all_action[wT + 1:wT + 1 + bT]  # CPU.
-        init_rnn_state = None if self.store_rnn_state_interval == 0 else buffer_to(
-            samples.init_rnn_state, device=self.agent.device)
+        return_ = samples.return_[wT:wT + bT]
+        done_n = samples.done_n[wT:wT + bT]
+        init_rnn_state = (None if self.store_rnn_state_interval == 0 else
+            buffer_to(samples.init_rnn_state, device=self.agent.device))
         if wT > 0:
             with torch.no_grad():
                 _, init_rnn_state = self.agent(*warmup_inputs, init_rnn_state)
@@ -200,7 +204,7 @@ class R2D1(RlAlgorithm):
         else:
             target_rnn_state = init_rnn_state
 
-        qs, _ = self.agent(*agent_inputs, init_rnn_state)
+        qs, _ = self.agent(*agent_inputs, init_rnn_state)  # [T,B,A]
         q = select_at_indexes(action, qs)
         with torch.no_grad():
             target_qs, _ = self.agent.target(*target_inputs, target_rnn_state)
@@ -210,11 +214,11 @@ class R2D1(RlAlgorithm):
                 target_q = select_at_indexes(next_a, target_qs)
             else:
                 target_q = torch.max(target_qs, dim=-1).values
-            target_q = target_q[:-bT]  # Same length as q.
+            target_q = target_q[-bT:]  # Same length as q.
 
         disc = self.discount ** self.n_step_return
-        y = self.value_scale(samples.return_ +  # [T,B]
-            (1 - samples.done_n.float()) * disc * self.inv_value_scale(target_q))
+        y = self.value_scale(return_ + (1 - done_n.float()) * disc *
+            self.inv_value_scale(target_q))  # [T,B]
         delta = y - q
         losses = 0.5 * delta ** 2
         abs_delta = abs(delta)
@@ -226,11 +230,11 @@ class R2D1(RlAlgorithm):
         if self.mid_batch_reset:
             valid = valid_from_done(samples.done.float())  # 0 after first done.
         if not self.mid_batch_reset:  # Replay track valid, sampling can misalign.
-            valid = samples.valid.float()  # [T,B]
+            valid = samples.valid[wT:wT + bT].float()  # [T,B]
         loss = valid_mean(losses, valid)
         td_abs_errors = torch.clamp(abs_delta.detach(), 0, self.delta_clip)  # [T,B]
         valid_td_abs_errors = td_abs_errors * valid
-        max_d = torch.max(valid_td_abs_errors, dim=0)
+        max_d = torch.max(valid_td_abs_errors, dim=0).values
         mean_d = torch.mean(valid_td_abs_errors, dim=0)  # Lower if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
 
@@ -249,7 +253,7 @@ class R2D1(RlAlgorithm):
         if itr < self.eps_itr:  # Epsilon can be vector-valued.
             prog = min(1, itr / self.eps_itr)
             new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
-            self.agent.set_eps_greedy(new_eps)
+            self.agent.set_epsilon_greedy(new_eps)
         if self.prioritized_replay and itr < self.pri_beta_itr:
             prog = min(1, itr / self.pri_beta_itr)
             new_beta = (prog * self.pri_beta_final +

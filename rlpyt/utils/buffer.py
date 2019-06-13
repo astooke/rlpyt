@@ -35,6 +35,8 @@ def np_mp_array(shape, dtype):
 
 
 def torchify_buffer(buffer_):
+    if buffer_ is None:
+        return
     if isinstance(buffer_, np.ndarray):
         return torch.from_numpy(buffer_)
     elif isinstance(buffer_, torch.Tensor):
@@ -46,6 +48,8 @@ def torchify_buffer(buffer_):
 
 
 def numpify_buffer(buffer_):
+    if buffer_ is None:
+        return
     if isinstance(buffer_, torch.Tensor):
         return buffer_.numpy()
     elif isinstance(buffer_, np.ndarray):
@@ -57,6 +61,8 @@ def numpify_buffer(buffer_):
 
 
 def buffer_to(buffer_, device=None):
+    if buffer_ is None:
+        return
     if isinstance(buffer_, torch.Tensor):
         return buffer_.to(device)
     elif isinstance(buffer_, np.ndarray):
@@ -68,6 +74,8 @@ def buffer_to(buffer_, device=None):
 
 
 def buffer_method(buffer_, method_name, *args, **kwargs):
+    if buffer_ is None:
+        return
     if isinstance(buffer_, (torch.Tensor, np.ndarray)):
         return getattr(buffer_, method_name)(*args, **kwargs)
     contents = tuple(buffer_method(b, method_name, *args, **kwargs) for b in buffer_)
@@ -77,6 +85,8 @@ def buffer_method(buffer_, method_name, *args, **kwargs):
 
 
 def buffer_func(buffer_, func, *args, **kwargs):
+    if buffer_ is None:
+        return
     if isinstance(buffer_, (torch.Tensor, np.ndarray)):
         return func(buffer_, *args, **kwargs)
     contents = tuple(buffer_func(b, func, *args, **kwargs) for b in buffer_)
@@ -86,9 +96,11 @@ def buffer_func(buffer_, func, *args, **kwargs):
 
 
 def get_leading_dims(buffer_, n_dim=1):
+    if buffer_ is None:
+        return
     if isinstance(buffer_, (torch.Tensor, np.ndarray)):
         return buffer_.shape[:n_dim]
-    contents = tuple(get_leading_dims(b, n_dim) for b in buffer_)
+    contents = tuple(get_leading_dims(b, n_dim) for b in buffer_ if b is not None)
     if not len(set(contents)) == 1:
         raise ValueError(f"Found mismatched leading dimensions: {contents}")
     return contents[0]

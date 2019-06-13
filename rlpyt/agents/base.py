@@ -78,6 +78,7 @@ class RecurrentAgentMixin(object):
 
     recurrent = True
     _prev_rnn_state = None
+    _sample_rnn_state = None  # Store during eval.
 
     def reset(self):
         self._prev_rnn_state = None  # Gets passed as None; module makes zeros.
@@ -100,3 +101,19 @@ class RecurrentAgentMixin(object):
     @property
     def prev_rnn_state(self):
         return self._prev_rnn_state
+
+    def train_mode(self, itr):
+        if self._mode == "sample":
+            self._sample_rnn_state = self._prev_rnn_state
+        super().train_mode(itr)
+
+    def sample_mode(self, itr):
+        if self._mode != "sample":
+            self._prev_rnn_state = self._sample_rnn_state
+        super().sample_mode(itr)
+
+    def eval_mode(self, itr):
+        if self._mode == "sample":
+            self._sample_rnn_state = self._prev_rnn_state
+        self._prev_rnn_state = None
+        super().eval_mode(itr)

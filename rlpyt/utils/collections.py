@@ -57,9 +57,11 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
 
     def __getitem__(self, loc):
         try:
-            return type(self)(*(s[loc] for s in self))
+            return type(self)(*(None if s is None else s[loc] for s in self))
         except IndexError as e:
             for j, s in enumerate(self):
+                if s is None:
+                    continue
                 try:
                     _ = s[loc]
                 except IndexError:
@@ -74,13 +76,14 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
         If input value is the same named[array]tuple type, iterate through its
         fields and assign values into selected index or slice of corresponding
         field.  Else, assign whole of value to selected index or slice of
-        all fields.
+        all fields.  Ignore fields that are both None.
         """
         if not (isinstance(value, tuple) and  # Check for matching structure.
                 getattr(value, "_fields", None) == self._fields):
             value = (value,) * len(self)  # Repeat whole value for each.
         try:
             for j, (s, v) in enumerate(zip(self, value)):
+                if s is not None or v is not None:
                     s[loc] = v
         except (ValueError, IndexError, TypeError) as e:
             raise Exception(f"Occured in {self.__class__} at field "

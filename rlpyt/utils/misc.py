@@ -1,5 +1,6 @@
 
 import numpy as np
+import torch
 
 
 def iterate_mb_idxs(data_length, minibatch_size, shuffle=False, horizon=1):
@@ -16,10 +17,10 @@ def iterate_mb_idxs(data_length, minibatch_size, shuffle=False, horizon=1):
 def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
     """Assumes array_or_tensor has [T,B] leading dims."""
     shape = (T, len(B_idxs)) + array_or_tensor.shape[2:]
-    try:
-        sequences = type(array_or_tensor)(*shape)  # torch
-    except TypeError:
-        sequences = type(array_or_tensor)(shape)  # numpy
+    if isinstance(array_or_tensor, torch.Tensor):
+        sequences = torch.empty(shape, dtype=array_or_tensor.dtype)
+    else:
+        sequences = np.empty(shape, dtype=array_or_tensor.dtype)
     for i, (t, b) in enumerate(zip(T_idxs, B_idxs)):
         if t + T > len(array_or_tensor):  # wrap
             m = len(array_or_tensor) - t

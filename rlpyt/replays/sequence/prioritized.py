@@ -14,7 +14,8 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 
 class PrioritizedSequenceReplay(object):
 
-    def __init__(self, alpha, beta, default_priority, unique=False, **kwargs):
+    def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
+            **kwargs):
         """Fix the SampleFromReplay length here, so priority tree can
         track where not to sample (else would have to temporarily subtract
         from tree every time sampling)."""
@@ -57,7 +58,7 @@ class PrioritizedSequenceReplay(object):
         batch = self.extract_batch(T_idxs, B_idxs, self.batch_T)
         is_weights = (1. / priorities) ** self.beta
         is_weights /= max(is_weights)  # Normalize.
-        is_weights = torchify_buffer(is_weights)
+        is_weights = torchify_buffer(is_weights).float()
         return SamplesFromReplayPri(*batch, is_weights=is_weights)
 
     def update_batch_priorities(self, priorities):

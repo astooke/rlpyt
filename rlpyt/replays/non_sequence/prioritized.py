@@ -13,7 +13,8 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 
 class PrioritizedReplay(object):
 
-    def __init__(self, alpha, beta, default_priority, unique=False, **kwargs):
+    def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
+            **kwargs):
         super().__init__(**kwargs)
         save__init__args(locals())
         self.init_priority_tree()
