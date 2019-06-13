@@ -5,6 +5,7 @@ from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.buffer import torchify_buffer, numpify_buffer
 
+EPS = 1e-6
 
 SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
     SamplesFromReplay._fields + ("is_weights",))
@@ -38,7 +39,7 @@ class PrioritizedReplay(object):
         (T_idxs, B_idxs), priorities = self.priority_tree.sample(batch_B,
             unique=self.unique)
         batch = self.extract_batch(T_idxs, B_idxs)
-        is_weights = (1. / priorities) ** self.beta  # Unnormalized.
+        is_weights = (1. / (priorities + EPS)) ** self.beta  # Unnormalized.
         is_weights /= max(is_weights)  # Normalize.
         is_weights = torchify_buffer(is_weights).float()
         return SamplesFromReplayPri(*batch, is_weights=is_weights)

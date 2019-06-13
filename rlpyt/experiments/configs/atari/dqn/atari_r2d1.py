@@ -7,37 +7,43 @@ configs = dict()
 config = dict(
     agent=dict(),
     algo=dict(
-        discount=0.99,
-        batch_size=128,
-        learning_rate=2.5e-4,
+        discount=0.997,
+        batch_T=80,
+        batch_B=32,  # In the paper, 64.
+        warmup_T=40,
+        store_rnn_state_interval=40,
+        training_ratio=4,  # In the paper, more like 0.8.
+        learning_rate=1e-4,
         clip_grad_norm=10.,
-        min_steps_learn=int(5e4),  # DEBUG
-        double_dqn=False,
-        prioritized_replay=False,
-        n_step_return=1,
+        min_steps_learn=int(1e5),
+        double_dqn=True,
+        prioritized_replay=True,
+        n_step_return=5,
     ),
     env=dict(
         game="pong",
-        episodic_lives=True,
+        episodic_lives=True,  # Even though the paper does without.
+        clip_reward=False,
     ),
     eval_env=dict(
         game="pong",  # NOTE: update in train script!
         episodic_lives=False,
-        horizon=int(27e3),
+        horizon=int(50e3),
+        clip_reward=False,
     ),
     model=dict(dueling=False),
     optim=dict(),
     runner=dict(
         n_steps=50e6,
-        log_interval_steps=1e6,
+        log_interval_steps=1e5,  # DEBUG
     ),
     sampler=dict(
-        batch_T=2,
+        batch_T=120,  # Match the algo, for training_ratio.
         batch_B=32,
         max_decorrelation_steps=1000,
         eval_n_envs=8,
-        eval_max_steps=int(125e3),
-        eval_max_trajectories=None,
+        eval_max_steps=int(150e3),
+        eval_max_trajectories=100,
         eval_min_envs_reset=2,
     ),
 )
