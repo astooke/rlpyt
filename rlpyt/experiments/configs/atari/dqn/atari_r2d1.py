@@ -24,12 +24,12 @@ config = dict(
         game="pong",
         episodic_lives=True,  # Even though the paper does without.
         clip_reward=False,
-        horizon=int(50e3),
+        horizon=int(40e3),
     ),
     eval_env=dict(
         game="pong",  # NOTE: update in train script!
         episodic_lives=False,
-        horizon=int(50e3),
+        horizon=int(40e3),
         clip_reward=False,
     ),
     model=dict(dueling=True),
@@ -42,8 +42,8 @@ config = dict(
         batch_T=120,  # Match the algo, for training_ratio.
         batch_B=32,
         max_decorrelation_steps=1000,
-        eval_n_envs=8,
-        eval_max_steps=int(125e3),  # DEBUG
+        eval_n_envs=4,
+        eval_max_steps=int(161e3),  # DEBUG
         eval_max_trajectories=100,
         eval_min_envs_reset=2,
     ),
