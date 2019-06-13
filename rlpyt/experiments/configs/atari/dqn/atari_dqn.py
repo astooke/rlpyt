@@ -11,7 +11,7 @@ config = dict(
         batch_size=128,
         learning_rate=2.5e-4,
         clip_grad_norm=10.,
-        min_steps_learn=int(1e3),  # DEBUG
+        min_steps_learn=int(5e4),
         double_dqn=False,
         prioritized_replay=False,
         n_step_return=1,
@@ -29,14 +29,14 @@ config = dict(
     optim=dict(),
     runner=dict(
         n_steps=50e6,
-        log_interval_steps=1e5,
+        log_interval_steps=1e6,
     ),
     sampler=dict(
         batch_T=2,
         batch_B=32,
         max_decorrelation_steps=1000,
         eval_n_envs=8,
-        eval_max_steps=int(25e3),
+        eval_max_steps=int(125e3),
         eval_max_trajectories=None,
         eval_min_envs_reset=2,
     ),
