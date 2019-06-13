@@ -104,10 +104,12 @@ def get_example_outputs(agent, env, examples):
     agent_inputs = torchify_buffer(AgentInputs(o, a, r))
     print("TRYING TO STEP AGENT")
     a, agent_info = agent.step(*agent_inputs)
+    print("STEPPED AGENT")
     examples["observation"] = o
     examples["reward"] = r
     examples["done"] = d
     examples["env_info"] = env_info
     examples["action"] = a  # OK to put torch tensor here, could numpify.
+    print("TRYING TO WRITE AGENT INFO")
     examples["agent_info"] = agent_info
     print("FINISHED EXAMPLE OUTPUTS")
