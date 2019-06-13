@@ -111,18 +111,18 @@ class AtariCatDqnModel(torch.nn.Module):
 
         return z
 
-    def _z_head(self, flat_img, T, B):
+    def _z_head(self, flat_img):
         fc_out = F.relu(self.fc(flat_img))
         z_flat = self.linear_z(fc_out)
-        return z_flat.view(T * B, self.output_dim, self.n_atoms)
+        return z_flat.view(-1, self.output_dim, self.n_atoms)
 
-    def _dueling_head(self, flat_img, T, B):
+    def _dueling_head(self, flat_img):
         flat_img = scale_grad(flat_img, 2 ** (-1 / 2))
         fc_a_out = F.relu(self.fc_a(flat_img))
         adv_flat = self.linear_a(fc_a_out)
-        adv = adv_flat.view(T * B, self.output_dim, self.n_atoms)
+        adv = adv_flat.view(-1, self.output_dim, self.n_atoms)
         adv += self.bias_a  # Shared across output_dim but not atoms.
         fc_v_out = F.relu(self.fc_v(flat_img))
         val_flat = self.linear_v(fc_v_out)
-        val = val_flat.view(T * B, 1, self.n_atoms)
+        val = val_flat.view(-1, 1, self.n_atoms)
         return val + (adv - adv.mean(dim=1, keepdim=True))  # mean output_dim

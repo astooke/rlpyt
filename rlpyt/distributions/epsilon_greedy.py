@@ -33,9 +33,13 @@ class CategoricalEpsilonGreedy(EpsilonGreedy):
     """Input p to be shaped [T,B,A,P] or [B,A,P], A: number of actions,
     P: number of atoms.  Input z is domain of atom-values, shaped [P]."""
 
+    def __init__(self, z=None, **kwargs):
+        super().__init__(**kwargs)
+        self.z = z
+
     def sample(self, p, z=None):
         q = torch.tensordot(p, z or self.z, dims=1)
         return super().sample(q)
 
-    def give_z(self, z):
+    def set_z(self, z):
         self.z = z
