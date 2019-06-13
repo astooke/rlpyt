@@ -1,4 +1,6 @@
 
+import copy
+
 configs = dict()
 
 
@@ -26,3 +28,9 @@ config = dict(
 )
 
 configs["0"] = config
+
+config = copy.deepcopy(config)
+
+config["algo"]["learning_rate"] = 4e-4
+
+configs["low_lr"] = config
