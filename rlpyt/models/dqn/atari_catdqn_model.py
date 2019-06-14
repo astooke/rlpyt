@@ -52,7 +52,7 @@ class AtariCatDqnModel(torch.nn.Module):
                 output_dim=output_dim, n_atoms=n_atoms)
         else:
             self.head = DistributionalHeadModel(conv_out_size, fc_sizes,
-                output_size=output_dim, n_atoms=n_atoms)
+                output_dim=output_dim, n_atoms=n_atoms)
 
     def forward(self, observation, prev_action, prev_reward):
         """Feedforward layers process as [T*B,H]. Return same leading dims as
