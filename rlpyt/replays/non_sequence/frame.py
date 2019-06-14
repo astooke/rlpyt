@@ -11,6 +11,7 @@ class NStepFrameBuffer(FrameBufferMixin, NStepReturnBuffer):
 
     def extract_observation(self, T_idxs, B_idxs):
         """Frames are returned OLDEST to NEWEST."""
+        # Begin/end frames duplicated in samples_frames so no wrapping here.
         return np.stack([self.samples_frames[t:t + self.n_frames, b]
             for t, b in zip(T_idxs, B_idxs)], axis=0)  # [B,C,H,W]
 

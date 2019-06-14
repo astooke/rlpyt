@@ -31,7 +31,7 @@ class FrameBufferMixin(object):
         # Equivalent to image.shape[0] if observation is image array (C,H,W):
         self.n_frames = n_frames = get_leading_dims(example.observation,
             n_dim=1)[0]
-        # frames: oldest stored at t; newest_frames: shifted so newest stored at t.
+        # frames: oldest stored at t; new_frames: shifted so newest stored at t.
         self.samples_frames = buffer_from_example(example.observation[0],
             (self.T + n_frames - 1, self.B))  # n-minus-1 frames duplicated.
         self.samples_new_frames = self.samples_frames[n_frames - 1:]

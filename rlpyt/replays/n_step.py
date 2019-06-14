@@ -67,8 +67,8 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         return T, idxs  # Pass these on to subclass.
 
     def compute_returns(self, T):
-        """e.g. if 2-step return, t - 1 is first return written here, using new
-        reward at t (up through t - 1 + T from t + T)."""
+        """e.g. if 2-step return, t-1 is first return written here, using reward
+        at t-1 and new reward at t (up through t-1+T from t+T)."""
         if self.n_step_return == 1:
             return  # return = reward, done_n = done
         t, s = self.t, self.samples
@@ -81,7 +81,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
             discount_return_n_step(reward, done, n_step=self.n_step_return,
                 discount=self.discount, return_dest=return_dest,
                 done_n_dest=done_n_dest)
-        else:  # Wrap (intermediate copies).
+        else:  # Wrap (copies); Let it (wrongly) wrap at first call.
             in_idxs = np.arange(t - nm1, t + T) % T
             reward = s.reward[in_idxs]
             done = s.done[in_idxs]
