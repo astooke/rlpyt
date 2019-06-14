@@ -49,5 +49,5 @@ config = dict(
     ),
 )
 
-configs["0"] = config
+configs["r2d1"] = config
 

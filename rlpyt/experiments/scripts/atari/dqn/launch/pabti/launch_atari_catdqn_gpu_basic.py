@@ -22,7 +22,7 @@ variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
 
-default_config_key = "0"
+default_config_key = "catdqn"
 
 run_experiments(
     script=script,
