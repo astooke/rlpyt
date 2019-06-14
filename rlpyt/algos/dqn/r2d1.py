@@ -14,10 +14,10 @@ from rlpyt.algos.utils import valid_from_done
 from rlpyt.utils.buffer import buffer_to
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr", "priority"])
-SamplesToReplay = namedarraytuple("SamplesToReplay",
+SamplesToBuffer = namedarraytuple("SamplesToBuffer",
     ["observation", "action", "reward", "done"])
-SamplesToReplayRnn = namedarraytuple("SamplesToReplayRnn",
-    SamplesToReplay._fields + ("prev_rnn_state",))
+SamplesToBufferRnn = namedarraytuple("SamplesToBufferRnn",
+    SamplesToBuffer._fields + ("prev_rnn_state",))
 
 
 class R2D1(RlAlgorithm):
@@ -67,6 +67,8 @@ class R2D1(RlAlgorithm):
         self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
+        if not agent.recurent:
+            raise TypeError("For nonrecurrent agents use dqn (or fake recurrent).")
         self.agent = agent
         if (self.eps_final_min is not None and
                 self.eps_final_min != self.eps_final):  # vector-valued epsilon
@@ -99,18 +101,18 @@ class R2D1(RlAlgorithm):
         if self.prioritized_replay:
             self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
 
-        example_to_replay = SamplesToReplay(
+        example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
             reward=examples["reward"],
             done=examples["done"],
         )
         if self.store_rnn_state_interval > 0:
-            example_to_replay = SamplesToReplayRnn(*example_to_replay,
+            example_to_buffer = SamplesToBufferRnn(*example_to_buffer,
                 prev_rnn_state=examples["agent_info"].prev_rnn_state,
             )
         replay_kwargs = dict(
-            example=example_to_replay,
+            example=example_to_buffer,
             size=self.replay_size,
             B=batch_spec.B,
             discount=self.discount,
@@ -131,16 +133,16 @@ class R2D1(RlAlgorithm):
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, samples, itr):
-        samples_to_replay = SamplesToReplay(
+        samples_to_buffer = SamplesToBuffer(
             observation=samples.env.observation,
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
         )
         if self.store_rnn_state_interval > 0:
-            samples_to_replay = SamplesToReplayRnn(*samples_to_replay,
+            samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
                 prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
-        self.replay_buffer.append_samples(samples_to_replay)
+        self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
             return opt_info

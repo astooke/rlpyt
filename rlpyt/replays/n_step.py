@@ -68,7 +68,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
 
     def compute_returns(self, T):
         """e.g. if 2-step return, t - 1 is first return written here, using new
-        reward at t."""
+        reward at t (up through t - 1 + T from t + T)."""
         if self.n_step_return == 1:
             return  # return = reward, done_n = done
         t, s = self.t, self.samples

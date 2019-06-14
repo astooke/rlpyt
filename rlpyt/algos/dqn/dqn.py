@@ -11,7 +11,7 @@ from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr"])
-SamplesToReplay = namedarraytuple("SamplesToReplay",
+SamplesToBuffer = namedarraytuple("SamplesToBuffer",
     ["observation", "action", "reward", "done"])
 
 
@@ -54,7 +54,6 @@ class DQN(RlAlgorithm):
         if default_priority is None:
             default_priority = delta_clip
         save__init__args(locals())
-        self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
         if agent.recurrent:
@@ -86,22 +85,20 @@ class DQN(RlAlgorithm):
             f"batch size {train_bs}, and training ratio "
             f"{self.training_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
-        self.target_update_interval = round(self.target_update_steps /
-            sample_bs * self.updates_per_optimize)
-
+        self.target_update_itr = round(self.target_update_steps / sample_bs)
         self.eps_itr = max(1, self.eps_steps // sample_bs)
         self.min_itr_learn = self.min_steps_learn // sample_bs
         if self.prioritized_replay:
             self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
 
-        example_to_replay = SamplesToReplay(
+        example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
             reward=examples["reward"],
             done=examples["done"],
         )
         replay_kwargs = dict(
-            example=example_to_replay,
+            example=example_to_buffer,
             size=self.replay_size,
             B=batch_spec.B,
             discount=self.discount,
@@ -120,18 +117,17 @@ class DQN(RlAlgorithm):
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, samples, itr):
-        samples_to_replay = SamplesToReplay(
+        samples_to_buffer = SamplesToBuffer(
             observation=samples.env.observation,
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
         )
-        self.replay_buffer.append_samples(samples_to_replay)
+        self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
             return opt_info
         for _ in range(self.updates_per_optimize):
-            self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             self.optimizer.zero_grad()
             loss, td_abs_errors = self.loss(samples_from_replay)
@@ -144,8 +140,8 @@ class DQN(RlAlgorithm):
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())  # Downsample.
-            if self.update_counter % self.target_update_interval == 0:
-                self.agent.update_target()
+        if itr % self.target_update_itr == 0:
+            self.agent.update_target()
         self.update_itr_hyperparams(itr)
         return opt_info
 

@@ -17,7 +17,7 @@ OptInfo = namedtuple("OptInfo",
     ["q1Loss", "q2Loss", "vLoss", "piLoss",
     "q1GradNorm", "q2GradNorm", "vGradNorm", "piGradNorm",
     "q1", "q2", "v", "piMu", "piLogStd", "qMeanDiff"])
-SamplesToReplay = namedarraytuple("SamplesToRepay",
+SamplesToBuffer = namedarraytuple("SamplesToRepay",
     ["observation", "action", "reward", "done"])
 
 
@@ -73,14 +73,14 @@ class SAC(RlAlgorithm):
         self.min_itr_learn = self.min_steps_learn // sample_bs
         self.agent.give_min_itr_learn(self.min_itr_learn)
 
-        example_to_replay = SamplesToReplay(
+        example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
             reward=examples["reward"],
             done=examples["done"],
         )
         replay_kwargs = dict(
-            example=example_to_replay,
+            example=example_to_buffer,
             size=self.replay_size,
             B=batch_spec.B,
         )
@@ -91,13 +91,13 @@ class SAC(RlAlgorithm):
                 dim=agent.env_spec.action_space.size, std=1.)
 
     def optimize_agent(self, samples, itr):
-        samples_to_replay = SamplesToReplay(
+        samples_to_buffer = SamplesToBuffer(
             observation=samples.env.observation,
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
         )
-        self.replay_buffer.append_samples(samples_to_replay)
+        self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
             return opt_info

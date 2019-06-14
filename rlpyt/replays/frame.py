@@ -34,8 +34,8 @@ class FrameBufferMixin(object):
         # frames: oldest stored at t; newest_frames: shifted so newest stored at t.
         self.samples_frames = buffer_from_example(example.observation[0],
             (self.T + n_frames - 1, self.B))  # n-minus-1 frames duplicated.
-        self.samples_new_frames = self.samples_frames[n_frames:]
-        self.off_forward = max(self.off_forward, max(1, self.n_frames - 1))
+        self.samples_new_frames = self.samples_frames[n_frames - 1:]
+        self.off_forward = max(self.off_forward, max(1, n_frames - 1))
 
     def append_samples(self, samples):
         t, fm1 = self.t, self.n_frames - 1
