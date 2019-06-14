@@ -4,7 +4,7 @@ from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
 from rlpyt.utils.collections import namedarraytuple
 
 
-ReplaySamples = None
+BufferSamples = None
 
 
 class FrameBufferMixin(object):
@@ -23,29 +23,30 @@ class FrameBufferMixin(object):
 
     def __init__(self, example, **kwargs):
         field_names = [f for f in example._fields if f != "observation"]
-        global ReplaySamples
-        ReplaySamples = namedarraytuple("ReplaySamples", field_names)
-        replay_example = ReplaySamples(*(v for k, v in example.items()
+        global BufferSamples
+        BufferSamples = namedarraytuple("BufferSamples", field_names)
+        buffer_example = BufferSamples(*(v for k, v in example.items()
             if k != "observation"))
-        super().__init__(example=replay_example, **kwargs)
+        super().__init__(example=buffer_example, **kwargs)
         # Equivalent to image.shape[0] if observation is image array (C,H,W):
         self.n_frames = n_frames = get_leading_dims(example.observation,
             n_dim=1)[0]
-        # frames: oldest stored at t; new_frames: shifted so newest stored at t.
+        # frames: oldest stored at t; duplicate n_frames - 1 beginning & end.
         self.samples_frames = buffer_from_example(example.observation[0],
-            (self.T + n_frames - 1, self.B))  # n-minus-1 frames duplicated.
-        self.samples_new_frames = self.samples_frames[n_frames - 1:]
-        self.off_forward = max(self.off_forward, max(1, n_frames - 1))
+            (self.T + n_frames - 1, self.B))  # [T+n_frames-1,B,H,W]
+        # new_frames: shifted so newest stored at t; no duplication.
+        self.samples_new_frames = self.samples_frames[n_frames - 1:]  # [T,B,H,W]
+        self.off_forward = max(self.off_forward, n_frames - 1)
 
     def append_samples(self, samples):
         t, fm1 = self.t, self.n_frames - 1
-        replay_samples = ReplaySamples(*(v for k, v in samples.items()
+        buffer_samples = BufferSamples(*(v for k, v in samples.items()
             if k != "observation"))
-        T, idxs = super().append_samples(replay_samples)
+        T, idxs = super().append_samples(buffer_samples)
         self.samples_new_frames[idxs] = samples.observation[:, :, -1]
         if t == 0:  # Starting: write early frames
             for f in range(fm1):
                 self.samples_frames[f] = samples.observation[0, :, f]
-        elif self.t < t:  # Wrapped: write duplicate frames.
+        elif self.t < t:  # Wrapped: copy duplicate frames.
             self.samples_frames[:fm1] = self.samples_frames[-fm1:]
         return T, idxs

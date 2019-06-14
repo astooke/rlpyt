@@ -11,7 +11,7 @@ SamplesFromReplay = namedarraytuple("SamplesFromReplay",
     ["all_observation", "all_action", "all_reward", "return_", "done", "done_n",
     "init_rnn_state", "valid"])
 
-SamplesToReplay = None
+SamplesToBuffer = None
 
 
 class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
@@ -19,21 +19,21 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
     def __init__(self, example, size, B, rnn_state_interval, batch_T=None,
             **kwargs):
         self.rnn_state_interval = rnn_state_interval
-        self.batch_T = batch_T  # Optional depending on sampling type.
+        self.batch_T = batch_T  # Maybe required fixed depending on replay type.
         if rnn_state_interval <= 1:  # Store no rnn state or every rnn state.
-            replay_example = example
+            buffer_example = example
         else:
             # Store some of rnn states; remove from samples.
             field_names = [f for f in example._fields if f != "prev_rnn_state"]
-            global SamplesToReplay
-            SamplesToReplay = namedarraytuple("SamplesToReplay", field_names)
-            replay_example = SamplesToReplay(*(v for k, v in example.items()
+            global SamplesToBuffer
+            SamplesToBuffer = namedarraytuple("SamplesToBuffer", field_names)
+            buffer_example = SamplesToBuffer(*(v for k, v in example.items()
                 if k != "prev_rnn_state"))
             size = B * rnn_state_interval * math.ceil(  # T as multiple of interval.
                 math.ceil(size / B) / rnn_state_interval)
             self.samples_prev_rnn_state = buffer_from_example(example.prev_rnn_state,
                 (size // (B * rnn_state_interval), B))
-        super().__init__(example=replay_example, size=size, B=B, **kwargs)
+        super().__init__(example=buffer_example, size=size, B=B, **kwargs)
         if rnn_state_interval > 1:
             assert self.T % rnn_state_interval == 0
         self.rnn_T = self.T // rnn_state_interval
@@ -42,9 +42,9 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         t, rsi = self.t, self.rnn_state_interval
         if rsi <= 1:  # All or no rnn states stored.
             return super().append_smaples(samples)
-        replay_samples = SamplesToReplay(*(v for k, v in samples.items()
+        buffer_samples = SamplesToBuffer(*(v for k, v in samples.items()
             if k != "prev_rnn_state"))
-        T, idxs = super().append_samples(replay_samples)
+        T, idxs = super().append_samples(buffer_samples)
         start, stop = math.ceil(t / rsi), (t + T) // rsi
         offset = (rsi - t) % rsi
         if stop > self.rnn_T:  # Wrap.
@@ -59,8 +59,11 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         to be used, so algorithm can make sub-sequences by slicing on device,
         for reduced memory usage."""
         s, rsi = self.samples, self.rnn_state_interval
-        init_rnn_state = (self.samples_prev_rnn_state[T_idxs // rsi, B_idxs]
-            if rsi > 0 else None)
+        if rsi > 0:
+            assert T_idxs % rsi == 0
+            init_rnn_state = self.samples.prev_rnn_state[T_idxs // rsi, B_idxs]
+        else:
+            init_rnn_state = None
         valid = (extract_sequences(self.samples_valid, T_idxs, B_idxs, T)
             if self.store_valid else None)
         batch = SamplesFromReplay(

@@ -17,9 +17,9 @@ class CategoricalDQN(DQN):
         if "eps" not in self.optim_kwargs:  # Assume optim.Adam
             self.optim_kwargs["eps"] = 0.01 / self.batch_size
 
-    def initialize(self, agent, *args, **kwargs):
-        super().initialize(agent, *args, **kwargs)
-        agent.give_V_min_max(self.V_min, self.V_max)
+    def initialize(self, *args, **kwargs):
+        super().initialize(*args, **kwargs)
+        self.agent.give_V_min_max(self.V_min, self.V_max)
 
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""

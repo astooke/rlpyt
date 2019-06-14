@@ -169,13 +169,14 @@ class GpuParallelSampler(BaseSampler):
             step_np.action[:] = action
             step_np.agent_info[:] = agent_info
 
-            self.sync.do_reset.value = sum(step_np.need_reset) >= self.eval_min_envs_reset
+            self.sync.do_reset.value = (sum(step_np.need_reset) >=
+                self.eval_min_envs_reset)
             if self.sync.do_reset.value:
                 for b, need in enumerate(step_np.need_reset):
                     if need:
                         self.agent.reset_one(idx=b)
                         step_np.action[b] = 0  # Prev_action for next t.
-                    # Do not set need_reset[b] = False; worker needs it and will set False.
+                    # Do not need_reset[b] = False; worker needs it and will set False.
             if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
                 self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
             for w in act_waiters:

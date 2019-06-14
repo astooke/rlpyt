@@ -34,7 +34,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         self.n_step_return = n_step_return
         self.t = 0  # Cursor (in T dimension).
         self.samples = buffer_from_example(example, (T, B))
-        if self.n_step_return > 1:
+        if n_step_return > 1:
             self.samples_return_ = buffer_from_example(example.reward, (T, B))
             self.samples_done_n = buffer_from_example(example.done, (T, B))
         else:
@@ -44,7 +44,9 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         self.off_backward = n_step_return  # Current invalid samples.
         self.off_forward = 1  # i.e. current cursor, prev_action overwritten.
         self.store_valid = store_valid
-        if self.store_valid:
+        if store_valid:
+            # If no mid-batch-reset, samples after done will be invalid, but
+            # might still be sampled later in a training batch.
             self.samples_valid = buffer_from_example(example.done, (T, B))
 
     def append_samples(self, samples):
@@ -57,8 +59,6 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
             idxs = slice(t, t + T)
         self.samples[idxs] = samples
         if self.store_valid:
-            # If no mid-batch-reset, samples after done will be invalid, but
-            # might still be sampled later in a training batch.
             self.samples_valid[idxs] = valid_from_done(samples.done.float())
         self.compute_returns(T)
         if not self._buffer_full and t + T >= self.T:
@@ -82,11 +82,11 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
                 discount=self.discount, return_dest=return_dest,
                 done_n_dest=done_n_dest)
         else:  # Wrap (copies); Let it (wrongly) wrap at first call.
-            in_idxs = np.arange(t - nm1, t + T) % T
-            reward = s.reward[in_idxs]
-            done = s.done[in_idxs]
-            out_idxs = in_idxs[:-nm1]
+            idxs = np.arange(t - nm1, t + T) % T
+            reward = s.reward[idxs]
+            done = s.done[idxs]
+            dest_idxs = idxs[:-nm1]
             return_, done_n = discount_return_n_step(reward, done,
                 n_step=self.n_step_return, discount=self.discount)
-            self.samples_return_[out_idxs] = return_
-            self.samples_done_n[out_idxs] = done_n
+            self.samples_return_[dest_idxs] = return_
+            self.samples_done_n[dest_idxs] = done_n

@@ -14,13 +14,24 @@ def iterate_mb_idxs(data_length, minibatch_size, shuffle=False, horizon=1):
         yield batch
 
 
+def zeros(shape, dtype):
+    try:
+        return torch.zeros(shape, dtype=dtype)
+    except TypeError:
+        return np.zeros(shape, dtype=dtype)
+
+
+def empty(shape, dtype):
+    try:
+        return torch.empty(shape, dtype=dtype)
+    except TypeError:
+        return np.empty(shape, dtype=dtype)
+
+
 def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
     """Assumes array_or_tensor has [T,B] leading dims."""
     shape = (T, len(B_idxs)) + array_or_tensor.shape[2:]
-    if isinstance(array_or_tensor, torch.Tensor):
-        sequences = torch.empty(shape, dtype=array_or_tensor.dtype)
-    else:
-        sequences = np.empty(shape, dtype=array_or_tensor.dtype)
+    sequences = empty(shape, dtype=array_or_tensor.dtype)
     for i, (t, b) in enumerate(zip(T_idxs, B_idxs)):
         if t + T > len(array_or_tensor):  # wrap
             m = len(array_or_tensor) - t
@@ -30,13 +41,6 @@ def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
         else:
             sequences[:, i] = array_or_tensor[t:t + T, b]  # [T,..]
     return sequences
-
-
-def zeros(shape, dtype):
-    try:
-        return torch.zeros(shape, dtype=dtype)
-    except TypeError:
-        return np.zeros(shape, dtype=dtype)
 
 
 # def put(x, loc, y, axis=0, wrap=False):
