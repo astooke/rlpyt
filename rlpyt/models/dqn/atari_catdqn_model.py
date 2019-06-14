@@ -32,7 +32,7 @@ class AtariCatDqnModel(torch.nn.Module):
         self.n_atoms = n_atoms
 
         # Hard-code just to get it running.
-       c, h, w = image_shape  # Track image shape along with conv definition.
+        c, h, w = image_shape  # Track image shape along with conv definition.
         self.conv1 = torch.nn.Conv2d(
             in_channels=c,
             out_channels=32,
