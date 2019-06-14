@@ -1,6 +1,6 @@
 
 
-from rlpyt.utils.buffer import buffer_from_example, get_leading_dims, buffer_put
+from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
 from rlpyt.utils.collections import namedarraytuple
 
 
@@ -41,12 +41,11 @@ class FrameBufferMixin(object):
         t, fm1 = self.t, self.n_frames - 1
         replay_samples = ReplaySamples(*(v for k, v in samples.items()
             if k != "observation"))
-        T = super().append_samples(replay_samples)
-        buffer_put(self.samples_new_frames, slice(t, t + T),
-            samples.observation[:, :, -1], wrap=True)  # New frames only.
+        T, idxs = super().append_samples(replay_samples)
+        self.samples_new_frames[idxs] = samples.observation[:, :, -1]
         if t == 0:  # Starting: write early frames
             for f in range(fm1):
                 self.samples_frames[f] = samples.observation[0, :, f]
         elif self.t < t:  # Wrapped: write duplicate frames.
             self.samples_frames[:fm1] = self.samples_frames[-fm1:]
-        return T
+        return T, idxs

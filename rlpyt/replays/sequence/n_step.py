@@ -1,9 +1,9 @@
 
 import math
+import numpy as np
 
 from rlpyt.replays.n_step import BaseNStepReturnBuffer
-from rlpyt.utils.buffer import (torchify_buffer, buffer_from_example, buffer_put,
-    buffer_func)
+from rlpyt.utils.buffer import torchify_buffer, buffer_from_example, buffer_func
 from rlpyt.utils.misc import extract_sequences
 from rlpyt.utils.collections import namedarraytuple
 
@@ -36,6 +36,7 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         super().__init__(example=replay_example, size=size, B=B, **kwargs)
         if rnn_state_interval > 1:
             assert self.T % rnn_state_interval == 0
+        self.rnn_T = self.T // rnn_state_interval
 
     def append_samples(self, samples):
         t, rsi = self.t, self.rnn_state_interval
@@ -43,12 +44,15 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
             return super().append_smaples(samples)
         replay_samples = SamplesToReplay(*(v for k, v in samples.items()
             if k != "prev_rnn_state"))
-        T = super().append_samples(replay_samples)
+        T, idxs = super().append_samples(replay_samples)
         start, stop = math.ceil(t / rsi), (t + T) // rsi
         offset = (rsi - t) % rsi
-        buffer_put(self.samples_prev_rnn_state, slice(start, stop),
-            samples.prev_rnn_state[offset::rsi], wrap=True)
-        return T
+        if stop > self.rnn_T:  # Wrap.
+            rnn_idxs = np.arange(start, stop) % self.rnn_T
+        else:
+            rnn_idxs = slice(start, stop)
+        self.samples_prev_rnn_state[rnn_idxs] = samples.prev_rnn_state[offset::rsi]
+        return T, idxs
 
     def extract_batch(self, T_idxs, B_idxs, T):
         """Return full sequence of each field which encompasses all subsequences

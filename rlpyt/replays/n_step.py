@@ -4,7 +4,7 @@ import numpy as np
 
 
 from rlpyt.replays.base import BaseReplayBuffer
-from rlpyt.utils.buffer import buffer_from_example, get_leading_dims, buffer_put
+from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
 from rlpyt.algos.utils import discount_return_n_step
 from rlpyt.algos.utils import valid_from_done
 
@@ -51,18 +51,21 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         T, B = get_leading_dims(samples, n_dim=2)  # samples.env.reward.shape[:2]
         assert B == self.B
         t = self.t
-        buffer_put(self.samples, slice(t, t + T), samples, wrap=True)
+        if t + T > self.T:  # Wrap.
+            idxs = np.arange(t, t + T) % self.T
+        else:
+            idxs = slice(t, t + T)
+        self.samples[idxs] = samples
         if self.store_valid:
             # If no mid-batch-reset, samples after done will be invalid, but
             # might still be sampled later in a training batch.
-            buffer_put(self.samples_valid, slice(t, t + T),
-                valid_from_done(samples.done.float()).type(samples.done.dtype),
-                wrap=True)
+            self.samples_valid[idxs] = valid_from_done(
+                samples.done.float().type(samples.done.dtype))
         self.compute_returns(T)
-        if t + T >= self.T:
+        if not self._buffer_full and t + T >= self.T:
             self._buffer_full = True  # Only changes on first around.
         self.t = (t + T) % self.T
-        return T
+        return T, idxs  # Pass these on to subclass.
 
     def compute_returns(self, T):
         """e.g. if 2-step return, t - 1 is first return written here, using new
