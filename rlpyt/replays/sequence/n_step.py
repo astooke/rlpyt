@@ -60,7 +60,7 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         for reduced memory usage."""
         s, rsi = self.samples, self.rnn_state_interval
         if rsi > 0:
-            assert T_idxs % rsi == 0
+            assert np.all(np.asarray(T_idxs) % rsi == 0)
             init_rnn_state = self.samples.prev_rnn_state[T_idxs // rsi, B_idxs]
         else:
             init_rnn_state = None
