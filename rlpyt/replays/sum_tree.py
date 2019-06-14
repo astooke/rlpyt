@@ -106,31 +106,34 @@ class SumTree(object):
         low_on_idx = low_on_t * self.B + self.low_idx
         low_off_idx = high_on_idx = high_on_t * self.B + self.low_idx
         high_off_idx = high_off_t * self.B + self.low_idx
-        if high_on_t >= low_on_t:  # Equal for initial_wrap_guard -> empty arrays.
-            on_diffs = on_value - self.priorities[low_on_t:high_on_t]  # zeros.
+        idxs, diffs = list(), list()
+        if high_on_t > low_on_t:
+            diffs.append(on_value - self.priorities[low_on_t:high_on_t])  # zeros.
             self.priorities[low_on_t:high_on_t] = on_value
-            on_idxs = np.arange(low_on_idx, high_on_idx)
-        else:  # Wrap.
-            on_diffs = on_value - np.concatenate([self.priorities[low_on_t:],
-                self.priorities[:high_on_t]], axis=0)
+            idxs.append(np.arange(low_on_idx, high_on_idx))
+        elif high_on_t < low_on_t:  # Wrap.
+            on_diffs = (on_value - np.concatenate([self.priorities[low_on_t:],
+                self.priorities[:high_on_t]], axis=0))  # on_value maybe array.
+            diffs.append(on_diffs)
             self.priorities[low_on_t:] += on_diffs[:-high_on_t]
             self.priorities[:high_on_t] += on_diffs[-high_on_t:]
-            on_idxs = np.concatenate([np.arange(low_on_idx, self.high_idx),
+            idxs.extend([np.arange(low_on_idx, self.high_idx),
                 np.arange(self.low_idx, high_on_idx)])
-        if high_off_t >= low_off_t:  # Equal for no off -> empty arrays.
-            off_diffs = -self.priorities[low_off_t:high_off_t]
+        if high_off_t > low_off_t:
+            diffs.append(-self.priorities[low_off_t:high_off_t])
             self.priorities[low_off_t:high_off_t] = 0
-            off_idxs = np.arange(low_off_idx, high_off_idx)
+            idxs.append(np.arange(low_off_idx, high_off_idx))
         else:  # Wrap.
-            off_diffs = -np.concatenate([self.priorities[low_off_t:],
-                self.priorities[:high_off_t]], axis=0)
+            diffs.extend([-self.priorities[low_off_t:],
+                -self.priorities[:high_off_t]])
             self.priorities[low_off_t:] = 0
             self.priorities[:high_off_t] = 0
-            off_idxs = np.concatenate([np.arange(low_off_idx, self.high_idx),
+            idxs.extend([np.arange(low_off_idx, self.high_idx),
                 np.arange(self.low_idx, high_off_idx)])
-        diffs = np.concatenate([on_diffs, off_diffs]).reshape(-1)
-        tree_idxs = np.concatenate([on_idxs, off_idxs])
-        self.propagate_diffs(tree_idxs, diffs, min_level=1)
+        if diffs:
+            diffs = np.concatenate(diffs).reshape(-1)
+            idxs = np.concatenate(idxs)
+            self.propagate_diffs(idxs, diffs, min_level=1)
 
     def propagate_diffs(self, tree_idxs, diffs, min_level=1):
         for _ in range(min_level, self.tree_levels):
