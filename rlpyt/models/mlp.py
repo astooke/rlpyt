@@ -23,7 +23,7 @@ class MlpModel(torch.nn.Module):
         if output_size is not None:
             last_size = hidden_sizes[-1] if hidden_sizes else input_size
             sequence.append(torch.nn.Linear(last_size, output_size))
-        self.model = torch.Sequential(*sequence)
+        self.model = torch.nn.Sequential(*sequence)
 
     def forward(self, input):
         return self.model(input)
