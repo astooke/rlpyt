@@ -5,7 +5,7 @@ import ctypes
 import torch
 
 from rlpyt.utils.collections import namedarraytuple_like
-from rlpyt.utils.misc import put
+# from rlpyt.utils.misc import put
 
 
 def buffer_from_example(example, leading_dims, shared_memory=False):
