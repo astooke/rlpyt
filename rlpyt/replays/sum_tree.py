@@ -42,8 +42,8 @@ class SumTree(object):
         cursor position.  Optional priorities can be None for default,
         scalar, or with dimensions [T] or [T, B]."""
         t, b, f = self.t, self.off_backward, self.off_forward
-        low_on_t = (t - b) % self.T  # low=self.T --> low=0
-        high_on_t = ((t + T - b - 1) % self.T) + 1  # high=0 --> high=self.T
+        low_on_t = (t - b) % self.T  # inclusive range: [0, self.T-1]
+        high_on_t = ((t + T - b - 1) % self.T) + 1  # inclusive: [1, self.T]
         low_off_t = (t + T - b) % self.T
         high_off_t = ((t + T + f - 1) % self.T) + 1
         if self._initial_wrap_guard:
