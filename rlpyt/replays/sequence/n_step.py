@@ -59,10 +59,12 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         to be used, so algorithm can make sub-sequences by slicing on device,
         for reduced memory usage."""
         s, rsi = self.samples, self.rnn_state_interval
-        if rsi > 0:
+        if rsi > 1:
             assert np.all(np.asarray(T_idxs) % rsi == 0)
-            init_rnn_state = self.samples.prev_rnn_state[T_idxs // rsi, B_idxs]
-        else:
+            init_rnn_state = self.samples_prev_rnn_state[T_idxs // rsi, B_idxs]
+        elif rsi == 1:
+            init_rnn_state = self.samples.prev_rnn_state[T_idxs, B_idxs]
+        else:  # rsi == 0
             init_rnn_state = None
         valid = (extract_sequences(self.samples_valid, T_idxs, B_idxs, T)
             if self.store_valid else None)
