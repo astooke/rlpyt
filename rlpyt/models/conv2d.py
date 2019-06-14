@@ -23,7 +23,7 @@ class Conv2dModel(torch.nn.Module):
         if paddings is None:
             paddings = [0 for _ in range(len(channels))]
         assert len(channels) == len(kernels) == len(strides) == len(paddings)
-        in_channels = [in_channels, channels[:-1]]
+        in_channels = [in_channels] + channels[:-1]
         ones = [1 for _ in range(len(strides))]
         if use_maxpool:
             maxp_strides = strides
