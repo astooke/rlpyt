@@ -67,7 +67,7 @@ class R2D1(RlAlgorithm):
         self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
-        if not agent.recurent:
+        if not agent.recurrent:
             raise TypeError("For nonrecurrent agents use dqn (or fake recurrent).")
         self.agent = agent
         if (self.eps_final_min is not None and
