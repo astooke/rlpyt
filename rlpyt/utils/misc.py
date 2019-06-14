@@ -33,11 +33,13 @@ def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
     shape = (T, len(B_idxs)) + array_or_tensor.shape[2:]
     sequences = empty(shape, dtype=array_or_tensor.dtype)
     for i, (t, b) in enumerate(zip(T_idxs, B_idxs)):
-        if t + T > len(array_or_tensor):  # wrap
+        if t + T > len(array_or_tensor):  # Wrap end.
             m = len(array_or_tensor) - t
-            w = T - m
             sequences[:m, i] = array_or_tensor[t:, b]  # [m,..]
-            sequences[m:, i] = array_or_tensor[:w, b]  # [w,..]
+            sequences[m:, i] = array_or_tensor[:T - m, b]  # [w,..]
+        elif t < 0:  # Wrap beginning.
+            sequences[:t, i] = array_or_tensor[t:, b]
+            sequences[t:, i] = array_or_tensor[:t + T, b]
         else:
             sequences[:, i] = array_or_tensor[t:t + T, b]  # [T,..]
     return sequences
