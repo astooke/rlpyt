@@ -1,6 +1,5 @@
 
 import torch
-import torch.nn.functional as F
 
 from rlpyt.models.mlp import MlpModel
 from rlpyt.models.utils import conv2d_output_shape
@@ -15,7 +14,7 @@ class Conv2dModel(torch.nn.Module):
             kernels,
             strides,
             paddings=None,
-            nonlinearity=F.relu,
+            nonlinearity=torch.nn.Relu,  # Module, not Functional.
             use_maxpool=False,  # if True: convs use stride 1, maxpool downsample.
             head_sizes=None,  # Put an MLP head on top.
             ):
@@ -65,7 +64,7 @@ class Conv2dHeadModel(Conv2dModel):
             hidden_sizes,
             output_size=None,
             paddings=None,
-            nonlinearity=F.relu,
+            nonlinearity=torch.nn.Relu,
             use_maxpool=False,
             ):
         c, h, w = image_shape
