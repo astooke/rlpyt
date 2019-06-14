@@ -33,8 +33,9 @@ class PrioritizedReplay(object):
         self.beta = beta
 
     def append_samples(self, samples):
-        T = super().append_samples(samples)
+        T, idxs = super().append_samples(samples)
         self.priority_tree.advance(T)  # Progress priority_tree cursor.
+        return T, idxs
 
     def sample_batch(self, batch_B):
         (T_idxs, B_idxs), priorities = self.priority_tree.sample(batch_B,

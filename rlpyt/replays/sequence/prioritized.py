@@ -40,7 +40,7 @@ class PrioritizedSequenceReplay(object):
 
     def append_samples(self, samples):
         t, rsi = self.t, self.rnn_state_interval
-        T = super().append_samples(samples)
+        T, idxs = super().append_samples(samples)
         if rsi <= 1:  # All or no rnn states stored.
             self.priority_tree.advance(T)
         else:  # Some rnn states stored.
@@ -48,7 +48,7 @@ class PrioritizedSequenceReplay(object):
             if self.t < t:  # Wrapped.
                 n += self.T // rsi
             self.priority_tree.advance(n)
-        return T
+        return T, idxs
 
     def sample_batch(self, batch_B):
         (tree_T_idxs, B_idxs), priorities = self.priority_tree.sample(
