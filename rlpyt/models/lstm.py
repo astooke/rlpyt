@@ -2,7 +2,7 @@
 import torch
 
 
-class LstmModel(torch.nn.Lstm):
+class LstmModel(torch.nn.LSTM):
 
     def forward(self, input, init_rnn_state):
         if init_rnn_state is not None:  # [B,N,H] --> [N,B,H]
