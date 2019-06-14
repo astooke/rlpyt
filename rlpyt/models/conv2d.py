@@ -44,12 +44,15 @@ class Conv2dModel(torch.nn.Module):
 
     def conv_out_size(self, h, w, c=None):
         for child in self.conv.children():
-            h, w = conv2d_output_shape(h, w, child.kernel_size, child.stride,
-                child.padding)
+            try:
+                h, w = conv2d_output_shape(h, w, child.kernel_size,
+                    child.stride, child.padding)
+            except AttributeError:
+                pass  # Not a conv or maxpool layer.
             try:
                 c = child.out_channels
             except AttributeError:
-                pass  # MaxPool2d
+                pass  # Not a conv layer.
         return h * w * c
 
 
