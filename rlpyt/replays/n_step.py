@@ -59,8 +59,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         if self.store_valid:
             # If no mid-batch-reset, samples after done will be invalid, but
             # might still be sampled later in a training batch.
-            self.samples_valid[idxs] = valid_from_done(
-                samples.done.float().type(samples.done.dtype))
+            self.samples_valid[idxs] = valid_from_done(samples.done.float())
         self.compute_returns(T)
         if not self._buffer_full and t + T >= self.T:
             self._buffer_full = True  # Only changes on first around.
