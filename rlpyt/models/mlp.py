@@ -19,7 +19,7 @@ class MlpModel(torch.nn.Module):
             zip([input_size] + hidden_sizes[:-1], hidden_sizes)]
         sequence = list()
         for layer in hidden_layers:
-            sequence.extend([layer, nonlinearity])
+            sequence.extend([layer, nonlinearity()])
         if output_size is not None:
             last_size = hidden_sizes[-1] if hidden_sizes else input_size
             sequence.append(torch.nn.Linear(last_size, output_size))

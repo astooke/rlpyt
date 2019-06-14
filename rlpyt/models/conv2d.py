@@ -34,7 +34,7 @@ class Conv2dModel(torch.nn.Module):
             zip(in_channels, channels, kernels, strides, paddings)]
         sequence = list()
         for conv_layer, maxp_stride in zip(conv_layers, maxp_strides):
-            sequence.extend([conv_layer, nonlinearity])
+            sequence.extend([conv_layer, nonlinearity()])
             if maxp_stride > 1:
                 sequence.append(torch.nn.MaxPool2d(maxp_stride))  # No padding.
         self.conv = torch.nn.Sequential(*sequence)
