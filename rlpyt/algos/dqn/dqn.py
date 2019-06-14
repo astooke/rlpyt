@@ -29,7 +29,7 @@ class DQN(RlAlgorithm):
             delta_clip=1.,
             replay_size=int(1e6),
             training_ratio=8,  # data_consumption / data_generation.
-            target_update_interval=int(1e3),  # Per agent updates, not env steps.
+            target_update_steps=int(1e4),  # Per env steps sampled.
             n_step_return=1,
             learning_rate=2.5e-4,
             OptimCls=torch.optim.Adam,
@@ -68,7 +68,7 @@ class DQN(RlAlgorithm):
                 torch.log10(torch.tensor(self.eps_final_min)),
                 torch.log10(torch.tensor(self.eps_final)),
                 batch_spec.B)
-        agent.set_epsilon_greedy(self.eps_init)
+        agent.set_sample_epsilon_greedy(self.eps_init)
         agent.give_eval_epsilon_greedy(self.eps_eval)
         self.n_itr = n_itr
         self.mid_batch_reset = mid_batch_reset
@@ -86,6 +86,8 @@ class DQN(RlAlgorithm):
             f"batch size {train_bs}, and training ratio "
             f"{self.training_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
+        self.target_update_interval = round(self.target_update_steps /
+            sample_bs * self.updates_per_optimize)
 
         self.eps_itr = max(1, self.eps_steps // sample_bs)
         self.min_itr_learn = self.min_steps_learn // sample_bs

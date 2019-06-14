@@ -37,7 +37,7 @@ class R2D1(RlAlgorithm):
             delta_clip=1.,
             replay_size=int(1e6),
             training_ratio=1,
-            target_update_interval=2500,
+            target_update_interval=2500,  # Might shrink this?
             n_step_return=5,
             learning_rate=1e-4,
             OptimCls=torch.optim.Adam,
@@ -75,7 +75,7 @@ class R2D1(RlAlgorithm):
                 torch.log10(torch.tensor(self.eps_final_min)),
                 torch.log10(torch.tensor(self.eps_final)),
                 batch_spec.B)
-        agent.set_epsilon_greedy(self.eps_init)
+        agent.set_sample_epsilon_greedy(self.eps_init)
         agent.give_eval_epsilon_greedy(self.eps_eval)
         self.n_itr = n_itr
         self.mid_batch_reset = mid_batch_reset

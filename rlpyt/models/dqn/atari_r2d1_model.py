@@ -41,34 +41,34 @@ class AtariR2d1Model(torch.nn.Module):
             in_channels=c,
             out_channels=32,
             kernel_size=8,
-            stride=1,
+            stride=4,
             padding=0,
         )
-        h, w = conv2d_output_shape(h, w, kernel_size=8, stride=1, padding=0)
+        h, w = conv2d_output_shape(h, w, kernel_size=8, stride=4, padding=0)
 
-        self.maxp1 = torch.nn.MaxPool2d(4)
-        h, w = conv2d_output_shape(h, w, kernel_size=4, stride=4, padding=0)
+        # self.maxp1 = torch.nn.MaxPool2d(4)
+        # h, w = conv2d_output_shape(h, w, kernel_size=4, stride=4, padding=0)
 
         self.conv2 = torch.nn.Conv2d(
             in_channels=32,
             out_channels=64,
             kernel_size=4,
-            stride=1,
-            padding=0,
+            stride=2,
+            padding=1,
         )
-        h, w = conv2d_output_shape(h, w, kernel_size=4, stride=1, padding=0)
+        h, w = conv2d_output_shape(h, w, kernel_size=4, stride=2, padding=1)
 
-        self.maxp2 = torch.nn.MaxPool2d(2)
-        h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
+        # self.maxp2 = torch.nn.MaxPool2d(2)
+        # h, w = conv2d_output_shape(h, w, kernel_size=2, stride=2, padding=0)
 
         self.conv3 = torch.nn.Conv2d(
             in_channels=64,
             out_channels=64,
             kernel_size=3,
             stride=1,
-            padding=0,
+            padding=1,
         )
-        h, w = conv2d_output_shape(h, w, kernel_size=3, stride=1, padding=0)
+        h, w = conv2d_output_shape(h, w, kernel_size=3, stride=1, padding=1)
 
         fc_in_size = h * w * 64
         self.fc_from_conv = torch.nn.Linear(fc_in_size, fc_size)
@@ -105,8 +105,10 @@ class AtariR2d1Model(torch.nn.Module):
         img_shape, T, B, has_T, has_B = infer_leading_dims(img, 3)
 
         img = img.view(T * B, *img_shape)  # Fold if time and batch dimensions.
-        img = F.relu(self.maxp1(self.conv1(img)))
-        img = F.relu(self.maxp2(self.conv2(img)))
+        # img = F.relu(self.maxp1(self.conv1(img)))
+        # img = F.relu(self.maxp2(self.conv2(img)))
+        img = F.relu(self.conv1(img))
+        img = F.relu(self.conv2(img))
         img = F.relu(self.conv3(img))
         fc_img = F.relu(self.fc_from_conv(img.view(T * B, -1)))
 

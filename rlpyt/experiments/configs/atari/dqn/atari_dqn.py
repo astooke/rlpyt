@@ -33,11 +33,11 @@ config = dict(
     ),
     sampler=dict(
         batch_T=2,
-        batch_B=32,
+        batch_B=16,
         max_decorrelation_steps=1000,
-        eval_n_envs=8,
+        eval_n_envs=4,
         eval_max_steps=int(125e3),
-        eval_max_trajectories=None,
+        eval_max_trajectories=100,
         eval_min_envs_reset=2,
     ),
 )

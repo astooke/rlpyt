@@ -2,7 +2,7 @@
 
 class EpsilonGreedyAgentMixin(object):
 
-    def set_epsilon_greedy(self, epsilon):
+    def set_sample_epsilon_greedy(self, epsilon):
         self.sample_epsilon = epsilon
         self.distribution.set_epsilon(epsilon)
 
