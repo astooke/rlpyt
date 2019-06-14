@@ -38,8 +38,8 @@ def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
             sequences[:m, i] = array_or_tensor[t:, b]  # [m,..]
             sequences[m:, i] = array_or_tensor[:T - m, b]  # [w,..]
         elif t < 0:  # Wrap beginning.
-            sequences[:t, i] = array_or_tensor[t:, b]
-            sequences[t:, i] = array_or_tensor[:t + T, b]
+            sequences[t:, i] = array_or_tensor[t:, b]
+            sequences[:t, i] = array_or_tensor[:t + T, b]
         else:
             sequences[:, i] = array_or_tensor[t:t + T, b]  # [T,..]
     return sequences
