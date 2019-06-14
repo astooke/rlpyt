@@ -14,7 +14,7 @@ class Conv2dModel(torch.nn.Module):
             kernels,
             strides,
             paddings=None,
-            nonlinearity=torch.nn.Relu,  # Module, not Functional.
+            nonlinearity=torch.nn.ReLU,  # Module, not Functional.
             use_maxpool=False,  # if True: convs use stride 1, maxpool downsample.
             head_sizes=None,  # Put an MLP head on top.
             ):
@@ -64,7 +64,7 @@ class Conv2dHeadModel(Conv2dModel):
             hidden_sizes,
             output_size=None,
             paddings=None,
-            nonlinearity=torch.nn.Relu,
+            nonlinearity=torch.nn.ReLU,
             use_maxpool=False,
             ):
         c, h, w = image_shape
