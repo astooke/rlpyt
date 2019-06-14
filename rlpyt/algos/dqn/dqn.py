@@ -178,11 +178,11 @@ class DQN(RlAlgorithm):
         return loss, td_abs_errors
 
     def update_itr_hyperparams(self, itr):
-        if itr < self.eps_itr:  # Epsilon can be vector-valued.
+        if itr <= self.eps_itr:  # Epsilon can be vector-valued.
             prog = min(1, itr / self.eps_itr)
             new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
             self.agent.set_sample_epsilon_greedy(new_eps)
-        if self.prioritized_replay and itr < self.pri_beta_itr:
+        if self.prioritized_replay and itr <= self.pri_beta_itr:
             prog = min(1, itr / self.pri_beta_itr)
             new_beta = (prog * self.pri_beta_final +
                 (1 - prog) * self.pri_beta_init)
