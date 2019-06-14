@@ -105,11 +105,12 @@ class SumTree(object):
             on_value):
         """Efficiently write new values / zeros into tree."""
         low_on_idx = low_on_t * self.B + self.low_idx
-        low_off_idx = high_on_idx = high_on_t * self.B + self.low_idx
+        high_on_idx = high_on_t * self.B + self.low_idx
+        low_off_idx = low_off_t * self.B + self.low_idx
         high_off_idx = high_off_t * self.B + self.low_idx
         idxs, diffs = list(), list()
         if high_on_t > low_on_t:
-            diffs.append(on_value - self.priorities[low_on_t:high_on_t])  # zeros.
+            diffs.append(on_value - self.priorities[low_on_t:high_on_t])
             self.priorities[low_on_t:high_on_t] = on_value
             idxs.append(np.arange(low_on_idx, high_on_idx))
         elif high_on_t < low_on_t:  # Wrap.
