@@ -15,14 +15,14 @@ config = dict(
         training_ratio=4,  # In the paper, more like 0.8.
         learning_rate=1e-4,
         clip_grad_norm=10.,
-        min_steps_learn=int(1e5),  # DEBUG
+        min_steps_learn=int(1e5),
         double_dqn=True,
         prioritized_replay=True,
         n_step_return=5,
     ),
     env=dict(
         game="pong",
-        episodic_lives=True,  # Even though the paper does without.
+        episodic_lives=True,  # The paper does mostly without, but still better.
         clip_reward=False,
         horizon=int(40e3),
     ),

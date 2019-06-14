@@ -32,42 +32,49 @@ def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
     return sequences
 
 
-def put(x, loc, y, axis=0, wrap=False):
-    """Write x[..,loc,..] = y, with loc at chosen axis; supports wrapping of
-    indexes or slice.  Param x can be torch tensor or numpy array."""
-    slc = [slice(None)] * x.ndim
-    if not wrap:
-        slc[axis] = loc
-        x[tuple(slc)] = y
-        return
-    ax_len = x.shape[axis]
-    if isinstance(loc, slice):
-        if loc.start is None or loc.stop is None:
-            start = None if loc.start is None else loc.start % ax_len
-            stop = None if loc.stop is None else loc.stop % ax_len
-            slc[axis] = slice(start, stop, loc.step)
-            x[tuple(slc)] = y
-        elif loc.start == loc.stop:
-            return
-        else:
-            assert 0 < loc.stop - loc.start <= ax_len
-            start = loc.start % ax_len
-            stop = loc.stop % ax_len
-            if stop > start:
-                slc[axis] = slice(start, stop, loc.step)
-                x[tuple(slc)] = y
-            else:
-                step = loc.step or 1
-                slc1 = slice(start, None, loc.step)
-                start2 = (step - ax_len + start) % step  # (0 if step==1)
-                slc2 = slice(start2, stop, loc.step)
-                yloc = int(np.ceil((ax_len - start) / step))
-                slc[axis] = slc1
-                x[tuple(slc)] = y[:yloc]
-                slc[axis] = slc2
-                x[tuple(slc)] = y[yloc:]
-    else:  # isinstance(loc, (int, tuple, list, ndarray, tensor))
-        if isinstance(loc, int):
-            loc = [loc]
-        slc[axis] = [loc_ % ax_len for loc_ in loc]
-        x[tuple(slc)] = y
+def zeros(shape, dtype):
+    try:
+        return torch.zeros(shape, dtype=dtype)
+    except TypeError:
+        return np.zeros(shape, dtype=dtype)
+
+
+# def put(x, loc, y, axis=0, wrap=False):
+#     """Write x[..,loc,..] = y, with loc at chosen axis; supports wrapping of
+#     indexes or slice.  Param x can be torch tensor or numpy array."""
+#     slc = [slice(None)] * x.ndim
+#     if not wrap:
+#         slc[axis] = loc
+#         x[tuple(slc)] = y
+#         return
+#     ax_len = x.shape[axis]
+#     if isinstance(loc, slice):
+#         if loc.start is None or loc.stop is None:
+#             start = None if loc.start is None else loc.start % ax_len
+#             stop = None if loc.stop is None else loc.stop % ax_len
+#             slc[axis] = slice(start, stop, loc.step)
+#             x[tuple(slc)] = y
+#         elif loc.start == loc.stop:
+#             return
+#         else:
+#             assert 0 < loc.stop - loc.start <= ax_len
+#             start = loc.start % ax_len
+#             stop = loc.stop % ax_len
+#             if stop > start:
+#                 slc[axis] = slice(start, stop, loc.step)
+#                 x[tuple(slc)] = y
+#             else:
+#                 step = loc.step or 1
+#                 slc1 = slice(start, None, loc.step)
+#                 start2 = (step - ax_len + start) % step  # (0 if step==1)
+#                 slc2 = slice(start2, stop, loc.step)
+#                 yloc = int(np.ceil((ax_len - start) / step))
+#                 slc[axis] = slc1
+#                 x[tuple(slc)] = y[:yloc]
+#                 slc[axis] = slc2
+#                 x[tuple(slc)] = y[yloc:]
+#     else:  # isinstance(loc, (int, tuple, list, ndarray, tensor))
+#         if isinstance(loc, int):
+#             loc = [loc]
+#         slc[axis] = [loc_ % ax_len for loc_ in loc]
+#         x[tuple(slc)] = y

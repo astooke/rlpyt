@@ -1,10 +1,11 @@
 
 import math
+import numpy as np
+
 
 from rlpyt.replays.base import BaseReplayBuffer
 from rlpyt.utils.buffer import buffer_from_example, get_leading_dims, buffer_put
 from rlpyt.algos.utils import discount_return_n_step
-from rlpyt.utils.misc import put
 from rlpyt.algos.utils import valid_from_done
 
 
@@ -64,23 +65,26 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         return T
 
     def compute_returns(self, T):
+        """e.g. if 2-step return, t - 1 is first return written here, using new
+        reward at t."""
         if self.n_step_return == 1:
             return  # return = reward, done_n = done
         t, s = self.t, self.samples
         nm1 = self.n_step_return - 1
-        dest_slice = slice(t - nm1, t - nm1 + T)
-        if t + T <= self.T:  # No wrap (operate in-place).
+        if t - nm1 >= 0 and t + T <= self.T:  # No wrap (operate in-place).
             reward = s.reward[t - nm1:t + T]
             done = s.done[t - nm1:t + T]
-            return_dest = self.samples_return_[dest_slice]
-            done_n_dest = self.samples_done_n[dest_slice]
+            return_dest = self.samples_return_[t - nm1: t - nm1 + T]
+            done_n_dest = self.samples_done_n[t - nm1: t - nm1 + T]
             discount_return_n_step(reward, done, n_step=self.n_step_return,
                 discount=self.discount, return_dest=return_dest,
                 done_n_dest=done_n_dest)
-        else:  # Wrap (takes copies).
-            reward = s.reward.take(range(t - nm1, t + T), axis=0, mode="wrap")
-            done = s.done.take(range(t - nm1, t + T), axis=0, mode="wrap")
+        else:  # Wrap (intermediate copies).
+            in_idxs = np.arange(t - nm1, t + T) % T
+            reward = s.reward[in_idxs]
+            done = s.done[in_idxs]
+            out_idxs = in_idxs[:-nm1]
             return_, done_n = discount_return_n_step(reward, done,
                 n_step=self.n_step_return, discount=self.discount)
-            put(self.samples_return_, dest_slice, return_, wrap=True)
-            put(self.sapmles_done_n, dest_slice, done_n, wrap=True)
+            self.samples_return_[out_idxs] = return_
+            self.samples_done_n[out_idxs] = done_n

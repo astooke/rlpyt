@@ -32,13 +32,14 @@ def valid_mean(array, valid=None, axis=None):
 
 def infer_leading_dims(array, dim):
     """Param 'dim': number of data dimensions, check for [B] or [T,B] leading."""
+    assert array.ndim in (dim, dim + 1, dim + 2)
     shape = array.shape[-dim:]
     T = B = 1
-    _T = _B = False
+    has_T = has_B = False
     if array.ndim == dim + 2:
         T, B = array.shape[:2]
-        _T = _B = True  # Might have T=1 or B=1.
+        has_T = has_B = True  # Might have T=1 or B=1.
     elif array.ndim == dim + 1:
         B = array.shape[0]
-        _B = True
-    return T, B, shape, _T, _B
+        has_B = True
+    return T, B, shape, has_T, has_B
