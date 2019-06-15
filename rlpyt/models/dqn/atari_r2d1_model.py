@@ -31,7 +31,7 @@ class AtariR2d1Model(torch.nn.Module):
         super().__init__()
         self.dueling = dueling
         self.conv = Conv2dHeadModel(
-            inmage_shape=image_shape,
+            image_shape=image_shape,
             channels=channels or [32, 64, 64],
             kernels=kernels or [8, 4, 3],
             strides=strides or [4, 2, 1],
