@@ -12,7 +12,7 @@ class AtariDqnModel(torch.nn.Module):
     def __init__(
             self,
             image_shape,
-            output_dim,
+            output_size,
             fc_sizes=512,
             dueling=False,
             use_maxpool=False,
@@ -34,9 +34,9 @@ class AtariDqnModel(torch.nn.Module):
         )
         conv_out_size = self.conv.conv_out_size(h, w)
         if dueling:
-            self.head = DuelingHeadModel(conv_out_size, fc_sizes, output_dim)
+            self.head = DuelingHeadModel(conv_out_size, fc_sizes, output_size)
         else:
-            self.head = MlpModel(conv_out_size, fc_sizes, output_size=output_dim)
+            self.head = MlpModel(conv_out_size, fc_sizes, output_size=output_size)
 
     def forward(self, observation, prev_action, prev_reward):
         """Feedforward layers process as [T*B,H]. Return same leading dims as

@@ -10,14 +10,14 @@ from rlpyt.models.dqn.dueling import DistributionalDuelingHeadModel
 
 class DistributionalHeadModel(torch.nn.Module):
 
-    def __init__(self, input_size, layer_sizes, output_dim, n_atoms):
+    def __init__(self, input_size, layer_sizes, output_size, n_atoms):
         super().__init__()
-        self.mlp = MlpModel(input_size, layer_sizes, output_dim * n_atoms)
-        self._output_dim = output_dim
+        self.mlp = MlpModel(input_size, layer_sizes, output_size * n_atoms)
+        self._output_size = output_size
         self._n_atoms = n_atoms
 
     def forward(self, input):
-        return self.mlp(input).view(-1, self._output_dim, self._n_atoms)
+        return self.mlp(input).view(-1, self._output_size, self._n_atoms)
 
 
 class AtariCatDqnModel(torch.nn.Module):
@@ -25,7 +25,7 @@ class AtariCatDqnModel(torch.nn.Module):
     def __init__(
             self,
             image_shape,
-            output_dim,
+            output_size,
             n_atoms=51,
             fc_sizes=512,
             dueling=False,
@@ -49,10 +49,10 @@ class AtariCatDqnModel(torch.nn.Module):
         conv_out_size = self.conv.conv_out_size(h, w)
         if dueling:
             self.head = DistributionalDuelingHeadModel(conv_out_size, fc_sizes,
-                output_dim=output_dim, n_atoms=n_atoms)
+                output_size=output_size, n_atoms=n_atoms)
         else:
             self.head = DistributionalHeadModel(conv_out_size, fc_sizes,
-                output_dim=output_dim, n_atoms=n_atoms)
+                output_size=output_size, n_atoms=n_atoms)
 
     def forward(self, observation, prev_action, prev_reward):
         """Feedforward layers process as [T*B,H]. Return same leading dims as

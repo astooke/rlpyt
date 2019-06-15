@@ -2,7 +2,7 @@
 import torch
 
 from rlpyt.agents.base import BaseAgent, AgentStep
-from rlpyt.models.qpg.mlp import MlpQModel, MlpVModel, MlpPiModel
+from rlpyt.models.qpg.mlp import QpfMuMlpModel, VMlpModel, PiMlpModel
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.distributions.gaussian import Gaussian, DistInfoStd
 from rlpyt.utils.buffer import buffer_to
@@ -20,9 +20,9 @@ class SacAgent(BaseAgent):
 
     def __init__(
             self,
-            QModelCls=MlpQModel,
-            VModelCls=MlpVModel,
-            PiModelCls=MlpPiModel,
+            QModelCls=QpfMuMlpModel,
+            VModelCls=VMlpModel,
+            PiModelCls=PiMlpModel,
             q_model_kwargs=None,
             v_model_kwargs=None,
             pi_model_kwargs=None,

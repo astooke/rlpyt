@@ -78,8 +78,8 @@ class DQN(RlAlgorithm):
 
         sample_bs = batch_spec.size
         train_bs = self.batch_size
-        assert (self.training_ratio * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int((self.training_ratio * sample_bs) //
+        # assert (self.training_ratio * sample_bs) % train_bs == 0
+        self.updates_per_optimize = round(self.training_ratio * sample_bs /
             train_bs)
         logger.log(f"From sampler batch size {sample_bs}, training "
             f"batch size {train_bs}, and training ratio "

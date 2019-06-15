@@ -15,4 +15,4 @@ class EpsilonGreedyAgentMixin(object):
 
     def eval_mode(self, itr):
         super().eval_mode(itr)
-        self.distribution.set_epsilon(self.eval_epsilon)
+        self.distribution.set_epsilon(self.eval_epsilon if itr > 0 else 1.)

@@ -15,10 +15,9 @@ class EpsilonGreedy(DiscreteMixin, Distribution):
 
     def sample(self, q):
         arg_select = torch.argmax(q, dim=-1)
-        rand_mask = torch.rand(arg_select.shape) < self._epsilon
-        arg_rand = torch.randint(low=0, high=q.shape[-1],
-            size=(rand_mask.sum(),))
-        arg_select[rand_mask] = arg_rand
+        mask = torch.rand(arg_select.shape) < self._epsilon
+        arg_rand = torch.randint(low=0, high=q.shape[-1], size=(mask.sum(),))
+        arg_select[mask] = arg_rand
         return arg_select
 
     @property

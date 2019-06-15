@@ -17,7 +17,7 @@ class AtariR2d1Model(torch.nn.Module):
     def __init__(
             self,
             image_shape,
-            output_dim,
+            output_size,
             fc_size=512,  # Between conv and lstm.
             lstm_size=512,
             head_size=512,
@@ -39,12 +39,12 @@ class AtariR2d1Model(torch.nn.Module):
             use_maxpool=use_maxpool,
             hidden_sizes=fc_size,
         )
-        lstm_in_size = self.conv.output_size + output_dim + 1
+        lstm_in_size = self.conv.output_size + output_size + 1
         self.lstm = LstmModel(lstm_in_size, lstm_size)
         if dueling:
-            self.head = DuelingHeadModel(lstm_size, head_size, output_dim)
+            self.head = DuelingHeadModel(lstm_size, head_size, output_size)
         else:
-            self.head = MlpModel(lstm_size, head_size, output_size=output_dim)
+            self.head = MlpModel(lstm_size, head_size, output_size=output_size)
 
     def forward(self, observation, prev_action, prev_reward, init_rnn_state):
         """Feedforward layers process as [T*B,H]. Return same leading dims as

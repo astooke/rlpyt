@@ -6,7 +6,7 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.distributions.gaussian import Gaussian, DistInfo
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.logging import logger
-from rlpyt.models.dpg.mlp import MlpMuModel, MlpQModel
+from rlpyt.models.dpg.mlp import MuMlpModel, QofMuMlpModel
 from rlpyt.models.utils import update_state_dict
 from rlpyt.utils.collections import namedarraytuple
 
@@ -20,8 +20,8 @@ class DdpgAgent(BaseAgent):
 
     def __init__(
             self,
-            MuModelCls=MlpMuModel,
-            QModelCls=MlpQModel,
+            MuModelCls=MuMlpModel,
+            QModelCls=QofMuMlpModel,
             mu_model_kwargs=None,
             q_model_kwargs=None,
             initial_mu_model_state_dict=None,
