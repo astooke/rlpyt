@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
-from rlpyt.models.utils import conv2d_output_shape
 from rlpyt.models.conv2d import Conv2dHeadModel
 from rlpyt.models.lstm import LstmModel
 

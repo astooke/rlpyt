@@ -36,7 +36,7 @@ class AtariDqnModel(torch.nn.Module):
         if dueling:
             self.head = DuelingHeadModel(conv_out_size, fc_sizes, output_size)
         else:
-            self.head = MlpModel(conv_out_size, fc_sizes, output_size=output_size)
+            self.head = MlpModel(conv_out_size, fc_sizes, output_size)
 
     def forward(self, observation, prev_action, prev_reward):
         """Feedforward layers process as [T*B,H]. Return same leading dims as
