@@ -87,7 +87,7 @@ class Conv2dHeadModel(Conv2dModel):
             self._output_size = self._conv_out_size
 
     def forward(self, input):
-        return self.head(self.conv(input))
+        return self.head(self.conv(input).view(input.shape[0], -1))
 
     @property
     def conv_out_size(self):
