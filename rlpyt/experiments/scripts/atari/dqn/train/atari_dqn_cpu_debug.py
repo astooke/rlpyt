@@ -30,7 +30,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         CollectorCls = ResetCollector
         print("Using Reset Collector!")
     else:
-        CollctorCls = WaitResetCollector
+        CollectorCls = WaitResetCollector
     sampler = CpuParallelSampler(
         EnvCls=AtariEnv,
         env_kwargs=config["env"],
