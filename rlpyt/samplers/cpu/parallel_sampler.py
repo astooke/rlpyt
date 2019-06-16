@@ -103,12 +103,12 @@ class CpuParallelSampler(BaseSampler):
         self.ctrl.barrier_in.wait()
         traj_infos = list()
         # Workers step environments and sample actions here.
-        if self.max_eval_trajectories is not None:
+        if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
                 while self.traj_infos_queue.qsize():
                     traj_infos.append(self.traj_infos_queue.get())
-                if len(traj_infos) >= self.max_eval_trajectories:
+                if len(traj_infos) >= self.eval_max_trajectories:
                     self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
                         f"({self.eval__trajectories}).")
