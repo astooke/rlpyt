@@ -21,8 +21,6 @@ class ResetCollector(DecorrelatingStartCollector):
             env_buf.observation[t] = step.observation
             act_waiter.acquire()  # Need sampled actions from server.
             for b, env in enumerate(self.envs):
-                if self.need_reset[b]:
-                    continue
                 o, r, d, env_info = env.step(step.action[b])
                 traj_infos[b].step(step.observation[b], step.action[b], r,
                     step.agent_info[b], env_info)
