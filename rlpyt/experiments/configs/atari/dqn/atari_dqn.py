@@ -70,7 +70,7 @@ configs["ernbw"] = config
 
 config = copy.deepcopy(configs["dqn"])
 config["algo"]["collector"] = "reset_collector"
-configs["gpu_resetcollector"] = config
+configs["reset_collector"] = config
 
 config = copy.deepcopy(configs["dqn"])
 config["algo"]["replay_buffer"] = "monolithic_uniform_frame"
