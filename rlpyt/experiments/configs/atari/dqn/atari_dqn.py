@@ -73,11 +73,11 @@ config["algo"]["CollectorCls"] = GpuResetCollector
 configs["gpu_resetcollector"] = config
 
 config = copy.deepcopy(configs["dqn"])
-configs["algo"]["CollectorCls"] = CpuResetCollector
+config["algo"]["CollectorCls"] = CpuResetCollector
 configs["cpu_resetcollector"] = config
 
 config = copy.deepcopy(configs["dqn"])
-configs["algo"]["ReplayBufferCls"] = MonolithicUniformReplayFrameBuffer
+config["algo"]["ReplayBufferCls"] = MonolithicUniformReplayFrameBuffer
 configs["monolithic_uniformframe"] = config
 
 config = copy.deepcopy(configs["dqn"])
