@@ -68,7 +68,7 @@ config["algo"]["n_step_return"] = 3
 config["algo"]["learning_rate"] = 6.25e-5
 configs["ernbw"] = config
 
-config = copy.deepycopy(configs["dqn"])
+config = copy.deepcopy(configs["dqn"])
 config["algo"]["CollectorCls"] = GpuResetCollector
 configs["gpu_resetcollector"] = config
 
