@@ -56,7 +56,7 @@ class Conv2dModel(torch.nn.Module):
         return h * w * c
 
 
-class Conv2dHeadModel(torch.nn.Model):
+class Conv2dHeadModel(torch.nn.Module):
 
     def __init__(
             self,
