@@ -2,8 +2,8 @@
 import sys
 
 from rlpyt.utils.launching.affinity import get_affinity
-from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
-from rlpyt.samplers.gpu.collectors import WaitResetCollector, ResetCollector
+from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
+from rlpyt.samplers.cpu.collectors import WaitResetCollector, ResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
@@ -31,7 +31,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         print("Using Reset Collector!")
     else:
         CollctorCls = WaitResetCollector
-    sampler = GpuParallelSampler(
+    sampler = CpuParallelSampler(
         EnvCls=AtariEnv,
         env_kwargs=config["env"],
         CollectorCls=CollectorCls,
@@ -51,7 +51,6 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         ReplayBufferCls = PrioritizedReplayBuffer
     else:
         ReplayBufferCls = None
-
     algo = DQN(optim_kwargs=config["optim"], ReplayBufferCls=ReplayBufferCls,
         **config["algo"])
     config["algo"]["replay_buffer"] = replay_buffer
