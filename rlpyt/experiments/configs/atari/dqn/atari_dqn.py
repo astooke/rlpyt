@@ -69,7 +69,7 @@ config["algo"]["learning_rate"] = 6.25e-5
 configs["ernbw"] = config
 
 config = copy.deepcopy(configs["dqn"])
-config["algo"]["collector"] = "reset_collector"
+config["sampler"]["collector"] = "reset_collector"
 configs["reset_collector"] = config
 
 config = copy.deepcopy(configs["dqn"])
