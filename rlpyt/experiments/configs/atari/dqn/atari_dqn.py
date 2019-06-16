@@ -1,8 +1,8 @@
 
 import copy
 
-from rlpyt.samplers.cpu.collectors import NoWaitResetCollector as CpuNwrCollector
-from rlpyt.samplers.gpu.collectors import NoWaitResetCollector as GpuNwrCollector
+from rlpyt.samplers.cpu.collectors import ResetCollector as CpuResetCollector
+from rlpyt.samplers.gpu.collectors import ResetCollector as GpuResetCollector
 from rlpyt.replays.non_sequence.full_n_step_frame_uniform import MonolithicUniformReplayFrameBuffer
 from rlpyt.replays.non_sequence.uniform import UniformReplayBuffer
 from rlpyt.replays.non_sequence.prioritized import PrioritizedReplayBuffer
@@ -69,12 +69,12 @@ config["algo"]["learning_rate"] = 6.25e-5
 configs["ernbw"] = config
 
 config = copy.deepycopy(configs["dqn"])
-config["algo"]["CollectorCls"] = GpuNwrCollector
-configs["gpu_nowaitreset"] = config
+config["algo"]["CollectorCls"] = GpuResetCollector
+configs["gpu_resetcollector"] = config
 
 config = copy.deepcopy(configs["dqn"])
-configs["algo"]["CollectorCls"] = CpuNwrCollector
-configs["cpu_nowaitreset"] = config
+configs["algo"]["CollectorCls"] = CpuResetCollector
+configs["cpu_resetcollector"] = config
 
 config = copy.deepcopy(configs["dqn"])
 configs["algo"]["ReplayBufferCls"] = MonolithicUniformReplayFrameBuffer
