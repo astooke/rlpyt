@@ -38,7 +38,7 @@ class ResetCollector(DecorrelatingStartCollector):
                     self.agent.reset_one(idx=b)
                 observation[b] = o
                 reward[b] = r
-                env_buf.dones[t, b] = d
+                env_buf.done[t, b] = d
                 if env_info:
                     env_buf.env_info[t, b] = env_info
             agent_buf.action[t] = action
@@ -90,7 +90,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
                 else:
                     observation[b] = o
                 reward[b] = r
-                env_buf.dones[t, b] = d
+                env_buf.done[t, b] = d
                 if env_info:
                     env_buf.env_info[t, b] = env_info
             agent_buf.action[t] = action
