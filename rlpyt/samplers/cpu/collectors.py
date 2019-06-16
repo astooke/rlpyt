@@ -122,8 +122,8 @@ class EvalCollector(BaseEvalCollector):
         for env in self.envs:
             observations.append(env.reset())
         observation = buffer_from_example(observations[0], len(self.envs))
-        action = buffer_from_example(self.envs[0].action_space.sample(
-            len(self.envs), null=True))
+        action = buffer_from_example(self.envs[0].action_space.sample(null=True),
+            len(self.envs))
         reward = np.zeros(len(self.envs), dtype="float32")
         obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))
         self.agent.reset()
