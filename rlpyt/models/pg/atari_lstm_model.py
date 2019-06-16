@@ -21,7 +21,7 @@ class AtariLstmModel(torch.nn.Module):
             lstm_size=512,
             use_maxpool=False,
             channels=None,  # None uses default.
-            kernels=None,
+            kernel_sizes=None,
             strides=None,
             paddings=None,
             ):
@@ -29,7 +29,7 @@ class AtariLstmModel(torch.nn.Module):
         self.conv = Conv2dHeadModel(
             image_shape=image_shape,
             channels=channels or [16, 32],
-            kernels=kernels or [8, 4],
+            kernel_sizes=kernel_sizes or [8, 4],
             strides=strides or [4, 2],
             paddings=paddings or [0, 1],
             use_maxpool=use_maxpool,

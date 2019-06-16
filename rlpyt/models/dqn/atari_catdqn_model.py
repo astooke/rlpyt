@@ -31,7 +31,7 @@ class AtariCatDqnModel(torch.nn.Module):
             dueling=False,
             use_maxpool=False,
             channels=None,  # None uses default.
-            kernels=None,
+            kernel_sizes=None,
             strides=None,
             paddings=None,
             ):
@@ -41,7 +41,7 @@ class AtariCatDqnModel(torch.nn.Module):
         self.conv = Conv2dModel(
             in_channels=c,
             channels=channels or [32, 64, 64],
-            kernels=kernels or [8, 4, 3],
+            kernel_sizes=kernel_sizes or [8, 4, 3],
             strides=strides or [4, 2, 1],
             paddings=paddings or [0, 1, 1],
             use_maxpool=use_maxpool,
