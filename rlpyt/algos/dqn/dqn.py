@@ -48,6 +48,7 @@ class DQN(RlAlgorithm):
             pri_beta_final=1.,
             pri_beta_steps=int(50e6),
             default_priority=None,
+            ReplayBufferCls=None,  # Leave None to select by above options.
             ):
         if optim_kwargs is None:
             optim_kwargs = dict(eps=0.01 / batch_size)

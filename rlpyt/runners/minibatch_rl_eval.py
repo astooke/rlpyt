@@ -27,11 +27,11 @@ class MinibatchRlEval(MinibatchRlBase):
             self.pbar.stop()
         logger.log("Evaluating agent...")
         self.agent.eval_mode(itr)  # Might be agent in sampler.
-        eval_start_time = time.time()
+        eval_time = -time.time()
         traj_infos = self.sampler.evaluate_agent(itr)
-        eval_end_time = time.time()
+        eval_time += time.time()
         logger.log("Evaluation run complete.")
-        return traj_infos, eval_end_time - eval_start_time
+        return traj_infos, eval_time
 
     def initialize_logging(self):
         self.cum_train_time = 0
@@ -48,7 +48,7 @@ class MinibatchRlEval(MinibatchRlBase):
     def log_diagnostics(self, itr, eval_traj_infos, eval_time):
         self.save_itr_snapshot(itr)
         if not eval_traj_infos:
-            logger.log("ERROR: had no complete trajectories in eval.")
+            logger.log("WARNING: had no complete trajectories in eval.")
         steps_in_eval = sum([info["Length"] for info in eval_traj_infos])
         logger.record_tabular('Iteration', itr)
         logger.record_tabular('CumCompletedSteps', itr * self.sampler.batch_spec.size)
