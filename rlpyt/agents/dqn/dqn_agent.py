@@ -35,6 +35,7 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         self.env_spec = env_spec
         self.env_model_kwargs = env_model_kwargs
         self.share_memory = share_memory
+        super().initialize(env_spec, share_memory)
 
     def initialize_cuda(self, cuda_idx=None):
         if cuda_idx is None:

@@ -7,7 +7,6 @@ class EpsilonGreedyAgentMixin(object):
 
     def initialize(self, env_spec, share_memory=False):
         print("IN EPS GREEDY AGNET INITIALIXE, share_memory: ", share_memory)
-        super().initialize(self, env_spec, share_memory)
         if share_memory:
             self.eval_epsilon = mp.RawValue(ctypes.c_float, 0)
             # Does not support vector-valued epsilon.
