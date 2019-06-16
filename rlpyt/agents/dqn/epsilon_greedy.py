@@ -6,11 +6,9 @@ import ctypes
 class EpsilonGreedyAgentMixin(object):
 
     def initialize(self, env_spec, share_memory=False):
-        print("IN EPS GREEDY AGNET INITIALIXE, share_memory: ", share_memory)
         if share_memory:
             self.eval_epsilon = mp.RawValue(ctypes.c_float, 0)
             # Does not support vector-valued epsilon.
-            print("MADE SAMPLE EPSILON MP RAWVALE")
             self.sample_epsilon = mp.RawValue(ctypes.c_float, 1)
 
     def set_sample_epsilon_greedy(self, epsilon):
