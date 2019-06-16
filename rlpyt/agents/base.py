@@ -45,8 +45,15 @@ class BaseAgent(object):
         pass
 
     def parameters(self):
-        """Parameters to be optimized."""
+        """Parameters to be optimized (overwrite in subclass if multiple models)."""
         return self.model.parameters()
+
+    def state_dict(self):
+        """Parameters for saving."""
+        return self.model.state_dict()
+
+    def load_state_dict(self, state_dict):
+        self.model.loac_state_dict(state_dict)
 
     def train_mode(self, itr):
         """Go into training mode."""

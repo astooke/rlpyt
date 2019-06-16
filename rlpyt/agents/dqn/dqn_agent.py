@@ -50,6 +50,10 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
     def make_env_to_model_kwargs(self, env_spec):
         raise NotImplementedError
 
+    def state_dict(self):
+        return dict(model=self.model.state_dict(),
+            target=self.target_model.state_dict())
+
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
         prev_action = self.distribution.to_onehot(prev_action)

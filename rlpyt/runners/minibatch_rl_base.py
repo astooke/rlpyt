@@ -6,8 +6,6 @@ import torch
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.seed import set_seed, make_seed
 from rlpyt.utils.logging import logger
-from rlpyt.utils.prog_bar import ProgBarCounter
-
 from rlpyt.runners.base import BaseRunner
 
 
@@ -27,16 +25,16 @@ class MinibatchRlBase(BaseRunner):
         log_interval_steps = int(log_interval_steps)
         affinity = dict() if affinity is None else affinity
         save__init__args(locals())
-        if agent.recurrent and sampler.mid_batch_reset:
-            raise NotImplementedError("Cannot train recurrent agents with"
-                " resets mid-batch (unless custom implemented--then remove this"
-                " error; or if using replay buffer).")
 
     def startup(self):
         p = psutil.Process()
-        if "master_cpus" in self.affinity:
-            p.cpu_affinity(self.affinity["master_cpus"])
-        logger.log(f"Runner master CPU affinity: {p.cpu_affinity()}.")
+        try:
+            if "master_cpus" in self.affinity:
+                p.cpu_affinity(self.affinity["master_cpus"])
+            cpu_affin = p.cpu_affinity()
+        except AttributeError:
+            cpu_affin = "UNAVAILABLE MacOS"
+        logger.log(f"Runner master CPU affinity: {cpu_affin}.")
         if "master_torch_threads" in self.affinity:
             torch.set_num_threads(self.affinity["master_torch_threads"])
         logger.log(f"Runner master Torch threads: {torch.get_num_threads()}.")
@@ -84,8 +82,8 @@ class MinibatchRlBase(BaseRunner):
         return dict(
             itr=itr,
             cum_samples=itr * self.sampler.batch_spec.size,
-            model_state_dict=self.agent.model.state_dict(),
-            optimizer_state_dict=self.algo.optimizer.state_dict(),
+            agent_state_dict=self.agent.state_dict(),
+            optimizer_state_dict=self.algo.optim_state_dict(),
         )
 
     def save_itr_snapshot(self, itr):

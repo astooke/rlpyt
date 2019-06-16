@@ -10,3 +10,10 @@ class RlAlgorithm(object):
 
     def optimize_agent(self, samples, itr):
         raise NotImplementedError
+
+    def optim_state_dict(self):
+        """If carrying multiple optimizers, overwrite to return dict state_dicts."""
+        return self.optimizer.state_dict()
+
+    def load_optim_state_dict(self, state_dict):
+        self.optimizer.load_state_dict(state_dict)

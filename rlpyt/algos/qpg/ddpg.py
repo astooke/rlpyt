@@ -33,8 +33,7 @@ class DDPG(RlAlgorithm):
             q_learning_rate=1e-3,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
-            initial_mu_optim_state_dict=None,
-            initial_q_optim_state_dict=None,
+            initial_optim_state_dict=None,
             grad_norm_clip=1e6,
             q_target_clip=1e6,
             ):
@@ -53,10 +52,9 @@ class DDPG(RlAlgorithm):
             lr=self.mu_learning_rate, **self.optim_kwargs)
         self.q_optimizer = self.OptimCls(agent.q_parameters(),
             lr=self.q_learning_rate, **self.optim_kwargs)
-        if self.initial_mu_optim_state_dict is not None:
-            self.mu_optimizer.load_state_dict(self.initial_mu_optim_state_dict)
-        if self.initial_q_optim_state_dict is not None:
-            self.q_optimizer.load_state_dict(self.initial_q_optim_state_dict)
+        if self.initial_optim_state_dict is not None:
+            self.q_optimizer.load_state_dict(self.initial_optim_state_dict["q"])
+            self.mu_optimizer.load_state_dict(self.initial_optim_state_dict["mu"])
 
         sample_bs = batch_spec.size
         train_bs = self.batch_size
@@ -134,3 +132,11 @@ class DDPG(RlAlgorithm):
         q_losses = 0.5 * (y - q) ** 2
         q_loss = valid_mean(q_losses, samples.valid)  # samples.valid can be None.
         return q_loss
+
+    def optim_state_dict(self):
+        return dict(q=self.q_optimizer.state_dict(),
+            mu=self.mu_optimizer.state_dict)
+
+    def load_optim_state_dict(self, state_dict):
+        self.q_optimizer.load_state_dict(state_dict["q"])
+        self.mu_optimizer.load_state_dict(state_dict["mu"])
