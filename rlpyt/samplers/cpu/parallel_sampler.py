@@ -75,6 +75,7 @@ class CpuParallelSampler(BaseSampler):
         self.workers = workers
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
+        self.sync = sync
         self.samples_pyt = samples_pyt
         self.samples_np = samples_np
         self.agent = agent
