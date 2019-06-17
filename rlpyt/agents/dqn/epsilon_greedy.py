@@ -1,7 +1,6 @@
 
 import multiprocessing as mp
 import ctypes
-from rlpyt.utils.logging import logger
 
 
 class EpsilonGreedyAgentMixin(object):
@@ -13,7 +12,6 @@ class EpsilonGreedyAgentMixin(object):
             self.sample_epsilon = mp.RawValue(ctypes.c_float, 1)
 
     def set_sample_epsilon_greedy(self, epsilon):
-        logger.log(f"Setting new sampling epsilon-greedy value: {epsilon}.")
         if self.share_memory:
             self.sample_epsilon.value = epsilon
         else:
@@ -21,7 +19,6 @@ class EpsilonGreedyAgentMixin(object):
         self.distribution.set_epsilon(epsilon)
 
     def give_eval_epsilon_greedy(self, epsilon):
-        logger.log(f"Setting eval epsilon-greedy value: {epsilon}.")
         if self.share_memory:
             self.eval_epsilon.value = epsilon
         else:
