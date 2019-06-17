@@ -11,7 +11,7 @@ affinity_code = encode_affinity(
     n_socket=2,
 )
 runs_per_setting = 2
-experiment_title = "atari_dqn_basic"
+experiment_title = "atari_dqn_resetcollector"
 variant_levels = list()
 
 games = ["pong", "seaquest", "qbert", "chopper_command"]

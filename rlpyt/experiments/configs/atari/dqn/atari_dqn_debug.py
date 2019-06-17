@@ -15,6 +15,7 @@ config = dict(
         double_dqn=False,
         prioritized_replay=False,
         n_step_return=1,
+        replay_buffer=None,  # None selects frame buffer by replay option.
     ),
     env=dict(
         game="pong",
@@ -39,6 +40,7 @@ config = dict(
         eval_max_steps=int(125e3),
         eval_max_trajectories=100,
         eval_min_envs_reset=1,
+        collector=None,
     ),
 )
 
@@ -59,3 +61,16 @@ config = copy.deepcopy(config)
 config["algo"]["n_step_return"] = 3
 config["algo"]["learning_rate"] = 6.25e-5
 configs["ernbw"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["sampler"]["collector"] = "reset_collector"
+configs["reset_collector"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["algo"]["replay_buffer"] = "monolithic_uniform_frame"
+configs["monolithic_uniformframe"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["algo"]["replay_buffer"] = "uniform_noframe"
+configs["uniform_noframe"] = config
+

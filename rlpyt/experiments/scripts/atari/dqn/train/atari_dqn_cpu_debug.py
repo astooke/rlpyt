@@ -15,7 +15,7 @@ from rlpyt.replays.non_sequence.full_n_step_frame_uniform import MonolithicUnifo
 from rlpyt.replays.non_sequence.uniform import UniformReplayBuffer
 from rlpyt.replays.non_sequence.prioritized import PrioritizedReplayBuffer
 
-from rlpyt.experiments.configs.atari.dqn.atari_dqn import configs
+from rlpyt.experiments.configs.atari.dqn.atari_dqn_debug import configs
 
 
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
