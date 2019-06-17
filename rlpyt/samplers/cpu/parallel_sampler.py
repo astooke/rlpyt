@@ -40,7 +40,7 @@ class CpuParallelSampler(BaseSampler):
             eval_n_envs_per = max(1, self.eval_n_envs // n_parallel)
             eval_n_envs = eval_n_envs_per * n_parallel
             logger.log(f"Total parallel evaluation envs: {eval_n_envs}")
-            eval_max_T = self.eval_max_steps // eval_n_envs
+            self.eval_max_T = eval_max_T = self.eval_max_steps // eval_n_envs
         else:
             eval_n_envs_per = 0
             eval_max_T = None
