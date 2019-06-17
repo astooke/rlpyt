@@ -73,3 +73,10 @@ config = copy.deepcopy(config)
 config["algo"]["n_step_return"] = 3
 config["algo"]["learning_rate"] = 6.25e-5
 configs["ernbw"] = config
+
+
+config = copy.deepcopy(configs["dqn"])
+config["optim"] = dict(alpha=0.95, eps=1e-6)
+config["algo"]["learning_rate"] = 2.5e-4
+config["runner"]["n_steps"] = 15e6
+configs["rmsprop"] = config
