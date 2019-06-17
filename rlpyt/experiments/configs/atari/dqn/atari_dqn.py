@@ -96,7 +96,7 @@ config["runner"]["n_steps"] = 15e6
 configs["short_run"] = config
 
 
-configs = copy.deepcopy(configs["dqn"])
+config = copy.deepcopy(configs["dqn"])
 config["sampler"]["eval_n_envs"] = 0
 config["runner"]["log_interval_steps"] = int(1e5)
 configs["no_eval"] = config
