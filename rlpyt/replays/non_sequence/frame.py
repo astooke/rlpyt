@@ -20,7 +20,7 @@ class NStepFrameBuffer(FrameBufferMixin, NStepReturnBuffer):
         for f in range(1, self.n_frames):
             # e.g. if done 1 step prior, all but newest frame go blank.
             done_idxs = np.where(self.samples.done[T_idxs - f, B_idxs])[0]
-            observation[done_idxs, f - 1:-1] = 0
+            observation[done_idxs, :self.n_frames - f] = 0
         return observation
 
 
