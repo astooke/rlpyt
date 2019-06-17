@@ -16,6 +16,7 @@ config = dict(
         prioritized_replay=False,
         n_step_return=1,
         replay_size=int(1e6),
+        target_update_steps=int(1e4),
     ),
     env=dict(
         game="pong",
