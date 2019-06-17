@@ -44,12 +44,26 @@ config = dict(
 
 configs["dqn"] = config
 
-config = copy.deepcopy(config)
+config = copy.deepcopy(configs["dqn"])
+config["algo"]["double_dqn"] = True
+configs["double"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["algo"]["prioritized_replay"] = True
+configs["prioritized"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["model"]["dueling"] = True
+configs["dueling"] = config
+
+
+config = copy.deepcopy(configs["dqn"])
 config["algo"]["double_dqn"] = True
 config["algo"]["prioritized_replay"] = True
 config["model"]["dueling"] = True
-
 configs["double_pri_duel"] = config
+
+
 
 config = copy.deepcopy(configs["dqn"])
 config["algo"]["learning_rate"] = 2.5e-4
