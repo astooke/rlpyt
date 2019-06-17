@@ -5,6 +5,7 @@ from rlpyt.samplers.base import BaseCollector
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.buffer import buffer_from_example, torchify_buffer, numpify_buffer
 from rlpyt.utils.logging import logger
+from rlpyt.utils.quick_args import save__init__args
 
 
 class DecorrelatingStartCollector(BaseCollector):
