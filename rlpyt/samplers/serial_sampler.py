@@ -15,7 +15,7 @@ class SerialSampler(BaseSampler):
             bootstrap_value=False, traj_info_kwargs=None):
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(self.batch_spec.B)]
         agent.initialize(envs[0].spec, share_memory=False)
-        samples_pyt, samples_np = build_samples_buffer(agent, envs[0],
+        samples_pyt, samples_np, examples = build_samples_buffer(agent, envs[0],
             self.batch_spec, bootstrap_value, agent_shared=False,
             env_shared=False, subprocess=False)
         if traj_info_kwargs:
@@ -52,6 +52,7 @@ class SerialSampler(BaseSampler):
         self.agent_inputs = agent_inputs
         self.traj_infos = traj_infos
         logger.log("Serial Sampler initialized.")
+        return examples
 
     def obtain_samples(self, itr):
         self.samples_np[:] = 0
