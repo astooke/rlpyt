@@ -188,6 +188,9 @@ class GpuParallelSampler(BaseSampler):
         if t == self.eval_max_T - 1 and self.eval_max_trajectories is not None:
             logger.log("Evaluation reached max num time steps "
                 f"({self.eval_max_T}).")
+        if not self.sync.stop_eval.value:
+            for b in step_blockers:
+                b.acquire()  # If workers finished loop, they did extra release.
 
         return traj_infos
 
