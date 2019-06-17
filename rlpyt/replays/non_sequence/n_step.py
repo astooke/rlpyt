@@ -13,7 +13,6 @@ class NStepReturnBuffer(BaseNStepReturnBuffer):
     def extract_batch(self, T_idxs, B_idxs):
         s = self.samples
         target_T_idxs = (T_idxs + self.n_step_return) % self.T
-        valid = self.samples_valid[T_idxs, B_idxs] if self.store_valid else None
         batch = SamplesFromReplay(
             agent_inputs=AgentInputs(
                 observation=self.extract_observation(T_idxs, B_idxs),
@@ -28,7 +27,7 @@ class NStepReturnBuffer(BaseNStepReturnBuffer):
                 prev_action=s.action[target_T_idxs - 1, B_idxs],
                 prev_reward=s.reward[target_T_idxs - 1, B_idxs],
             ),
-            valid=valid,
+            valid=self.samples_valid[T_idxs, B_idxs] if self.store_valid else None,
         )
         return torchify_buffer(batch)
 

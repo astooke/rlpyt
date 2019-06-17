@@ -80,3 +80,13 @@ config["optim"] = dict(alpha=0.95, eps=1e-6)
 config["algo"]["learning_rate"] = 2.5e-4
 config["runner"]["n_steps"] = 15e6
 configs["rmsprop"] = config
+
+
+config = copy.deepcopy(configs["dqn"])
+config["runner"]["n_steps"] = 15e6
+config["runner"]["log_interval_steps"] = 1e5
+configs["fast_log"] = config
+
+config = copy.deepcopy(configs["fast_log"])
+config["algo"]["replay_size"] = 6e5
+configs["fast_log_small_replay"]
