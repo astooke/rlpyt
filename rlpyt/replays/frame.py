@@ -1,4 +1,5 @@
 
+import numpy as np
 
 from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
 from rlpyt.utils.collections import namedarraytuple
@@ -37,6 +38,8 @@ class FrameBufferMixin(object):
             (self.T + n_frames - 1, self.B))  # [T+n_frames-1,B,H,W]
         # new_frames: shifted so newest stored at t; no duplication.
         self.samples_new_frames = self.samples_frames[n_frames - 1:]  # [T,B,H,W]
+        self.samples_n_blanks = buffer_from_example(np.zeros(1, dtype="uint8"),
+            (self.T, self.B))
         self.off_forward = max(self.off_forward, n_frames - 1)
 
     def append_samples(self, samples):

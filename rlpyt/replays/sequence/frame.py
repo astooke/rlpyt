@@ -22,6 +22,7 @@ class SequenceNStepFrameBuffer(FrameBufferMixin, SequenceNStepReturnBuffer):
             else:
                 for f in range(self.n_frames):
                     observation[:, i, f] = self.samples_frames[t + f:t + f + T, b]
+            # TODO: zero blank frames for after environment reset.
         return observation
 
 
