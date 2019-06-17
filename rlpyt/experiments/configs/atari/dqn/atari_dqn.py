@@ -15,7 +15,7 @@ config = dict(
         double_dqn=False,
         prioritized_replay=False,
         n_step_return=1,
-        replay_size=1e6,
+        replay_size=int(1e6),
     ),
     env=dict(
         game="pong",
@@ -93,3 +93,9 @@ configs["fast_log"] = config
 config = copy.deepcopy(configs["dqn"])
 config["runner"]["n_steps"] = 15e6
 configs["short_run"] = config
+
+
+configs = copy.deepcopy(configs["dqn"])
+config["eval_n_envs"] = 0
+config["runner"]["log_interval_steps"] = int(1e5)
+configs["no_eval"] = config
