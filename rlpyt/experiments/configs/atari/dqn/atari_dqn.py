@@ -89,3 +89,7 @@ config["runner"]["log_interval_steps"] = 1e5
 config["sampler"]["eval_max_steps"] = 70e3
 config["sampler"]["eval_max_trajectories"] = 50
 configs["fast_log"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["runner"]["n_steps"] = 15e6
+configs["short_run"] = config
