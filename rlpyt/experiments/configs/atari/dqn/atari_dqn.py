@@ -16,7 +16,6 @@ config = dict(
         prioritized_replay=False,
         n_step_return=1,
         replay_size=int(1e6),
-        target_update_steps=int(1e4),
     ),
     env=dict(
         game="pong",
@@ -66,14 +65,16 @@ config["model"]["dueling"] = True
 configs["double_pri_duel"] = config
 
 
-
 config = copy.deepcopy(configs["dqn"])
 config["algo"]["learning_rate"] = 2.5e-4
 configs["catdqn"] = config
 
-config = copy.deepcopy(config)
+config = copy.deepcopy(configs["dqn"])
 config["algo"]["n_step_return"] = 3
 config["algo"]["learning_rate"] = 6.25e-5
+config["algo"]["double_dqn"] = True
+config["algo"]["prioritized_replay"] = True
+config["model"]["dueling"] = True
 configs["ernbw"] = config
 
 
