@@ -12,7 +12,7 @@ class DuelingHeadModel(torch.nn.Module):
             input_size,
             hidden_sizes,
             output_size,
-            grad_scale=2 * (-1 / 2),
+            grad_scale=2 ** (-1 / 2),
             ):
         super().__init__()
         if isinstance(hidden_sizes, int):
@@ -43,7 +43,7 @@ class DistributionalDuelingHeadModel(torch.nn.Module):
             hidden_sizes,
             output_size,
             n_atoms,
-            grad_scale=2 * (-1 / 2),
+            grad_scale=2 ** (-1 / 2),
             ):
         super().__init__()
         if isinstance(hidden_sizes, int):
