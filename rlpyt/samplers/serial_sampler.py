@@ -17,7 +17,7 @@ class SerialSampler(BaseSampler):
         agent.initialize(envs[0].spec, share_memory=False)
         samples_pyt, samples_np = build_samples_buffer(agent, envs[0],
             self.batch_spec, bootstrap_value, agent_shared=False,
-            env_shared=False, build_step_buffer=False, subprocess=False)
+            env_shared=False, subprocess=False)
         if traj_info_kwargs:
             for k, v in traj_info_kwargs.items():
                 setattr(self.TrajInfoCls, "_" + k, v)  # Avoid passing at init.
