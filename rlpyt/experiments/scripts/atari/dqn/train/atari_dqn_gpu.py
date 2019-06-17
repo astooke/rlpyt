@@ -17,8 +17,8 @@ from rlpyt.experiments.configs.atari.dqn.atari_dqn import configs
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     affinity = get_affinity(slot_affinity_code)
     config = configs[config_key]
-    # variant = load_variant(log_dir)
-    # config = update_config(config, variant)
+    variant = load_variant(log_dir)
+    config = update_config(config, variant)
     config["eval_env"]["game"] = config["env"]["game"]
 
     CollectorCls = config["sampler"].pop("CollectorCls", None)

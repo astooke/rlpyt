@@ -15,6 +15,7 @@ config = dict(
         double_dqn=False,
         prioritized_replay=False,
         n_step_return=1,
+        replay_size=1e6,
     ),
     env=dict(
         game="pong",
