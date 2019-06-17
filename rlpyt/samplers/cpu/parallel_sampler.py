@@ -26,7 +26,7 @@ class CpuParallelSampler(BaseSampler):
         agent.initialize(env.spec, share_memory=True)  # Actual agent initialization.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=False)  # TODO: subprocess=True fix!!
+            subprocess=True)  # TODO: subprocess=True fix!!
         env.terminate()
         del env
 
