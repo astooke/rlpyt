@@ -11,7 +11,7 @@ class SerialSampler(BaseSampler):
     with collectors which sample actions themselves (e.g. under cpu
     category)."""
 
-    def initialize(self, agent, _affinity=None, _seed=None,
+    def initialize(self, agent, affinity=None, seed=None,
             bootstrap_value=False, traj_info_kwargs=None):
         envs = [self.EnvCls(**self.env_kwargs) for _ in self.batch_spec.B]
         agent.initialize(envs[0].spec, share_memory=False)
