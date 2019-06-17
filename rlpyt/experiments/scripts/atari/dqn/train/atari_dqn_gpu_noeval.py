@@ -7,7 +7,7 @@ from rlpyt.samplers.gpu.collectors import WaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
-from rlpyt.runners.minibatch_rl_eval import MinibatchRlEval
+from rlpyt.runners.minibatch_rl import MinibatchRl
 from rlpyt.utils.logging.context import logger_context
 from rlpyt.utils.launching.variant import load_variant, update_config
 
@@ -31,7 +31,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     )
     algo = DQN(optim_kwargs=config["optim"], **config["algo"])
     agent = AtariDqnAgent(model_kwargs=config["model"], **config["agent"])
-    runner = MinibatchRlEval(
+    runner = MinibatchRl(
         algo=algo,
         agent=agent,
         sampler=sampler,
