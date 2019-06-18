@@ -1,4 +1,6 @@
 
+import numpy as np
+
 from rlpyt.replays.n_step import BaseNStepReturnBuffer
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.collections import namedarraytuple
@@ -29,6 +31,9 @@ class NStepReturnBuffer(BaseNStepReturnBuffer):
             ),
             valid=self.samples_valid[T_idxs, B_idxs] if self.store_valid else None,
         )
+        t_news = np.where(s.done[T_idxs - 1, B_idxs])[0]
+        batch.agent_inputs.prev_action[t_news] = 0
+        batch.agent_inputs.prev_reward[t_news] = 0
         return torchify_buffer(batch)
 
     def extract_observation(self, T_idxs, B_idxs):

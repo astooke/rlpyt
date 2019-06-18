@@ -27,5 +27,9 @@ class Composition(Space):
     def spaces(self):
         return self._spaces
 
+    @property
+    def null_value(self):
+        return self._NamedArrayTupleCls(*(space.null_value for space in self._spaces))
+
     def __repr__(self):
         return ", ".join(space.__repr__() for space in self._spaces)

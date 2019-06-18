@@ -20,7 +20,7 @@ class IntBox(Space):
         assert np.issubdtype(self.dtype, np.integer)
         null_value = low if null_value is None else null_value
         assert null_value >= low and null_value < high
-        self.null_value = null_value
+        self._null_value = null_value
 
     def sample(self, size=None, null=False, torchify=False):
         if size is None:
@@ -29,7 +29,7 @@ class IntBox(Space):
             size = (size,)
         size = size + self.shape
         if null:
-            sample = self.null_value * np.ones(size, dtype=self.dtype)
+            sample = self._null_value * np.ones(size, dtype=self.dtype)
         else:
             sample = np.random.randint(low=self.low, high=self.high,
                 size=size, dtype=self.dtype)
@@ -44,6 +44,10 @@ class IntBox(Space):
     @property
     def n(self):
         return self.high - self.low
+
+    @property
+    def null_value(self):
+        return self._null_value
 
     def __repr__(self):
         return f"IntBox({self.low}-{self.high - 1} shape={self.shape})"

@@ -81,6 +81,7 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
             init_rnn_state=init_rnn_state,  # (Same state for agent and target.)
             valid=valid,
         )
+        # NOTE: Algo might need to make zero prev_action/prev_reward depending on done.
         return torchify_buffer(batch)
 
     def extract_observation(self, T_idxs, B_idxs, T):

@@ -146,6 +146,8 @@ class AtariEnv(Env):
     def _done_no_episodic_lives(self):
         self._check_life()
         done = self.ale.game_over() or self._step_counter >= self.horizon
+        if done:
+            self._reset_obs()  # Return blank.
         return done, done
 
     def _done_episodic_lives(self):

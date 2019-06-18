@@ -1,4 +1,6 @@
 
+import numpy as np
+
 from rlpyt.samplers.base import BaseEvalCollector
 from rlpyt.samplers.collectors import DecorrelatingStartCollector
 
@@ -50,10 +52,11 @@ class WaitResetCollector(DecorrelatingStartCollector):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.need_reset = [False] * len(self.envs)
+        self.need_reset = np.zeros(len(self.envs), dtype=np.bool)
 
     def collect_batch(self, agent_inputs, traj_infos, itr):
         """Params agent_inputs and itr unused."""
+        self.sync.do_reset.value = False
         act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
         step = self.step_buffer_np
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
@@ -65,7 +68,15 @@ class WaitResetCollector(DecorrelatingStartCollector):
             env_buf.observation[t] = step.observation
             act_waiter.acquire()  # Need sampled actions from server.
             for b, env in enumerate(self.envs):
-                if self.need_reset[b]:
+                if step.done[b]:
+                    step.observation[b] = 0  # Record blank.
+                    step.action[b] = 0
+                    step.reward[b] = 0
+                    if step.agent_info:
+                        step.agent_info[b] = 0
+                    if env_buf.env_info:
+                        env_buf.env_info[t, b] = 0
+                    # Leave step.done[b] = True until after the reset, next itr.
                     continue
                 o, r, d, env_info = env.step(step.action[b])
                 traj_infos[b].step(step.observation[b], step.action[b], r,
@@ -74,8 +85,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
                     self.need_reset[b] = True
                     completed_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
-                else:
-                    step.observation[b] = o
+                step.observation[b] = o
                 step.reward[b] = r
                 step.done[b] = d
                 if env_info:
@@ -91,14 +101,14 @@ class WaitResetCollector(DecorrelatingStartCollector):
 
     def reset_if_needed(self, agent_inputs):
         """Param agent_inputs unused."""
-        step = self.step_buffer_np
-        for b, need in enumerate(self.need_reset):
-            if need:
+        # step.done[:] = 0  # No, turn off in master after it resets agent.
+        if np.any(self.need_reset):
+            step = self.step_buffer_np
+            for b in np.where(self.need_reset)[0]:
                 step.observation[b] = self.envs[b].reset()
                 step.action[b] = 0
                 step.reward[b] = 0
-                self.need_reset[b] = False
-        return None
+            self.need_reset[:] = 0
 
 
 class EvalCollector(BaseEvalCollector):

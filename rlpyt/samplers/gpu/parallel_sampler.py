@@ -1,5 +1,6 @@
 
 import multiprocessing as mp
+import numpy as np
 
 
 from rlpyt.samplers.base import BaseSampler
@@ -90,6 +91,7 @@ class GpuParallelSampler(BaseSampler):
         self.step_buffer_pyt = step_buffer_pyt
         self.step_buffer_np = step_buffer_np
         self.sync = sync
+        self.mid_batch_reset = self.CollectorCls.mid_batch_reset
 
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
         return examples  # e.g. In case useful to build replay buffer
@@ -133,6 +135,11 @@ class GpuParallelSampler(BaseSampler):
         for t in range(self.batch_spec.T):
             for b in step_blockers:
                 b.acquire()  # Workers written obs and rew, first prev_act.
+            if self.sync.do_reset.value and np.any(step_np.done):
+                for b_reset in np.where(step_np.done)[0]:
+                    step_np.action[b_reset] = 0  # Null prev_action into agent.
+                    step_np.reward[b_reset] = 0  # Null prev_reward into agent.
+                    self.agent.reset_one(idx=b_reset)
             action, agent_info = self.agent.step(*agent_inputs)
             step_np.action[:] = action  # Worker applies to env.
             step_np.agent_info[:] = agent_info  # Worker sends to traj_info.
@@ -141,15 +148,16 @@ class GpuParallelSampler(BaseSampler):
 
         for b in step_blockers:
             b.acquire()
+        if np.any(step_np.done):  # Reset at end of batch; ready for next.
+            for b_reset in np.where(step_np.done)[0]:
+                step_np.action[b_reset] = 0  # Null prev_action into agent.
+                step_np.reward[b_reset] = 0  # Null prev_reward into agent.
+                self.agent.reset_one(idx=b_reset)
+            step_np.done[:] = 0  # Turn OFF here, after use.
         if "bootstrap_value" in self.samples_np.agent:
             self.samples_np.agent.bootstrap_value[:] = self.agent.value(
                 *agent_inputs)
 
-        if any(step_np.done):  # Reset at end of batch; ready for next.
-            for b, d in enumerate(step_np.done):
-                if d:
-                    self.agent.reset_one(idx=b)
-            step_np.done[:] = 0
 
     def serve_actions_evaluation(self, itr):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
