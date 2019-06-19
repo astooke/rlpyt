@@ -6,6 +6,7 @@ configs = dict()
 
 config = dict(
     agent=dict(),
+    model=dict(dueling=True),
     algo=dict(
         discount=0.997,
         batch_T=80,
@@ -20,6 +21,7 @@ config = dict(
         prioritized_replay=True,
         n_step_return=5,
     ),
+    optim=dict(),
     env=dict(
         game="pong",
         episodic_lives=True,  # The paper does mostly without, but still better.
@@ -32,8 +34,6 @@ config = dict(
         horizon=int(40e3),
         clip_reward=False,
     ),
-    model=dict(dueling=True),
-    optim=dict(),
     runner=dict(
         n_steps=100e6,
         log_interval_steps=1e6,
@@ -43,7 +43,7 @@ config = dict(
         batch_B=32,
         max_decorrelation_steps=1000,
         eval_n_envs=4,
-        eval_max_steps=int(161e3),  # DEBUG
+        eval_max_steps=int(161e3),
         eval_max_trajectories=100,
         eval_min_envs_reset=2,
     ),
