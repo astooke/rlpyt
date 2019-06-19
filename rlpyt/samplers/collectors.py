@@ -31,11 +31,12 @@ class DecorrelatingStartCollector(BaseCollector):
             env_actions = env.action_space.sample(n_steps)
             for a in env_actions:
                 o, r, d, info = env.step(a)
-                traj_infos[b].step(o, a, r, None, info)
-                if getattr(info, "need_reset", d):  # For episodic lives.
+                traj_infos[b].step(o, a, r, d, None, info)
+                if d:
                     o = env.reset()
                     a = env.action_space.sample(null=True)
                     r = 0
+                if getattr(info, "traj_done", d):
                     traj_infos[b] = self.TrajInfoCls()
             observation[b] = o
             prev_action[b] = a
@@ -73,11 +74,12 @@ class SerialEvalCollector(object):
             action = numpify_buffer(act_pyt)
             for b, env in enumerate(self.envs):
                 o, r, d, env_info = env.step(action[b])
-                traj_infos[b].step(observation[b], action[b], r,
+                traj_infos[b].step(observation[b], action[b], r, d,
                     agent_info[b], env_info)
-                if getattr(env_info, "need_reset", d):
+                if getattr(env_info, "traj_done", d):
                     completed_traj_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
+                if d:
                     o = env.reset()
                     r = 0
                     self.agent.reset_one(b)

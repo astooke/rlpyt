@@ -29,11 +29,12 @@ class ResetCollector(DecorrelatingStartCollector):
             for b, env in enumerate(self.envs):
                 # Environment inputs and outputs are numpy arrays.
                 o, r, d, env_info = env.step(action[b])
-                traj_infos[b].step(observation[b], action[b], r, agent_info[b],
+                traj_infos[b].step(observation[b], action[b], r, d, agent_info[b],
                     env_info)
-                if d:
+                if getattr(env_info, "traj_done", d):
                     completed_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
+                if d:
                     o = env.reset()
                     self.agent.reset_one(idx=b)
                 observation[b] = o
@@ -59,7 +60,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.need_reset = [False] * len(self.envs)
+        self.need_reset = np.zeros(len(self.envs), dtype=np.bool)
 
     def collect_batch(self, agent_inputs, traj_infos, itr):
         # Numpy arrays can be written to from numpy arrays or torch tensors
@@ -78,18 +79,25 @@ class WaitResetCollector(DecorrelatingStartCollector):
             action = numpify_buffer(act_pyt)
             for b, env in enumerate(self.envs):
                 if self.need_reset[b]:
+                    observation[b] = 0  # Record blank.
+                    action[b] = 0
+                    reward[b] = 0
+                    if agent_info:
+                        agent_info[b] = 0
+                    if env_buf.env_info:
+                        env_buf.env_info[t, b] = 0
+                    env_buf.done[t, b] = True  # Keep True until reset, next batch.
                     continue
                 # Environment inputs and outputs are numpy arrays.
                 o, r, d, env_info = env.step(action[b])
-                traj_infos[b].step(observation[b], action[b], r, agent_info[b],
+                traj_infos[b].step(observation[b], action[b], r, d, agent_info[b],
                     env_info)
-                if d:
-                    self.need_reset[b] = True
+                if getattr(env_info, "traj_done", d):
                     completed_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
-                else:
-                    observation[b] = o
+                observation[b] = o
                 reward[b] = r
+                self.need_reset[b] |= d
                 env_buf.done[t, b] = d
                 if env_info:
                     env_buf.env_info[t, b] = env_info
@@ -105,13 +113,12 @@ class WaitResetCollector(DecorrelatingStartCollector):
         return AgentInputs(observation, action, reward), traj_infos, completed_infos
 
     def reset_if_needed(self, agent_inputs):
-        for b, need in enumerate(self.need_reset):
-            if need:
-                agent_inputs[b] = 0.
+        if np.any(self.need_reset):
+            for b in np.where(self.need_reset)[0]:
+                agent_inputs[b] = 0
                 agent_inputs.observation[b] = self.envs[b].reset()
                 self.agent.reset_one(idx=b)
-                self.need_reset[b] = False
-        return agent_inputs
+            self.need_reset[:] = False
 
 
 class EvalCollector(BaseEvalCollector):
@@ -133,11 +140,12 @@ class EvalCollector(BaseEvalCollector):
             action = numpify_buffer(act_pyt)
             for b, env in enumerate(self.envs):
                 o, r, d, env_info = env.step(action[b])
-                traj_infos[b].step(observation[b], action[b], r,
+                traj_infos[b].step(observation[b], action[b], r, d,
                     agent_info[b], env_info)
-                if getattr(env_info, "need_reset", d):
+                if getattr(env_info, "traj_done", d):
                     self.traj_infos_queue.put(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
+                if d:
                     o = env.reset()
                     r = 0
                     self.agent.reset_one(b)

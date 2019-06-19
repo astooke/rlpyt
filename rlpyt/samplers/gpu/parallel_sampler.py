@@ -135,7 +135,7 @@ class GpuParallelSampler(BaseSampler):
         for t in range(self.batch_spec.T):
             for b in step_blockers:
                 b.acquire()  # Workers written obs and rew, first prev_act.
-            if self.sync.do_reset.value and np.any(step_np.done):
+            if self.mid_batch_reset and np.any(step_np.done):
                 for b_reset in np.where(step_np.done)[0]:
                     step_np.action[b_reset] = 0  # Null prev_action into agent.
                     step_np.reward[b_reset] = 0  # Null prev_reward into agent.
@@ -148,16 +148,15 @@ class GpuParallelSampler(BaseSampler):
 
         for b in step_blockers:
             b.acquire()
+        if "bootstrap_value" in self.samples_np.agent:
+            self.samples_np.agent.bootstrap_value[:] = self.agent.value(
+                *agent_inputs)
         if np.any(step_np.done):  # Reset at end of batch; ready for next.
             for b_reset in np.where(step_np.done)[0]:
                 step_np.action[b_reset] = 0  # Null prev_action into agent.
                 step_np.reward[b_reset] = 0  # Null prev_reward into agent.
                 self.agent.reset_one(idx=b_reset)
-            step_np.done[:] = 0  # Turn OFF here, after use.
-        if "bootstrap_value" in self.samples_np.agent:
-            self.samples_np.agent.bootstrap_value[:] = self.agent.value(
-                *agent_inputs)
-
+            step_np.done[:] = False  # Turn OFF here, after use.
 
     def serve_actions_evaluation(self, itr):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
@@ -177,14 +176,13 @@ class GpuParallelSampler(BaseSampler):
             step_np.action[:] = action
             step_np.agent_info[:] = agent_info
 
-            self.sync.do_reset.value = (sum(step_np.need_reset) >=
+            self.sync.do_reset.value = (sum(step_np.done) >=
                 self.eval_min_envs_reset)
             if self.sync.do_reset.value:
-                for b, need in enumerate(step_np.need_reset):
-                    if need:
-                        self.agent.reset_one(idx=b)
-                        step_np.action[b] = 0  # Prev_action for next t.
-                    # Do not need_reset[b] = False; worker needs it and will set False.
+                for b_reset in np.where(step_np.done)[0]:
+                    self.agent.reset_one(idx=b)
+                    step_np.action[b] = 0  # Prev_action for next t.
+                    # Leave step_np.done[b] ON for worker; worker resets.
             if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
                 self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
             for w in act_waiters:

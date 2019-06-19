@@ -112,7 +112,7 @@ class CpuParallelSampler(BaseSampler):
                     self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
                         f"({self.eval_max_trajectories}).")
-                    break  # Stop before workers reach max_T.
+                    break  # Stop possibly before workers reach max_T.
                 if self.ctrl.barrier_out.parties - self.ctrl.barrier_out.n_waiting == 1:
                     logger.log("Evaluation reached max num time steps "
                         f"({self.eval_max_T}).")

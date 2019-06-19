@@ -47,12 +47,12 @@ class TrajInfo(AttrDict):
         self.DiscountedReturn = 0
         self._cur_discount = 1
 
-    def step(self, _observation, _action, reward, _agent_info, _env_info):
+    def step(self, observation, action, reward, done, agent_info, env_info):
         self.Length += 1
         self.Return += reward
         self.NonzeroRewards += reward != 0
         self.DiscountedReturn += self._cur_discount * reward
         self._cur_discount *= self._discount
 
-    def terminate(self, _final_observation):
+    def terminate(self, observation):
         return self

@@ -16,19 +16,20 @@ class ResetCollector(DecorrelatingStartCollector):
         step = self.step_buffer_np
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
         agent_buf.prev_action[0] = step.action
+        env_buf.prev_reward[0] = step.reward
         step_blocker.release()  # Previous obs already written, ready for new.
         completed_infos = list()
-        env_buf.prev_reward[0] = step.reward
         for t in range(self.batch_T):
             env_buf.observation[t] = step.observation
             act_waiter.acquire()  # Need sampled actions from server.
             for b, env in enumerate(self.envs):
                 o, r, d, env_info = env.step(step.action[b])
-                traj_infos[b].step(step.observation[b], step.action[b], r,
+                traj_infos[b].step(step.observation[b], step.action[b], r, d,
                     step.agent_info[b], env_info)
-                if getattr(env_info, "need_reset", d):
+                if getattr(env_info, "traj_done", d):
                     completed_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
+                if d:
                     o = env.reset()
                 step.observation[b] = o
                 step.reward[b] = r
@@ -61,9 +62,9 @@ class WaitResetCollector(DecorrelatingStartCollector):
         step = self.step_buffer_np
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
         agent_buf.prev_action[0] = step.action
+        env_buf.prev_reward[0] = step.reward
         step_blocker.release()  # Previous obs already written, ready for new.
         completed_infos = list()
-        env_buf.prev_reward[0] = step.reward
         for t in range(self.batch_T):
             env_buf.observation[t] = step.observation
             act_waiter.acquire()  # Need sampled actions from server.
@@ -79,12 +80,12 @@ class WaitResetCollector(DecorrelatingStartCollector):
                     # Leave step.done[b] = True until after the reset, next itr.
                     continue
                 o, r, d, env_info = env.step(step.action[b])
-                traj_infos[b].step(step.observation[b], step.action[b], r,
+                traj_infos[b].step(step.observation[b], step.action[b], r, d,
                     step.agent_info[b], env_info)
-                if getattr(env_info, "need_reset", d):
-                    self.need_reset[b] = True
+                if getattr(env_info, "traj_done", d):
                     completed_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
+                self.need_reset[b] |= d
                 step.observation[b] = o
                 step.reward[b] = r
                 step.done[b] = d
@@ -100,7 +101,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
         return None, traj_infos, completed_infos
 
     def reset_if_needed(self, agent_inputs):
-        """Param agent_inputs unused."""
+        """Param agent_inputs unused, using step_buffer instead."""
         # step.done[:] = 0  # No, turn off in master after it resets agent.
         if np.any(self.need_reset):
             step = self.step_buffer_np
@@ -108,7 +109,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
                 step.observation[b] = self.envs[b].reset()
                 step.action[b] = 0
                 step.reward[b] = 0
-            self.need_reset[:] = 0
+            self.need_reset[:] = False
 
 
 class EvalCollector(BaseEvalCollector):
@@ -127,20 +128,19 @@ class EvalCollector(BaseEvalCollector):
             if self.sync.stop_eval.value:
                 break
             for b, env in enumerate(self.envs):
-                if step.need_reset[b]:
+                if step.done[b]:
                     if self.sync.do_reset.value:
                         step.observation[b] = env.reset()
                         step.reward[b] = 0  # Prev_reward for next t.
-                        step.need_reset[b] = False
-                        traj_infos[b] = self.TrajInfoCls()
+                        step.done[b] = False
                     continue  # Wait for new action, next t.
                 o, r, d, env_info = env.step(step.action[b])
-                traj_infos[b].step(step.observation[b], step.action[b], r,
+                traj_infos[b].step(step.observation[b], step.action[b], r, d,
                     step.agent_info[b], env_info)
-                if getattr(env_info, "need_reset", d):
+                if getattr(env_info, "traj_done", d):
                     self.traj_infos_queue.put(traj_infos[b].terminate(o))
-                    step.need_reset[b] = True
-                else:
-                    step.observation[b] = o
-                    step.reward[b] = r
+                    traj_infos[b] = self.TrajInfoCls()
+                step.observation[b] = o
+                step.reward[b] = r
+                step.done[b] |= d
             step_blocker.release()
