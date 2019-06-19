@@ -64,8 +64,6 @@ class AtariEnv(Env):
         # Settings
         self._has_fire = "FIRE" in self.get_action_meanings()
         self._has_up = "UP" in self.get_action_meanings()
-        self._done = self._done_episodic_lives if episodic_lives else \
-            self._done_no_episodic_lives
         self._horizon = int(horizon)
         self._need_ale_reset = True
 
