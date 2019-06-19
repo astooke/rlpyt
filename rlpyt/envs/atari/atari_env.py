@@ -14,7 +14,7 @@ from rlpyt.samplers.collections import TrajInfo
 W, H = (80, 104)  # Crop two rows, then downsample by 2x (fast, clean image).
 
 
-EnvInfo = namedtuple("EnvInfo", ["game_score", "need_reset"])
+EnvInfo = namedtuple("EnvInfo", ["game_score", "traj_done"])
 
 
 class AtariTrajInfo(TrajInfo):
@@ -23,7 +23,7 @@ class AtariTrajInfo(TrajInfo):
         super().__init__(**kwargs)
         self.GameScore = 0
 
-    def step(self, observation, action, reward, agent_info, env_info):
+    def step(self, observation, action, reward, done, agent_info, env_info):
         super().step(observation, action, reward, agent_info, env_info)
         self.GameScore += getattr(env_info, "game_score", 0)
 
@@ -33,7 +33,7 @@ class AtariEnv(Env):
     def __init__(self,
                  game="pong",
                  frame_skip=4,  # Frames per step (>=1).
-                 num_img_obs=4,  # Number of (past) frames in observation.
+                 num_img_obs=4,  # Number of (past) frames in observation (>=1).
                  clip_reward=True,
                  episodic_lives=True,
                  max_start_noops=30,
@@ -67,17 +67,13 @@ class AtariEnv(Env):
         self._done = self._done_episodic_lives if episodic_lives else \
             self._done_no_episodic_lives
         self._horizon = int(horizon)
+        self._need_ale_reset = True
 
-    def reset(self):
-        """Call reset when first using AtariEnv, before first step."""
-        self.ale.reset_game()
-        self._reset_obs()
-        self._life_reset()
-        for _ in range(np.random.randint(0, self._max_start_noops + 1)):
-            self.ale.act(0)
-        self._update_obs()  # (don't bother to populate any frame history)
-        self._step_counter = 0
-        return self.get_obs()
+    def reset(self, hard=False):
+        """Call reset before first step."""
+        if self._episodic_lives and not hard:
+            return self._episodic_lives_reset()
+        return self._ale_reset()
 
     def step(self, action):
         a = self._action_set[action]
@@ -86,10 +82,12 @@ class AtariEnv(Env):
             game_score += self.ale.act(a)
         self._get_screen(1)
         game_score += self.ale.act(a)
+        lost_life = self._check_life()  # Advances from lost_life state.
         self._update_obs()
         reward = np.sign(game_score) if self._clip_reward else game_score
-        done, need_reset = self._done()
-        info = EnvInfo(game_score=game_score, need_reset=need_reset)
+        self._need_ale_reset = self.ale.game_over() or self._step_counter >= self.horizon
+        done = lost_life if self._episodic_lives else self._need_ale_reset
+        info = EnvInfo(game_score=game_score, traj_done=self._need_ale_reset)
         self._step_counter += 1
         return EnvStep(self.get_obs(), reward, done, info)
 
@@ -108,6 +106,24 @@ class AtariEnv(Env):
 
     ###########################################################################
     # Helpers
+
+    def _ale_reset(self):
+        self.ale.reset_game()
+        self._reset_obs()
+        self._life_reset()
+        for _ in range(np.random.randint(0, self._max_start_noops + 1)):
+            self.ale.act(0)
+        self._update_obs()  # (don't bother to populate any frame history)
+        self._step_counter = 0
+        return self.get_obs()
+
+    def _episodic_lives_reset(self):
+        if self._need_ale_reset:
+            return self._ale_reset()
+        # _life_reset() already happened inside _check_life().
+        self._reset_obs()
+        self._update_obs()
+        return self.get_obs()
 
     def _get_screen(self, frame=1):
         frame = self._raw_frame_1 if frame == 1 else self._raw_frame_2
@@ -142,22 +158,6 @@ class AtariEnv(Env):
         if self._has_up:
             self.ale.act(2)  # (not sure if this is necessary, saw it somewhere)
         self._lives = self.ale.lives()
-
-    def _done_no_episodic_lives(self):
-        self._check_life()
-        done = self.ale.game_over() or self._step_counter >= self.horizon
-        if done:
-            self._reset_obs()  # Return blank.
-        return done, done
-
-    def _done_episodic_lives(self):
-        need_reset = self.ale.game_over() or self._step_counter >= self.horizon
-        lost_life = self._check_life()
-        done = lost_life or need_reset
-        if lost_life:
-            self._reset_obs()  # (reset here, so sampler does NOT call reset)
-            self._update_obs()  # (will have already advanced in check_life)
-        return done, need_reset
 
     ###########################################################################
     # Properties
