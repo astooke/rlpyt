@@ -69,12 +69,16 @@ class AtariEnv(Env):
         self._game_over = False
 
     def reset(self, hard=False):
-        """Call reset before first step."""
-        if self._game_over or hard:
-            return self._ale_reset()
-        return self._episodic_lives_reset()
+        self.ale.reset_game()
+        self._reset_obs()
+        self._life_reset()
+        for _ in range(np.random.randint(0, self._max_start_noops + 1)):
+            self.ale.act(0)
+        self._update_obs()  # (don't bother to populate any frame history)
+        self._step_counter = 0
+        return self.get_obs()
 
-    def step(self, action):
+    def new_step(self, action):
         a = self._action_set[action]
         game_score = np.array(0., dtype="float32")
         for _ in range(self._frame_skip - 1):
@@ -82,11 +86,13 @@ class AtariEnv(Env):
         self._get_screen(1)
         game_score += self.ale.act(a)
         lost_life = self._check_life()  # Advances from lost_life state.
+        if lost_life and self._epidosic_lives:
+            self._reset_obs()  # Internal reset.
         self._update_obs()
         reward = np.sign(game_score) if self._clip_reward else game_score
-        self._game_over = self.ale.game_over() or self._step_counter >= self.horizon
-        done = self._game_over or (self._episodic_lives and lost_life)
-        info = EnvInfo(game_score=game_score, traj_done=self._game_over)
+        game_over = self.ale.game_over() or self._step_counter >= self.horizon
+        done = game_over or (self._episodic_lives and lost_life)
+        info = EnvInfo(game_score=game_score, traj_done=game_over)
         self._step_counter += 1
         return EnvStep(self.get_obs(), reward, done, info)
 
@@ -105,22 +111,6 @@ class AtariEnv(Env):
 
     ###########################################################################
     # Helpers
-
-    def _ale_reset(self):
-        self.ale.reset_game()
-        self._reset_obs()
-        self._life_reset()
-        for _ in range(np.random.randint(0, self._max_start_noops + 1)):
-            self.ale.act(0)
-        self._update_obs()  # (don't bother to populate any frame history)
-        self._step_counter = 0
-        return self.get_obs()
-
-    def _episodic_lives_reset(self):
-        # _life_reset() already happened inside _check_life().
-        self._reset_obs()
-        self._update_obs()
-        return self.get_obs()
 
     def _get_screen(self, frame=1):
         frame = self._raw_frame_1 if frame == 1 else self._raw_frame_2

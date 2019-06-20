@@ -3,6 +3,7 @@ import numpy as np
 
 from rlpyt.samplers.base import BaseEvalCollector
 from rlpyt.samplers.collectors import DecorrelatingStartCollector
+from rlpyt.utils.buffer import buffer_method
 
 
 class ResetCollector(DecorrelatingStartCollector):
@@ -29,7 +30,6 @@ class ResetCollector(DecorrelatingStartCollector):
                 if getattr(env_info, "traj_done", d):
                     completed_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
-                if d:
                     o = env.reset()
                 step.observation[b] = o
                 step.reward[b] = r
@@ -54,12 +54,18 @@ class WaitResetCollector(DecorrelatingStartCollector):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.need_reset = np.zeros(len(self.envs), dtype=np.bool)
+        # e.g. For episodic lives, hold the observation output when done, record
+        # blanks for the rest of the batch, but reinstate the observation to start
+        # next batch.
+        self.temp_observation = buffer_method(self.step_buffer_np.observation, "copy")
 
     def collect_batch(self, agent_inputs, traj_infos, itr):
         """Params agent_inputs and itr unused."""
-        self.sync.do_reset.value = False
         act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
         step = self.step_buffer_np
+        b = np.where(step.done)[0]
+        step.observation[b] = self.temp_observation[b]
+        step.done[:] = False  # Did resets in between batches.
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
         agent_buf.prev_action[0] = step.action
         env_buf.prev_reward[0] = step.reward
@@ -70,14 +76,11 @@ class WaitResetCollector(DecorrelatingStartCollector):
             act_waiter.acquire()  # Need sampled actions from server.
             for b, env in enumerate(self.envs):
                 if step.done[b]:
-                    step.observation[b] = 0  # Record blank.
-                    step.action[b] = 0
+                    step.action[b] = 0  # Record blank.
                     step.reward[b] = 0
                     if step.agent_info:
                         step.agent_info[b] = 0
-                    if env_buf.env_info:
-                        env_buf.env_info[t, b] = 0
-                    # Leave step.done[b] = True until after the reset, next itr.
+                    # Leave step.done[b] = True, record that.
                     continue
                 o, r, d, env_info = env.step(step.action[b])
                 traj_infos[b].step(step.observation[b], step.action[b], r, d,
@@ -85,7 +88,10 @@ class WaitResetCollector(DecorrelatingStartCollector):
                 if getattr(env_info, "traj_done", d):
                     completed_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
-                self.need_reset[b] |= d
+                    self.need_reset[b] = True
+                if d:
+                    self.temp_observation[b] = o  # Store until start of next batch.
+                    o = 0  # Record blank.
                 step.observation[b] = o
                 step.reward[b] = r
                 step.done[b] = d
@@ -107,7 +113,7 @@ class WaitResetCollector(DecorrelatingStartCollector):
             step = self.step_buffer_np
             for b in np.where(self.need_reset)[0]:
                 step.observation[b] = self.envs[b].reset()
-                step.action[b] = 0
+                step.action[b] = 0  # Prev_action to agent.
                 step.reward[b] = 0
             self.need_reset[:] = False
 
@@ -121,26 +127,23 @@ class EvalCollector(BaseEvalCollector):
         step = self.step_buffer_np
         for b, env in enumerate(self.envs):
             step.observation[b] = env.reset()
+        step.done[:] = False
         step_blocker.release()
 
         for t in range(self.max_T):
             act_waiter.acquire()
             if self.sync.stop_eval.value:
+                step_blocker.release()  # Always release at end of loop.
                 break
             for b, env in enumerate(self.envs):
-                if step.done[b]:
-                    if self.sync.do_reset.value:
-                        step.observation[b] = env.reset()
-                        step.reward[b] = 0  # Prev_reward for next t.
-                        step.done[b] = False
-                    continue  # Wait for new action, next t.
                 o, r, d, env_info = env.step(step.action[b])
                 traj_infos[b].step(step.observation[b], step.action[b], r, d,
                     step.agent_info[b], env_info)
                 if getattr(env_info, "traj_done", d):
                     self.traj_infos_queue.put(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
+                    o = env.reset()
                 step.observation[b] = o
                 step.reward[b] = r
-                step.done[b] |= d
+                step.done[b] = d
             step_blocker.release()

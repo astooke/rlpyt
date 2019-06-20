@@ -32,12 +32,12 @@ class DecorrelatingStartCollector(BaseCollector):
             for a in env_actions:
                 o, r, d, info = env.step(a)
                 traj_infos[b].step(o, a, r, d, None, info)
-                if d:
+                if getattr(info, "traj_done", d):
                     o = env.reset()
+                    traj_infos[b] = self.TrajInfoCls()
+                if d:
                     a = env.action_space.sample(null=True)
                     r = 0
-                if getattr(info, "traj_done", d):
-                    traj_infos[b] = self.TrajInfoCls()
             observation[b] = o
             prev_action[b] = a
             prev_reward[b] = r
@@ -79,12 +79,13 @@ class SerialEvalCollector(object):
                 if getattr(env_info, "traj_done", d):
                     completed_traj_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
-                if d:
                     o = env.reset()
+                if d:
+                    action[b] = 0  # Prev_action for next step.
                     r = 0
                     self.agent.reset_one(idx=b)
-            observation[b] = o
-            reward[b] = r
+                observation[b] = o
+                reward[b] = r
             if (self.max_trajectories is not None and
                     len(completed_traj_infos) >= self.max_trajectories):
                 break

@@ -160,7 +160,7 @@ class GpuParallelSampler(BaseSampler):
                 step_np.action[b_reset] = 0  # Null prev_action into agent.
                 step_np.reward[b_reset] = 0  # Null prev_reward into agent.
                 self.agent.reset_one(idx=b_reset)
-            step_np.done[:] = False  # Turn OFF here, after use.
+            # step_np.done[:] = False  # Turn OFF here, after use.
 
     def serve_actions_evaluation(self, itr):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
@@ -176,17 +176,13 @@ class GpuParallelSampler(BaseSampler):
                     traj_infos.append(self.traj_infos_queue.get())
             for b in step_blockers:
                 b.acquire()
+            for b_reset in np.where(step_np.done)[0]:
+                step_np.action[b_reset] = 0  # Null prev_action.
+                step_np.reward[b_reset] = 0  # Null prev_reward.
+                self.agent.reset_one(idx=b_reset)
             action, agent_info = self.agent.step(*agent_inputs)
             step_np.action[:] = action
             step_np.agent_info[:] = agent_info
-
-            self.sync.do_reset.value = (sum(step_np.done) >=
-                self.eval_min_envs_reset)
-            if self.sync.do_reset.value:
-                for b_reset in np.where(step_np.done)[0]:
-                    self.agent.reset_one(idx=b_reset)
-                    step_np.action[b_reset] = 0  # Prev_action for next t.
-                    # Leave step_np.done[b_reset] ON for worker; worker resets.
             if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
                 self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
             for w in act_waiters:
@@ -198,9 +194,8 @@ class GpuParallelSampler(BaseSampler):
         if t == self.eval_max_T - 1 and self.eval_max_trajectories is not None:
             logger.log("Evaluation reached max num time steps "
                 f"({self.eval_max_T}).")
-        if not self.sync.stop_eval.value:
-            for b in step_blockers:
-                b.acquire()  # If workers finished loop, they did extra release.
+        for b in step_blockers:
+            b.acquire()  # Workers always do extra release; drain it.
 
         return traj_infos
 
