@@ -210,7 +210,6 @@ def assemble_workers_kwargs(affinity, seed, samples_np, n_envs_list, step_buffer
         w_sync = AttrDict(
             step_blocker=sync.step_blockers[rank],
             act_waiter=sync.act_waiters[rank],
-            do_reset=sync.do_reset,
             stop_eval=sync.stop_eval,
         )
         worker_kwargs = dict(
