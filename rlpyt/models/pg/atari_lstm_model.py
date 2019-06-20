@@ -35,7 +35,7 @@ class AtariLstmModel(torch.nn.Module):
             use_maxpool=use_maxpool,
             hidden_sizes=fc_sizes,  # Applies nonlinearity at end.
         )
-        self.lstm = LstmModel(self.conv.output_size, lstm_size)
+        self.lstm = LstmModel(self.conv.output_size + output_size + 1, lstm_size)
         self.pi = torch.nn.Linear(lstm_size, output_size)
         self.value = torch.nn.Linear(lstm_size, 1)
 
