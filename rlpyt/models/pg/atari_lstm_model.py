@@ -57,7 +57,7 @@ class AtariLstmModel(torch.nn.Module):
             ], dim=2)
         lstm_out, (hn, cn) = self.lstm(lstm_input, init_rnn_state)
         pi = F.softmax(self.pi(lstm_out.view(T * B, -1)), dim=-1)
-        v = self.linear_v(lstm_out.view(T * B, -1)).squeeze(-1)
+        v = self.value(lstm_out.view(T * B, -1)).squeeze(-1)
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), T, B, has_T, has_B)
