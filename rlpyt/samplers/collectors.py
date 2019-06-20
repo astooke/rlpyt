@@ -82,7 +82,7 @@ class SerialEvalCollector(object):
                 if d:
                     o = env.reset()
                     r = 0
-                    self.agent.reset_one(b)
+                    self.agent.reset_one(idx=b)
             observation[b] = o
             reward[b] = r
             if (self.max_trajectories is not None and

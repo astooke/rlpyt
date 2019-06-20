@@ -180,7 +180,7 @@ class GpuParallelSampler(BaseSampler):
                 self.eval_min_envs_reset)
             if self.sync.do_reset.value:
                 for b_reset in np.where(step_np.done)[0]:
-                    self.agent.reset_one(idx=b)
+                    self.agent.reset_one(idx=b_reset)
                     step_np.action[b] = 0  # Prev_action for next t.
                     # Leave step_np.done[b] ON for worker; worker resets.
             if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
