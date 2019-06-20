@@ -24,7 +24,7 @@ class AtariTrajInfo(TrajInfo):
         self.GameScore = 0
 
     def step(self, observation, action, reward, done, agent_info, env_info):
-        super().step(observation, action, reward, agent_info, env_info)
+        super().step(observation, action, reward, done, agent_info, env_info)
         self.GameScore += getattr(env_info, "game_score", 0)
 
 
