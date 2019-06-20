@@ -22,7 +22,7 @@ class TD3(DDPG):
         save__init__args(locals())
         super().__init__(**kwargs)
 
-    def q_loss(self, samples):
+    def q_loss(self, samples, valid):
         q1, q2 = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
             target_q1, target_q2 = self.agent.target_q_at_mu(
@@ -31,5 +31,5 @@ class TD3(DDPG):
         y = samples.reward + (1 - samples.done.float()) * self.discount * target_q
         q1_losses = 0.5 * (y - q1) ** 2
         q2_losses = 0.5 * (y - q2) ** 2
-        q_loss = valid_mean(q1_losses + q2_losses, samples.valid)  # valid can be None.
+        q_loss = valid_mean(q1_losses + q2_losses, valid)  # valid can be None.
         return q_loss

@@ -3,6 +3,7 @@ import torch
 
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
+from rlpyt.algos.utils import valid_from_done
 
 
 EPS = 1e-6  # (NaN-guard)
@@ -67,7 +68,7 @@ class CategoricalDQN(DQN):
         KL_div = torch.clamp(KL_div, EPS, 1 / EPS)  # Avoid <0 from NaN-guard.
 
         if not self.mid_batch_reset:
-            valid = samples.valid.float()
+            valid = valid_from_done(samples.done)
             loss = valid_mean(losses, valid)
             KL_div *= valid
         else:

@@ -8,6 +8,7 @@ from rlpyt.utils.logging import logger
 from rlpyt.replays.uniform import UniformReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import valid_mean
+from rlpyt.algos.utils import valid_from_done
 
 OptInfo = namedtuple("OptInfo",
     ["muLoss", "qLoss", "muGradNorm", "qGradNorm"])
@@ -78,7 +79,6 @@ class DDPG(RlAlgorithm):
             example=example_to_buffer,
             size=self.replay_size,
             B=batch_spec.B,
-            store_valid=not mid_batch_reset,
         )
         self.replay_buffer = UniformReplayBuffer(**replay_kwargs)
 
@@ -96,8 +96,12 @@ class DDPG(RlAlgorithm):
         for _ in range(self.updates_per_optimize):
             self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample(self.batch_size)
+            if self.mid_batch_reset and not self.agent.recurrent:
+                valid = None  # OR: torch.ones_like(samples.done, dtype=torch.float)
+            else:
+                valid = valid_from_done(samples_from_replay.done)
             self.q_optimizer.zero_grad()
-            q_loss = self.q_loss(samples_from_replay)
+            q_loss = self.q_loss(samples_from_replay, valid)
             q_loss.backward()
             q_grad_norm = torch.nn.utils.clip_grad_norm_(
                 self.agent.q_parameters(), self.clip_grad_norm)
@@ -106,7 +110,7 @@ class DDPG(RlAlgorithm):
             opt_info.qGradNorm.append(q_grad_norm)
             if self.update_counter % self.policy_update_interval == 0:
                 self.mu_optimizer.zero_grad()
-                mu_loss = self.mu_loss(samples_from_replay)
+                mu_loss = self.mu_loss(samples_from_replay, valid)
                 mu_loss.backward()
                 mu_grad_norm = torch.nn.utils.clip_grad_norm_(
                     self.agent.mu_parameters(), self.clip_grad_norm)
@@ -117,12 +121,12 @@ class DDPG(RlAlgorithm):
                 self.agent.update_target(self.target_update_tau)
         return opt_info
 
-    def mu_loss(self, samples):
+    def mu_loss(self, samples, valid):
         mu_losses = self.agent.q_at_mu(*samples.agent_inputs)
-        mu_loss = valid_mean(mu_losses, samples.valid)  # samples.valid can be None.
+        mu_loss = valid_mean(mu_losses, valid)  # valid can be None.
         return -mu_loss
 
-    def q_loss(self, samples):
+    def q_loss(self, samples, valid):
         """Samples have leading batch dimension [B,..] (but not time)."""
         q = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
@@ -130,7 +134,7 @@ class DDPG(RlAlgorithm):
         y = samples.reward + (1 - samples.done.float()) * self.discount * target_q
         y = torch.clamp(y, -self.q_target_clip, self.q_target_clip)
         q_losses = 0.5 * (y - q) ** 2
-        q_loss = valid_mean(q_losses, samples.valid)  # samples.valid can be None.
+        q_loss = valid_mean(q_losses, valid)  # valid can be None.
         return q_loss
 
     def optim_state_dict(self):

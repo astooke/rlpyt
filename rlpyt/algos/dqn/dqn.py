@@ -9,6 +9,7 @@ from rlpyt.replays.non_sequence.frame import (UniformReplayFrameBuffer,
     PrioritizedReplayFrameBuffer)
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
+from rlpyt.algos.utils import valid_from_done
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr"])
 SamplesToBuffer = namedarraytuple("SamplesToBuffer",
@@ -103,7 +104,6 @@ class DQN(RlAlgorithm):
             B=batch_spec.B,
             discount=self.discount,
             n_step_return=self.n_step_return,
-            store_valid=not self.mid_batch_reset,
         )
         if self.prioritized_replay:
             replay_kwargs.update(dict(
@@ -169,7 +169,7 @@ class DQN(RlAlgorithm):
             losses *= samples.is_weights
         td_abs_errors = torch.clamp(abs_delta.detach(), 0, self.delta_clip)
         if not self.mid_batch_reset:
-            valid = samples.valid.float()
+            valid = valid_from_done(samples.done)
             loss = valid_mean(losses, valid)
             td_abs_errors *= valid
         else:

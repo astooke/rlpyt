@@ -11,6 +11,7 @@ from rlpyt.utils.buffer import buffer_to
 from rlpyt.distributions.gaussian import Gaussian
 from rlpyt.distributions.gaussian import DistInfo as GaussianDistInfo
 from rlpyt.utils.tensor import valid_mean
+from rlpyt.algos.utils import valid_from_done
 
 
 OptInfo = namedtuple("OptInfo",
@@ -126,8 +127,13 @@ class SAC(RlAlgorithm):
             target_v = self.agent.target_v(*target_inputs)
         y = (self.scale_reward * samples.reward +
             (1 - samples.done.float()) * self.discount * target_v)
-        q1_loss = 0.5 * valid_mean((y - q1) ** 2, samples.valid)
-        q2_loss = 0.5 * valid_mean((y - q2) ** 2, samples.valid)
+        if self.mid_batch_reset and not self.agent.recurrent:
+            valid = None  # OR: torch.ones_like(samples.done, dtype=torch.float)
+        else:
+            valid = valid_from_done(samples.done)
+
+        q1_loss = 0.5 * valid_mean((y - q1) ** 2, valid)
+        q2_loss = 0.5 * valid_mean((y - q2) ** 2, valid)
 
         v = self.agent.v(*agent_inputs)
         new_action, log_pi, (pi_mean, pi_log_std) = self.agent.pi(*agent_inputs)
@@ -137,7 +143,7 @@ class SAC(RlAlgorithm):
         min_log_target = torch.minimum(log_target1, log_target2)
         prior_log_pi = self.get_action_prior(new_action.cpu())
         v_target = (min_log_target - log_pi + prior_log_pi).detach()  # No grad.
-        v_loss = 0.5 * valid_mean((v - v_target) ** 2, samples.valid)
+        v_loss = 0.5 * valid_mean((v - v_target) ** 2, valid)
 
         if self.reparameratize:
             pi_losses = log_pi - min_log_target
@@ -147,7 +153,7 @@ class SAC(RlAlgorithm):
         if self.policy_output_regularization > 0:
             pi_losses += (self.policy_output_regularization * 0.5 *
                 pi_mean ** 2 + pi_log_std ** 2)
-        pi_loss = valid_mean(pi_losses, samples.valid)
+        pi_loss = valid_mean(pi_losses, valid)
 
         losses = (q1_loss, q2_loss, v_loss, pi_loss)
         values = (val.detach() for val in (q1, q2, v, pi_mean, pi_log_std))

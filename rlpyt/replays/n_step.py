@@ -6,7 +6,6 @@ import numpy as np
 from rlpyt.replays.base import BaseReplayBuffer
 from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
 from rlpyt.algos.utils import discount_return_n_step
-from rlpyt.algos.utils import valid_from_done
 
 
 class BaseNStepReturnBuffer(BaseReplayBuffer):
@@ -25,8 +24,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
     and reward overwritten (off_forward).
     """
 
-    def __init__(self, example, size, B, discount=1, n_step_return=1,
-            store_valid=False):
+    def __init__(self, example, size, B, discount=1, n_step_return=1):
         self.T = T = math.ceil(size / B)
         self.B = B
         self.size = T * B
@@ -43,11 +41,6 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         self._buffer_full = False
         self.off_backward = n_step_return  # Current invalid samples.
         self.off_forward = 1  # i.e. current cursor, prev_action overwritten.
-        self.store_valid = store_valid
-        if store_valid:
-            # If no mid-batch-reset, samples after done will be invalid, but
-            # might still be sampled later in a training batch.
-            self.samples_valid = buffer_from_example(example.done, (T, B))
 
     def append_samples(self, samples):
         T, B = get_leading_dims(samples, n_dim=2)  # samples.env.reward.shape[:2]
@@ -58,8 +51,6 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         else:
             idxs = slice(t, t + T)
         self.samples[idxs] = samples
-        if self.store_valid:
-            self.samples_valid[idxs] = valid_from_done(samples.done.float())
         self.compute_returns(T)
         if not self._buffer_full and t + T >= self.T:
             self._buffer_full = True  # Only changes on first around.

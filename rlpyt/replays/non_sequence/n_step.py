@@ -7,7 +7,7 @@ from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.buffer import torchify_buffer
 
 SamplesFromReplay = namedarraytuple("SamplesFromReplay",
-    ["agent_inputs", "action", "return_", "done_n", "target_inputs", "valid"])
+    ["agent_inputs", "action", "return_", "done", "done_n", "target_inputs"])
 
 
 class NStepReturnBuffer(BaseNStepReturnBuffer):
@@ -23,13 +23,13 @@ class NStepReturnBuffer(BaseNStepReturnBuffer):
             ),
             action=s.action[T_idxs, B_idxs],
             return_=self.samples_return_[T_idxs, B_idxs],
+            done=self.samples.done[T_idxs, B_idxs],
             done_n=self.samples_done_n[T_idxs, B_idxs],
             target_inputs=AgentInputs(
                 observation=self.extract_observation(target_T_idxs, B_idxs),
                 prev_action=s.action[target_T_idxs - 1, B_idxs],
                 prev_reward=s.reward[target_T_idxs - 1, B_idxs],
             ),
-            valid=self.samples_valid[T_idxs, B_idxs] if self.store_valid else None,
         )
         t_news = np.where(s.done[T_idxs - 1, B_idxs])[0]
         batch.agent_inputs.prev_action[t_news] = 0

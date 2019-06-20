@@ -119,7 +119,6 @@ class R2D1(RlAlgorithm):
             n_step_return=self.n_step_return,
             rnn_state_interval=self.store_rnn_state_interval,
             batch_T=self.batch_T + self.warmup_T,  # Fixed for prioritized replay.
-            store_valid=not self.mid_batch_reset,
         )
         if self.prioritized_replay:
             replay_kwargs.update(dict(
@@ -229,10 +228,7 @@ class R2D1(RlAlgorithm):
             losses = torch.where(abs_delta <= self.delta_clip, losses, b)
         if self.prioritized_replay:
             losses *= samples.is_weights.unsqueeze(0)  # weights: [B] --> [1,B]
-        if self.mid_batch_reset:
-            valid = valid_from_done(samples.done.float())  # 0 after first done.
-        if not self.mid_batch_reset:  # Replay track valid, sampling can misalign.
-            valid = samples.valid[wT:wT + bT].float()  # [T,B]
+        valid = valid_from_done(samples.done)  # 0 after first done.
         loss = valid_mean(losses, valid)
         td_abs_errors = torch.clamp(abs_delta.detach(), 0, self.delta_clip)  # [T,B]
         valid_td_abs_errors = td_abs_errors * valid

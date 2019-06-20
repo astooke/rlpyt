@@ -84,7 +84,6 @@ def build_par_objs(n, groups=1):
     sync = AttrDict(
         step_blockers=step_blockers,
         act_waiters=act_waiters,
-        do_reset=mp.RawValue(ctypes.c_bool, False),
         stop_eval=mp.RawValue(ctypes.c_bool, False),
     )
     return ctrl, traj_infos_queue, sync

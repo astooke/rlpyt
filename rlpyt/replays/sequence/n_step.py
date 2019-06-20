@@ -9,7 +9,7 @@ from rlpyt.utils.collections import namedarraytuple
 
 SamplesFromReplay = namedarraytuple("SamplesFromReplay",
     ["all_observation", "all_action", "all_reward", "return_", "done", "done_n",
-    "init_rnn_state", "valid"])
+    "init_rnn_state"])
 
 SamplesToBuffer = None
 
@@ -66,8 +66,6 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
             init_rnn_state = self.samples.prev_rnn_state[T_idxs, B_idxs]
         else:  # rsi == 0
             init_rnn_state = None
-        valid = (extract_sequences(self.samples_valid, T_idxs, B_idxs, T)
-            if self.store_valid else None)
         batch = SamplesFromReplay(
             all_observation=self.extract_observation(T_idxs, B_idxs,
                 T + self.n_step_return),
@@ -79,7 +77,6 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
             done=extract_sequences(s.done, T_idxs, B_idxs, T),
             done_n=extract_sequences(self.samples_done_n, T_idxs, B_idxs, T),
             init_rnn_state=init_rnn_state,  # (Same state for agent and target.)
-            valid=valid,
         )
         # NOTE: Algo might need to make zero prev_action/prev_reward depending on done.
         return torchify_buffer(batch)

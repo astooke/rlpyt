@@ -41,5 +41,5 @@ class PolicyGradientAlgo(RlAlgorithm):
         if not self.mid_batch_reset or self.agent.recurrent:
             valid = valid_from_done(done)  # Recurrent: no reset during training.
         else:
-            valid = torch.ones_like(done)  # or None?
+            valid = None  # OR: torch.ones_like(done)
         return return_, advantage, valid
