@@ -45,7 +45,7 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         buffer_samples = SamplesToBuffer(*(v for k, v in samples.items()
             if k != "prev_rnn_state"))
         T, idxs = super().append_samples(buffer_samples)
-        start, stop = math.ceil(t / rsi), (t + T) // rsi
+        start, stop = math.ceil(t / rsi), ((t + T - 1) // rsi) + 1
         offset = (rsi - t) % rsi
         if stop > self.rnn_T:  # Wrap.
             rnn_idxs = np.arange(start, stop) % self.rnn_T
