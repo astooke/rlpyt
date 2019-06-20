@@ -1,5 +1,5 @@
 
-# import copy
+import copy
 
 configs = dict()
 
@@ -26,13 +26,15 @@ config = dict(
         game="pong",
         episodic_lives=True,  # The paper does mostly without, but still better.
         clip_reward=False,
-        horizon=int(40e3),
+        horizon=int(27e3),
+        num_img_obs=4,
     ),
     eval_env=dict(
         game="pong",  # NOTE: update in train script!
         episodic_lives=False,
-        horizon=int(40e3),
+        horizon=int(27e3),
         clip_reward=False,
+        num_img_obs=4,
     ),
     runner=dict(
         n_steps=100e6,
@@ -45,9 +47,25 @@ config = dict(
         eval_n_envs=4,
         eval_max_steps=int(161e3),
         eval_max_trajectories=100,
-        eval_min_envs_reset=2,
+        # eval_min_envs_reset=2,
     ),
 )
 
 configs["r2d1"] = config
+
+
+config = copy.deepcopy(configs["r2d1"])
+config["algo"]["replay_size"] = int(4e6)
+config["algo"]["batch_B"] = 64  # Not sure will fit.
+config["algo"]["training_ratio"] = 1
+config["algo"]["eps_final"] = 0.1
+config["algo"]["eps_final_min"] = 0.0005
+config["runner"]["n_steps"] = 20e9
+config["runner"]["log_interval_steps"] = 10e6
+config["sampler"]["batch_T"] = 60
+config["sampler"]["batch_B"] = 128
+config["sampler"]["eval_n_envs"] = 8
+config["sampler"]["eval_max_steps"] = int(28e3 * 8)
+config["env"]["episodic_lives"] = False
+configs["r2d1_long"] = config
 
