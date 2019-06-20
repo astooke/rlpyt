@@ -33,7 +33,7 @@ def sampling_process(common_kwargs, worker_kwargs):
     c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
     initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads,
         w.get("group", None))
-    envs = [c.EnvCls(**c.env_kwargs) for _ in range(c.n_envs)]
+    envs = [c.EnvCls(**c.env_kwargs) for _ in range(w.n_envs)]
     collector = c.CollectorCls(
         rank=w.rank,
         envs=envs,

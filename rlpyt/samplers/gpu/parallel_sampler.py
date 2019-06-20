@@ -21,8 +21,13 @@ class GpuParallelSampler(BaseSampler):
     def initialize(self, agent, affinity, seed,
             bootstrap_value=False, traj_info_kwargs=None):
         n_parallel = len(affinity["workers_cpus"])
-        assert self.batch_spec.B % n_parallel == 0  # Same num envs per worker.
-        n_envs = self.batch_spec.B // n_parallel  # Per worker.
+        n_envs_list = [self.batch_spec.B // n_parallel] * n_parallel
+        if not self.batch_spec.B % n_parallel == 0:
+            logger.log("WARNING: unequal number of envs per process, from "
+                f"batch_B {self.batch_spec.B} and n_parallel {n_parallel} "
+                "(possibly suboptimal speed).")
+            for b in range(self.batch_spec.B % n_parallel):
+                n_envs_list[b] += 1
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
@@ -58,7 +63,6 @@ class GpuParallelSampler(BaseSampler):
         common_kwargs = dict(
             EnvCls=self.EnvCls,
             env_kwargs=self.env_kwargs,
-            n_envs=n_envs,
             agent=None,
             batch_T=self.batch_spec.T,
             CollectorCls=self.CollectorCls,
@@ -74,7 +78,7 @@ class GpuParallelSampler(BaseSampler):
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np,
-            n_envs, step_buffer_np, sync, eval_n_envs_per, eval_step_buffer_np)
+            n_envs_list, step_buffer_np, sync, eval_n_envs_per, eval_step_buffer_np)
 
         workers = [mp.Process(target=sampling_process,
             kwargs=dict(common_kwargs=common_kwargs, worker_kwargs=w_kwargs))
@@ -201,11 +205,13 @@ class GpuParallelSampler(BaseSampler):
         return traj_infos
 
 
-def assemble_workers_kwargs(affinity, seed, samples_np, n_envs, step_buffer_np,
+def assemble_workers_kwargs(affinity, seed, samples_np, n_envs_list, step_buffer_np,
         sync, eval_n_envs, eval_step_buffer_np):
     workers_kwargs = list()
+    i_env = 0
     for rank in range(len(affinity["workers_cpus"])):
-        slice_B = slice(rank * n_envs, (rank + 1) * n_envs)
+        n_envs = n_envs_list[rank]
+        slice_B = slice(i_env, i_env + n_envs)
         w_sync = AttrDict(
             step_blocker=sync.step_blockers[rank],
             act_waiter=sync.act_waiters[rank],
@@ -216,10 +222,12 @@ def assemble_workers_kwargs(affinity, seed, samples_np, n_envs, step_buffer_np,
             rank=rank,
             seed=seed + rank,
             cpus=affinity["workers_cpus"][rank],
+            n_envs=n_envs,
             samples_np=samples_np[:, slice_B],
             step_buffer_np=step_buffer_np[slice_B],
             sync=w_sync,
         )
+        i_env += n_envs
         if eval_n_envs > 0:
             eval_slice_B = slice(rank * eval_n_envs, (rank + 1) * eval_n_envs)
             worker_kwargs["eval_step_buffer_np"] = eval_step_buffer_np[eval_slice_B]
