@@ -65,13 +65,14 @@ class AtariEnv(Env):
         self._has_fire = "FIRE" in self.get_action_meanings()
         self._has_up = "UP" in self.get_action_meanings()
         self._horizon = int(horizon)
-        self._need_ale_reset = True
+        self._ale_reset()
+        self._game_over = False
 
     def reset(self, hard=False):
         """Call reset before first step."""
-        if self._episodic_lives and not hard:
-            return self._episodic_lives_reset()
-        return self._ale_reset()
+        if self._game_over or hard:
+            return self._ale_reset()
+        return self._episodic_lives_reset()
 
     def step(self, action):
         a = self._action_set[action]
@@ -83,9 +84,9 @@ class AtariEnv(Env):
         lost_life = self._check_life()  # Advances from lost_life state.
         self._update_obs()
         reward = np.sign(game_score) if self._clip_reward else game_score
-        self._need_ale_reset = self.ale.game_over() or self._step_counter >= self.horizon
-        done = lost_life if self._episodic_lives else self._need_ale_reset
-        info = EnvInfo(game_score=game_score, traj_done=self._need_ale_reset)
+        self._game_over = self.ale.game_over() or self._step_counter >= self.horizon
+        done = self._game_over or (self._episodic_lives and lost_life)
+        info = EnvInfo(game_score=game_score, traj_done=self._game_over)
         self._step_counter += 1
         return EnvStep(self.get_obs(), reward, done, info)
 
@@ -116,8 +117,6 @@ class AtariEnv(Env):
         return self.get_obs()
 
     def _episodic_lives_reset(self):
-        if self._need_ale_reset:
-            return self._ale_reset()
         # _life_reset() already happened inside _check_life().
         self._reset_obs()
         self._update_obs()
