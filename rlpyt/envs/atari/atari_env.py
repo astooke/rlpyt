@@ -85,7 +85,7 @@ class AtariEnv(Env):
         self._get_screen(1)
         game_score += self.ale.act(a)
         lost_life = self._check_life()  # Advances from lost_life state.
-        if lost_life and self._epidosic_lives:
+        if lost_life and self._episodic_lives:
             self._reset_obs()  # Internal reset.
         self._update_obs()
         reward = np.sign(game_score) if self._clip_reward else game_score
