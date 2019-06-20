@@ -65,8 +65,7 @@ class AtariEnv(Env):
         self._has_fire = "FIRE" in self.get_action_meanings()
         self._has_up = "UP" in self.get_action_meanings()
         self._horizon = int(horizon)
-        self._ale_reset()
-        self._game_over = False
+        self.reset()
 
     def reset(self, hard=False):
         self.ale.reset_game()
@@ -78,7 +77,7 @@ class AtariEnv(Env):
         self._step_counter = 0
         return self.get_obs()
 
-    def new_step(self, action):
+    def step(self, action):
         a = self._action_set[action]
         game_score = np.array(0., dtype="float32")
         for _ in range(self._frame_skip - 1):
