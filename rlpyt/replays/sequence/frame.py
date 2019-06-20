@@ -35,8 +35,8 @@ class SequenceNStepFrameBuffer(FrameBufferMixin, SequenceNStepReturnBuffer):
             if np.any(done_fm1):
                 where_done_t = np.where(done_fm1)[0] - fm1  # Might be negative...
                 for f in range(1, self.n_frames):
-                    t_blanks = where_done_t + f
-                    t_blanks = t_blanks[t_blanks >= 0]  # ..don't let it wrap.
+                    t_blanks = where_done_t + f  # ...might be > T...
+                    t_blanks = t_blanks[t_blanks >= 0 and t_blanks < T]  # ..don't let it wrap.
                     observation[t_blanks, i, :self.n_frames - f] = 0
 
         return observation
