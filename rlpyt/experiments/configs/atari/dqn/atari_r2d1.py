@@ -85,3 +85,9 @@ config = copy.deepcopy(configs["r2d1_profile"])
 config["algo"]["batch_B"] = 16
 config["algo"]["training_ratio"] = 0.25
 configs["r2d1_prof_quartertrain"] = config
+
+config = copy.deepcopy(configs["r2d1_long"])
+config["algo"]["training_ratio"] = 4
+config["sampler"]["eval_n_envs"] = 12
+config["sampler"]["eval_max_steps"] = int(28e3 * 12)
+configs["r2d1_long_4tr"]
