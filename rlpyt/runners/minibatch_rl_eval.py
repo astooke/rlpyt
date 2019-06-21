@@ -64,13 +64,13 @@ class MinibatchRlEval(MinibatchRlBase):
         self.cum_eval_time += eval_time
         self.cum_total_time += log_interval_time
         self._last_time = new_time
-        train_samples_per_second = (float('nan') if itr == 0 else
+        samples_per_second = (float('nan') if itr == 0 else
             self.log_interval_itrs * self.sampler.batch_spec.size / new_train_time)
 
         logger.record_tabular('CumTrainTime', self.cum_train_time)
         logger.record_tabular('CumEvalTime', self.cum_eval_time)
         logger.record_tabular('CumTotalTime', self.cum_total_time)
-        logger.record_tabular('TrainSamplesPerSecond', train_samples_per_second)
+        logger.record_tabular('SamplesPerSecond', samples_per_second)
 
         logger.dump_tabular(with_prefix=False)
 

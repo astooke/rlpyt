@@ -69,3 +69,7 @@ config["sampler"]["eval_max_steps"] = int(28e3 * 6)
 config["env"]["episodic_lives"] = False
 configs["r2d1_long"] = config
 
+config = copy.deepcopy(configs["r2d1_long"])
+config["runner"]["n_steps"] = 5e5
+configs["r2d1_profile"] = config
+
