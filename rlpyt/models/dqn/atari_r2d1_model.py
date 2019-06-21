@@ -38,7 +38,7 @@ class AtariR2d1Model(torch.nn.Module):
             use_maxpool=use_maxpool,
             hidden_sizes=fc_size,
         )
-        self.lstm = torch.nn.lstm(self.conv.output_size + output_size + 1, lstm_size)
+        self.lstm = torch.nn.LSTM(self.conv.output_size + output_size + 1, lstm_size)
         if dueling:
             self.head = DuelingHeadModel(lstm_size, head_size, output_size)
         else:
