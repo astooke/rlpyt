@@ -6,6 +6,7 @@ from rlpyt.agents.base import AgentInputs, AgentInputsRnn
 
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.quick_args import save__init__args
+from rlpyt.utils.buffer import buffer_method
 
 
 class A2C(PolicyGradientAlgo):
@@ -48,8 +49,11 @@ class A2C(PolicyGradientAlgo):
             prev_reward=samples.env.prev_reward,
         )
         if self.agent.recurrent:
-            agent_inputs = AgentInputsRnn(*agent_inputs,
-                init_rnn_state=samples.agent.agent_info.prev_rnn_state[0])  # T=0.
+            init_rnn_state = self.samples.agent.agent_info.prev_rnn_state[0]  # T = 0.
+            # [B,N,H] --> [N,B,H] (for cudnn).
+            init_rnn_state = buffer_method(init_rnn_state, "transpose", 0, 1)
+            init_rnn_state = buffer_method(init_rnn_state, "contiguous")
+            agent_inputs = AgentInputsRnn(*agent_inputs, init_rnn_state=init_rnn_state)
 
         dist_info, value = self.agent(*agent_inputs)
         # TODO: try to compute everyone on device.

@@ -61,9 +61,9 @@ class PPO(PolicyGradientAlgo):
             valid=valid,
             old_dist_info=samples.agent.agent_info.dist_info,
         )
-        init_rnn_state = (None if not recurrent else
-            buffer_to(samples.agent.agent_info.prev_rnn_state[0],
-                device=self.agent.device))
+        if recurrent:
+            # Leave in [B,N,H] for slicing to minibatches.
+            init_rnn_state = samples.agent.agent_info.prev_rnn_state[0]  # T=0.
         T, B = samples.env.reward.shape[:2]
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         # If recurrent, use whole trajectories, only shuffle B; else shuffle all.
@@ -96,6 +96,9 @@ class PPO(PolicyGradientAlgo):
     def loss(self, agent_inputs, action, return_, advantage, valid, old_dist_info,
             init_rnn_state=None):
         if init_rnn_state is not None:
+            # [B,N,H] --> [N,B,H] (for cudnn).
+            init_rnn_state = buffer_method(init_rnn_state, "transpose", 0, 1)
+            init_rnn_state = buffer_method(init_rnn_state, "contiguous")
             agent_inputs = AgentInputsRnn(*agent_inputs, init_rnn_state)
         dist_info, value = self.agent(*agent_inputs)
         dist = self.agent.distribution

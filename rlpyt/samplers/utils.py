@@ -100,6 +100,9 @@ def get_example_outputs(agent, env, examples):
     agent.reset()
     agent_inputs = torchify_buffer(AgentInputs(o, a, r))
     a, agent_info = agent.step(*agent_inputs)
+    if "prev_rnn_state" in agent_info:
+        # Agent leaves B dimension in, strip it: [B,N,H] --> [N,H]
+        agent_info.prev_rnn_state = agent_info.prev_rnn_state[0]
     examples["observation"] = o
     examples["reward"] = r
     examples["done"] = d

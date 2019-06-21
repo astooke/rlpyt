@@ -11,7 +11,7 @@ from rlpyt.replays.sequence.frame import UniformSequenceReplayFrameBuffer
 from rlpyt.replays.sequence.frame import PrioritizedSequenceReplayFrameBuffer
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
 from rlpyt.algos.utils import valid_from_done
-from rlpyt.utils.buffer import buffer_to
+from rlpyt.utils.buffer import buffer_to, buffer_method
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr", "priority"])
 SamplesToBuffer = namedarraytuple("SamplesToBuffer",
@@ -195,13 +195,23 @@ class R2D1(RlAlgorithm):
         action = samples.all_action[wT + 1:wT + 1 + bT]  # CPU.
         return_ = samples.return_[wT:wT + bT]
         done_n = samples.done_n[wT:wT + bT]
-        init_rnn_state = (None if self.store_rnn_state_interval == 0 else
-            buffer_to(samples.init_rnn_state, device=self.agent.device))
-        if wT > 0:
+        if self.store_rnn_state_interval == 0:
+            init_rnn_state = None
+        else:
+            # [B,N,H]-->[N,B,H] cudnn.
+            init_rnn_state = buffer_method(samples.init_rnn_state, "transpose", 0, 1)
+            init_rnn_state = buffer_method(init_rnn_state, "contiguous")
+        if wT > 0:  # Do warmup.
             with torch.no_grad():
+                _, target_rnn_state = self.agent.target(*warmup_inputs, init_rnn_state)
                 _, init_rnn_state = self.agent(*warmup_inputs, init_rnn_state)
-                _, target_rnn_state = self.agent.target(*warmup_inputs,
-                    init_rnn_state)
+            # Recommend aligning sampling batch_T and store_rnn_interval with
+            # warmup_T (and no mid_batch_reset), so that end of trajectory
+            # during warmup leads to new trajectory beginning at start of
+            # training segment of replay.
+            warmup_invalid_mask = valid_from_done(samples.done[:wT])[-1] == 0  # [B]
+            init_rnn_state[:, warmup_invalid_mask] = 0  # [N,B,H] (cudnn)
+            target_rnn_state[:, warmup_invalid_mask] = 0
         else:
             target_rnn_state = init_rnn_state
 
@@ -228,7 +238,7 @@ class R2D1(RlAlgorithm):
             losses = torch.where(abs_delta <= self.delta_clip, losses, b)
         if self.prioritized_replay:
             losses *= samples.is_weights.unsqueeze(0)  # weights: [B] --> [1,B]
-        valid = valid_from_done(samples.done)  # 0 after first done.
+        valid = valid_from_done(samples.done[wT:])  # 0 after first done.
         loss = valid_mean(losses, valid)
         td_abs_errors = torch.clamp(abs_delta.detach(), 0, self.delta_clip)  # [T,B]
         valid_td_abs_errors = td_abs_errors * valid

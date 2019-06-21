@@ -39,8 +39,7 @@ class AtariR2d1Model(torch.nn.Module):
             use_maxpool=use_maxpool,
             hidden_sizes=fc_size,
         )
-        lstm_in_size = self.conv.output_size + output_size + 1
-        self.lstm = LstmModel(lstm_in_size, lstm_size)
+        self.lstm = torch.nn.lstm(self.conv.output_size + output_size + 1, lstm_size)
         if dueling:
             self.head = DuelingHeadModel(lstm_size, head_size, output_size)
         else:
@@ -68,7 +67,7 @@ class AtariR2d1Model(torch.nn.Module):
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
         q = restore_leading_dims(q, T, B, has_T, has_B)
-        hn, cn = restore_leading_dims((hn, cn), B=B, put_B=has_B)  # No T.
+        # Model should always leave B-dimension in rnn state: [N,B,H].
         next_rnn_state = RnnState(h=hn, c=cn)
 
         return q, next_rnn_state

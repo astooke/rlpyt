@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 from rlpyt.models.conv2d import Conv2dHeadModel
-from rlpyt.models.lstm import LstmModel
 
 
 RnnState = namedarraytuple("RnnState", ["h", "c"])  # For downstream namedarraytuples to work
@@ -35,7 +34,7 @@ class AtariLstmModel(torch.nn.Module):
             use_maxpool=use_maxpool,
             hidden_sizes=fc_sizes,  # Applies nonlinearity at end.
         )
-        self.lstm = LstmModel(self.conv.output_size + output_size + 1, lstm_size)
+        self.lstm = torch.nn.LSTM(self.conv.output_size + output_size + 1, lstm_size)
         self.pi = torch.nn.Linear(lstm_size, output_size)
         self.value = torch.nn.Linear(lstm_size, 1)
 
@@ -61,7 +60,7 @@ class AtariLstmModel(torch.nn.Module):
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), T, B, has_T, has_B)
-        hn, cn = restore_leading_dims((hn, cn), B=B, put_B=has_B)  # No T.
+        # Model should always leave B-dimension in rnn state: [N,B,H].
         next_rnn_state = RnnState(h=hn, c=cn)
 
         return pi, v, next_rnn_state

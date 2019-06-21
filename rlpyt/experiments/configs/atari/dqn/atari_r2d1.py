@@ -62,10 +62,10 @@ config["algo"]["eps_final"] = 0.1
 config["algo"]["eps_final_min"] = 0.0005
 config["runner"]["n_steps"] = 20e9
 config["runner"]["log_interval_steps"] = 10e6
-config["sampler"]["batch_T"] = 60
-config["sampler"]["batch_B"] = 128
-config["sampler"]["eval_n_envs"] = 8
-config["sampler"]["eval_max_steps"] = int(28e3 * 8)
+config["sampler"]["batch_T"] = 40  # = warmup_T = store_rnn_interval; new traj at boundary.
+config["sampler"]["batch_B"] = 192  # to make one update per sample batch.
+config["sampler"]["eval_n_envs"] = 12  # 12 cpus, 12 * 16 = 192, for pabti.
+config["sampler"]["eval_max_steps"] = int(28e3 * 12)
 config["env"]["episodic_lives"] = False
 configs["r2d1_long"] = config
 
