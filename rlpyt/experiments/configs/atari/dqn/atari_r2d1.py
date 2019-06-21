@@ -76,3 +76,7 @@ config["algo"]["min_steps_learn"] = 5e4
 config["sampler"]["eval_max_trajectories"] = 2
 configs["r2d1_profile"] = config
 
+config = copy.deepcopy(configs["r2d1_profile"])
+config["algo"]["batch_B"] = 32
+config["algo"]["training_ratio"] = 0.5
+configs["r2d1_prof_halftrain"] = config
