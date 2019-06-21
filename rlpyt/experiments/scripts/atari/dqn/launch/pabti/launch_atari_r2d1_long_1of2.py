@@ -6,15 +6,15 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 script = "rlpyt/experiments/scripts/atari/dqn/train/atari_r2d1_gpu.py"
 affinity_code = encode_affinity(
     n_cpu_cores=24,
-    n_gpu=3,
+    n_gpu=2,
     hyperthread_offset=24,
-    n_socket=1,
+    n_socket=2,
 )
 runs_per_setting = 1
-experiment_title = "atari_r2d1_long"
+experiment_title = "atari_r2d1_long_1of2"
 variant_levels = list()
 
-games = ["seaquest", "gravitar", "chopper_command"]
+games = ["seaquest", "chopper_command"]
 values = list(zip(games))
 dir_names = ["{}".format(*v) for v in values]
 keys = [("env", "game")]
