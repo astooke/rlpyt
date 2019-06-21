@@ -67,7 +67,7 @@ class MinibatchRlBase(BaseRunner):
     def get_n_itr(self, batch_size):
         log_interval = max(self.log_interval_steps // batch_size, 1)
         n_itr = math.ceil((self.n_steps // batch_size) / log_interval) * log_interval
-        self.log_interval_itr = log_interval
+        self.log_interval_itrs = log_interval
         self.n_itr = n_itr
         return n_itr
 
