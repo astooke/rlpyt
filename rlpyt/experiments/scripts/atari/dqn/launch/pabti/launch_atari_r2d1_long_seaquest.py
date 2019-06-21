@@ -10,11 +10,11 @@ affinity_code = encode_affinity(
     hyperthread_offset=24,
     n_socket=2,
 )
-runs_per_setting = 1
-experiment_title = "atari_r2d1_long_1of2"
+runs_per_setting = 2
+experiment_title = "atari_r2d1_long"
 variant_levels = list()
 
-games = ["seaquest", "chopper_command"]
+games = ["seaquest"]
 values = list(zip(games))
 dir_names = ["{}".format(*v) for v in values]
 keys = [("env", "game")]
