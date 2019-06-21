@@ -70,6 +70,7 @@ config["env"]["episodic_lives"] = False
 configs["r2d1_long"] = config
 
 config = copy.deepcopy(configs["r2d1_long"])
-config["runner"]["n_steps"] = 5e5
+config["runner"]["n_steps"] = 1e5
+config["algo"]["min_steps_learn"] = 2e4
 configs["r2d1_profile"] = config
 
