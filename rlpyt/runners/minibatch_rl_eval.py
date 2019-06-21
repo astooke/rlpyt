@@ -10,16 +10,19 @@ class MinibatchRlEval(MinibatchRlBase):
 
     def train(self):
         n_itr = self.startup()
+        with logger.prefix(f"itr #0 "):
+            eval_traj_infos, eval_time = self.evaluate_agent(0)
+            self.log_diagnostics(0, eval_traj_infos, eval_time)
         for itr in range(n_itr):
             with logger.prefix(f"itr #{itr} "):
-                if itr % self.log_interval_itrs == 0:
-                    eval_traj_infos, eval_time = self.evaluate_agent(itr)
-                    self.log_diagnostics(itr, eval_traj_infos, eval_time)
                 self.agent.sample_mode(itr)
                 samples, traj_infos = self.sampler.obtain_samples(itr)
                 self.agent.train_mode(itr)
                 opt_info = self.algo.optimize_agent(samples, itr)
                 self.store_diagnostics(itr, traj_infos, opt_info)
+                if (itr + 1) % self.log_interval_itrs == 0:
+                    eval_traj_infos, eval_time = self.evaluate_agent(itr)
+                    self.log_diagnostics(itr, eval_traj_infos, eval_time)
         self.shutdown()
 
     def evaluate_agent(self, itr):
