@@ -90,4 +90,4 @@ config = copy.deepcopy(configs["r2d1_long"])
 config["algo"]["training_ratio"] = 4
 config["sampler"]["eval_n_envs"] = 12
 config["sampler"]["eval_max_steps"] = int(28e3 * 12)
-configs["r2d1_long_4tr"]
+configs["r2d1_long_4tr"] = config
