@@ -69,6 +69,7 @@ class MinibatchRlBase(BaseRunner):
         n_itr = math.ceil(self.n_steps / self.log_interval_steps) * log_interval_itrs
         self.log_interval_itrs = log_interval_itrs
         self.n_itr = n_itr
+        logger.log("Running {n_itr} iterations of minibatch RL.")
         return n_itr
 
     def initialize_logging(self):
