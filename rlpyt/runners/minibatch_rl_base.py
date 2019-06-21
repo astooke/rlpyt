@@ -2,6 +2,7 @@
 import psutil
 import time
 import torch
+import math
 
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.seed import set_seed, make_seed
@@ -64,8 +65,9 @@ class MinibatchRlBase(BaseRunner):
         return dict(discount=getattr(self.algo, "discount", 1))
 
     def get_n_itr(self, batch_size):
-        n_itr = (self.n_steps + self.log_interval_steps) // batch_size
-        self.log_interval_itrs = max(self.log_interval_steps // batch_size, 1)
+        log_interval = max(self.log_interval_steps // batch_size, 1)
+        n_itr = math.ceil((self.n_steps // batch_size) / log_interval) * log_interval
+        self.log_interval_itr = log_interval
         self.n_itr = n_itr
         return n_itr
 
