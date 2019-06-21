@@ -60,7 +60,7 @@ class AtariR2d1Model(torch.nn.Module):
             prev_action.view(T, B, -1),  # Assumed onehot.
             prev_reward.view(T, B, 1),
             ], dim=2)
-        lstm_out, (hn, cn) = self.lstm(lstm_input, init_rnn_state)
+        lstm_out, (hn, cn) = self.lstm(lstm_input, tuple(init_rnn_state))
 
         q = self.head(lstm_out.view(T * B, -1))
 

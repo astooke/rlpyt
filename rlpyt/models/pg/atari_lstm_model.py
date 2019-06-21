@@ -54,7 +54,7 @@ class AtariLstmModel(torch.nn.Module):
             prev_action.view(T, B, -1),  # Assumed onehot.
             prev_reward.view(T, B, 1),
             ], dim=2)
-        lstm_out, (hn, cn) = self.lstm(lstm_input, init_rnn_state)
+        lstm_out, (hn, cn) = self.lstm(lstm_input, tuple(init_rnn_state))
         pi = F.softmax(self.pi(lstm_out.view(T * B, -1)), dim=-1)
         v = self.value(lstm_out.view(T * B, -1)).squeeze(-1)
 
