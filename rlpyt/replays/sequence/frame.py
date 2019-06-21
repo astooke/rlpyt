@@ -14,20 +14,18 @@ class SequenceNStepFrameBuffer(FrameBufferMixin, SequenceNStepReturnBuffer):
             self.samples_frames.shape[2:], dtype=self.samples_frames.dtype)
         fm1 = self.n_frames - 1
         for i, (t, b) in enumerate(zip(T_idxs, B_idxs)):
-            if t + T >= self.T:  # wrap (n_frames duplicated)
+            if t + T > self.T:  # wrap (n_frames duplicated)
                 m = self.T - t
                 w = T - m
                 for f in range(self.n_frames):
                     observation[:m, i, f] = self.samples_frames[t + f:t + f + m, b]
                     observation[m:, i, f] = self.samples_frames[f:w + f, b]
-                    if self.samples.done[t - f, b]:
-                        observation[0, i, f - 1:-1] = 0
             else:
                 for f in range(self.n_frames):
                     observation[:, i, f] = self.samples_frames[t + f:t + f + T, b]
 
             # Populate empty (zero) frames after environment done.
-            if t - fm1 < 0 or t + T > T:  # Wrap.
+            if t - fm1 < 0 or t + T > self.T:  # Wrap.
                 done_idxs = np.arange(t - fm1, t + T) % self.T
             else:
                 done_idxs = slice(t - fm1, t + T)
