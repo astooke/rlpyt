@@ -52,7 +52,7 @@ def encode_affinity(n_cpu_cores=1, n_gpu=0, cpu_reserved=0,
     """Use in run script to specify computer configuration."""
     affinity_code = f"{n_cpu_cores}{N_CPU_CORES}_{n_gpu}{N_GPU}"
     if contexts_per_gpu > 1:
-        affinity_code += f"_{contexts_per_gpu}{CONTEXT_PER_GPU}"
+        affinity_code += f"_{contexts_per_gpu}{CONTEXTS_PER_GPU}"
     if contexts_per_run > 1:
         raise NotImplementedError  # (parallel training)
     if n_gpu == 0:
