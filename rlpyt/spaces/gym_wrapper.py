@@ -5,9 +5,10 @@ import numpy as np
 class SpaceWrapper(object):
     """Wraps a gym space to enable multiple values to be sampled at once."""
 
-    def __init__(self, space):
+    def __init__(self, space, dtype=None):
         self.space = space
         self._null_value = 0
+        self._dtype = dtype
 
     def set_null_value(self, null_value):
         self._null_value = null_value
@@ -27,7 +28,7 @@ class SpaceWrapper(object):
 
     @property
     def dtype(self):
-        return self.space.dtype
+        return self._dtype or self.space.dtype
 
     @property
     def shape(self):

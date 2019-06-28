@@ -28,7 +28,9 @@ class GymWrapper(Wrapper):
         EnvInfo = namedtuple("EnvInfo", list(info.keys()))
         # Wrap spaces to allow multiple samples at once.
         self.action_space = SpaceWrapper(self.env.action_space)
-        self.observation_space = SpaceWrapper(self.env.observation_space)
+        dtype = np.float32 if o.dtype == np.float64 else None
+        self.observation_space = SpaceWrapper(self.env.observation_space,
+            dtype=dtype)
 
     def step(self, action):
         o, r, d, info = self.env.step(action)
