@@ -30,6 +30,7 @@ class PPO(PolicyGradientAlgo):
             epochs=4,
             ratio_clip=0.1,
             linear_lr_schedule=True,
+            normalize_advantage=False,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -99,8 +100,9 @@ class PPO(PolicyGradientAlgo):
             # [B,N,H] --> [N,B,H] (for cudnn).
             init_rnn_state = buffer_method(init_rnn_state, "transpose", 0, 1)
             init_rnn_state = buffer_method(init_rnn_state, "contiguous")
-            agent_inputs = AgentInputsRnn(*agent_inputs, init_rnn_state)
-        dist_info, value = self.agent(*agent_inputs)
+            dist_info, value, _rnn_state = self.agent(*agent_inputs, init_rnn_state)
+        else:
+            dist_info, value = self.agent(*agent_inputs)
         dist = self.agent.distribution
 
         ratio = dist.likelihood_ratio(action, old_dist_info=old_dist_info,

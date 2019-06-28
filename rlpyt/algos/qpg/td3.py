@@ -1,7 +1,7 @@
 
 import torch
 
-from rlpyt.algos.dpg.ddpg import DDPG
+from rlpyt.algos.qpg.ddpg import DDPG
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.tensor import valid_mean
 
@@ -28,7 +28,8 @@ class TD3(DDPG):
             target_q1, target_q2 = self.agent.target_q_at_mu(
                 *samples.target_inputs)  # Includes target action noise.
             target_q = torch.min(target_q1, target_q2)
-        y = samples.reward + (1 - samples.done.float()) * self.discount * target_q
+        disc = self.discount ** self.n_step_return
+        y = samples.return_ + (1 - samples.done_n.float()) * disc * target_q
         q1_losses = 0.5 * (y - q1) ** 2
         q2_losses = 0.5 * (y - q2) ** 2
         q_loss = valid_mean(q1_losses + q2_losses, valid)  # valid can be None.

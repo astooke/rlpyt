@@ -22,6 +22,7 @@ class A2C(PolicyGradientAlgo):
             clip_grad_norm=1.,
             initial_optim_state_dict=None,
             gae_lambda=1,
+            normalize_advantage=False,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -30,6 +31,10 @@ class A2C(PolicyGradientAlgo):
     def optimize_agent(self, samples, itr):
         self.optimizer.zero_grad()
         loss, entropy, perplexity = self.loss(samples)
+        if itr % 20 == 0:
+            print("max action:", samples.agent.action.max())
+            print("max mu: ", samples.agent.agent_info.dist_info.mean.max())
+            print("max log_std: ", samples.agent.agent_info.dist_info.log_std.max())
         loss.backward()
         grad_norm = torch.nn.utils.clip_grad_norm_(
             self.agent.parameters(), self.clip_grad_norm)
@@ -53,9 +58,9 @@ class A2C(PolicyGradientAlgo):
             # [B,N,H] --> [N,B,H] (for cudnn).
             init_rnn_state = buffer_method(init_rnn_state, "transpose", 0, 1)
             init_rnn_state = buffer_method(init_rnn_state, "contiguous")
-            agent_inputs = AgentInputsRnn(*agent_inputs, init_rnn_state=init_rnn_state)
-
-        dist_info, value = self.agent(*agent_inputs)
+            dist_info, value, _rnn_state = self.agent(*agent_inputs, init_rnn_state)
+        else:
+            dist_info, value = self.agent(*agent_inputs)
         # TODO: try to compute everyone on device.
         return_, advantage, valid = self.process_returns(samples)
 

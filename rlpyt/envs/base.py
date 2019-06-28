@@ -4,7 +4,8 @@ from collections import namedtuple
 
 EnvStep = namedtuple("EnvStep",
     ["observation", "reward", "done", "env_info"])
-EnvInfo = namedtuple("EnvInfo", [])
+EnvInfo = namedtuple("EnvInfo", [])  # Define in env file.
+EnvSpaces = namedtuple("EnvSpaces", ["observation", "action"])
 
 
 class Env(object):
@@ -44,10 +45,10 @@ class Env(object):
         return self._observation_space
 
     @property
-    def spec(self):
-        return EnvSpec(
-            observation_space=self.observation_space,
-            action_space=self.action_space,
+    def spaces(self):
+        return EnvSpaces(
+            observation=self.observation_space,
+            action=self.action_space,
         )
 
     @property
@@ -55,21 +56,7 @@ class Env(object):
         """Horizon of the environment, if it has one."""
         raise NotImplementedError
 
-    def terminate(self):
+    def close(self):
         """Clean up operation."""
         pass
 
-
-class EnvSpec(object):
-
-    def __init__(self, observation_space, action_space):
-        self._observation_space = observation_space
-        self._action_space = action_space
-
-    @property
-    def observation_space(self):
-        return self._observation_space
-
-    @property
-    def action_space(self):
-        return self._action_space

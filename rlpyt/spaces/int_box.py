@@ -1,6 +1,5 @@
 
 import numpy as np
-import torch
 
 from rlpyt.spaces.base import Space
 
@@ -22,7 +21,7 @@ class IntBox(Space):
         assert null_value >= low and null_value < high
         self._null_value = null_value
 
-    def sample(self, size=None, null=False, torchify=False):
+    def sample(self, size=None, null=False):
         if size is None:
             size = ()
         elif isinstance(size, int):
@@ -33,8 +32,6 @@ class IntBox(Space):
         else:
             sample = np.random.randint(low=self.low, high=self.high,
                 size=size, dtype=self.dtype)
-        if torchify:
-            sample = torch.from_numpy(sample)
         return sample
 
     @property

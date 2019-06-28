@@ -21,8 +21,8 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         q = self.model(*model_inputs)
         return q.cpu()
 
-    def initialize(self, env_spec, share_memory=False):
-        env_model_kwargs = self.make_env_to_model_kwargs(env_spec)
+    def initialize(self, env_spaces, share_memory=False):
+        env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
         self.model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
         if share_memory:
             self.model.share_memory()
@@ -31,11 +31,11 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
             self.model.load_state_dict(self.initial_model_state_dict)
         self.target_model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
         self.target_model.load_state_dict(self.model.state_dict())
-        self.distribution = EpsilonGreedy(dim=env_spec.action_space.n)
-        self.env_spec = env_spec
+        self.distribution = EpsilonGreedy(dim=env_spaces.action.n)
+        self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
         self.share_memory = share_memory
-        super().initialize(env_spec, share_memory)
+        super().initialize(env_spaces, share_memory)
 
     def initialize_cuda(self, cuda_idx=None):
         if cuda_idx is None:
@@ -49,7 +49,7 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         self.target_model.to(self.device)
         logger.log(f"Initialized agent model on device: {self.device}.")
 
-    def make_env_to_model_kwargs(self, env_spec):
+    def make_env_to_model_kwargs(self, env_spaces):
         raise NotImplementedError
 
     def state_dict(self):

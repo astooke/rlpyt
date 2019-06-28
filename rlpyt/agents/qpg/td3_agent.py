@@ -1,8 +1,9 @@
 
-from rlpyt.agents.dpg.ddpg_agent import DdpgAgent
+from rlpyt.agents.qpg.ddpg_agent import DdpgAgent
 from rlpyt.utils.buffer import buffer_to
-from rlpyt.distributions.independent_gaussian import Gaussian
+from rlpyt.distributions.gaussian import Gaussian, DistInfo
 from rlpyt.models.utils import update_state_dict
+from rlpyt.utils.quick_args import save__init__args
 
 
 class Td3Agent(DdpgAgent):
@@ -16,23 +17,24 @@ class Td3Agent(DdpgAgent):
             **kwargs
             ):
         super().__init__(**kwargs)
-        self.initial_q2_model_state_dict = initial_q2_model_state_dict
-        self.pretrain_std = pretrain_std
+        save__init__args(locals())
         self.min_itr_learn = 0  # Get from algo.
 
-    def initialize(self, env_spec, share_memory=False):
-        super().initialize(env_spec, share_memory)
+    def initialize(self, env_spaces, share_memory=False):
+        super().initialize(env_spaces, share_memory)
         self.q2_model = self.QModelCls(**self.env_model_kwargs,
             **self.q_model_kwargs)
-        if self.initial_q1_model_state_dict is not None:
+        if self.initial_q2_model_state_dict is not None:
             self.q2_model.load_state_dict(self.initial_q2_model_state_dict)
         self.target_q2_model = self.QModelCls(**self.env_model_kwargs,
             **self.q_model_kwargs)
         self.target_q2_model.load_state_dict(self.q2_model.state_dict())
-        self.target_distribution = Gaussian(dim=env_spec.action_space.size,
-            std=self.target_noise_std, noise_clip=self.target_noise_clip,
-            clip=env_spec.action_space.high)  # Assume symmetric low=-high.
-        self.agent.give_min_itr_learn(self.min_itr_learn)
+        self.target_distribution = Gaussian(
+            dim=env_spaces.action.shape[0],
+            std=self.target_noise_std,
+            noise_clip=self.target_noise_clip,
+            clip=env_spaces.action.high[0],  # Assume symmetric low=-high.
+        )
 
     def initialize_cuda(self, cuda_idx=None):
         super().initialize_cuda(cuda_idx)
@@ -55,7 +57,7 @@ class Td3Agent(DdpgAgent):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         target_mu = self.target_mu_model(*model_inputs)
-        target_action = self.target_distribution.sample(target_mu)
+        target_action = self.target_distribution.sample(DistInfo(mean=target_mu))
         target_q1_at_mu = self.target_q_model(*model_inputs, target_action)
         target_q2_at_mu = self.target_q2_model(*model_inputs, target_action)
         return target_q1_at_mu.cpu(), target_q2_at_mu.cpu()
@@ -73,15 +75,15 @@ class Td3Agent(DdpgAgent):
         self.target_distribution.set_noise_clip(noise_clip)
 
     def train_mode(self, itr):
-        super().train_mode()
+        super().train_mode(itr)
         self.q2_model.train()
 
     def sample_mode(self, itr):
-        super().sample_mode()
+        super().sample_mode(itr)
         self.q2_model.eval()
         std = self.action_std if itr >= self.min_itr_learn else self.pretrain_std
         self.distribution.set_std(std)
 
     def eval_mode(self, itr):
-        super().eval_mode()
+        super().eval_mode(itr)
         self.q2_model.eval()

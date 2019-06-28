@@ -16,9 +16,7 @@ class DiscreteMixin(object):
         return self._dim
 
     def to_onehot(self, indexes, dtype=None):
-        dtype = self.onehot_dtype if dtype is None else dtype
-        return to_onehot(indexes, self._dim, dtype=dtype)
+        return to_onehot(indexes, self._dim, dtype=dtype or self.onehot_dtype)
 
     def from_onehot(self, onehot, dtype=None):
-        dtype = self.dtype if dtype is None else dtype
-        return from_onehot(onehot, dtpye=dtype)
+        return from_onehot(onehot, dtpye=dtype or self.dtype)

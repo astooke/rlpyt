@@ -1,6 +1,5 @@
 
 import torch
-import torch.nn.Functional as F
 import math
 
 from rlpyt.distributions.base import Distribution
@@ -44,7 +43,7 @@ class Gaussian(Distribution):
         self.min_log_std = math.log(min_std) if min_std is not None else None
         self.max_log_std = math.log(max_std) if max_std is not None else None
         self.squash = squash
-        assert not (clip and squash), "Choose one."
+        assert (clip is None or squash is None), "Choose one."
 
     @property
     def dim(self):
@@ -111,20 +110,36 @@ class Gaussian(Distribution):
             std = torch.exp(log_std)
         else:
             std, log_std = self.std, torch.log(self.std)
-        z = (locations - mean) / std
-        logli = -(torch.sum(log_std, dim=-1) +
-            0.5 * torch.sum(z ** 2, dim=-1) +
-            0.5 * mean.shape[-1] * math.log(2 * math.pi))
+        # if self.squash is not None:
+        #     locations = torch.atanh(locations / self.squash)
+        z = (locations - mean) / (std + EPS)
+        logli = -(torch.sum(log_std + 0.5 * z ** 2, dim=-1) +
+            0.5 * self.dim * math.log(2 * math.pi))
         if self.squash is not None:
-            logli -= torch.sum(
+            squash_adjust = -torch.sum(
                 torch.log(self.squash * (1 - torch.tanh(locations) ** 2) + EPS),
                 dim=-1)
+            # print("GAUSSIAN SWAUSH ADJUST:\n", squash_adjust)
+            # print("\nLOGLI before ADJUSt:\n", logli)
+            # print("\nlog_std:\n", log_std)
+            logli += squash_adjust
         return logli
 
     def likelihood_ratio(self, locations, old_dist_info, new_dist_info):
         logli_old = self.log_likelihood(locations, old_dist_info)
         logli_new = self.log_likelihood(locations, new_dist_info)
         return torch.exp(logli_new - logli_old)
+
+    def sample_loglikelihood(self, dist_info):
+        """Trick for SAC with squash correction, since log_likelihood() expects raw_action."""
+        squash = self.squash
+        self.squash = None  # Temporarily turn OFF.
+        sample = self.sample(dist_info)
+        self.squash = squash  # Turn it back ON, raw_sample into squash correction.
+        logli = self.log_likelihood(sample, dist_info)
+        if squash is not None:
+            sample = squash * torch.tanh(sample)
+        return sample, logli
 
     def sample(self, dist_info):
         mean = dist_info.mean
@@ -144,7 +159,7 @@ class Gaussian(Distribution):
         if self.clip is not None:
             sample = torch.clamp(sample, -self.clip, self.clip)
         elif self.squash is not None:
-            sample = self.squash * F.tanh(sample)
+            sample = self.squash * torch.tanh(sample)
         return sample
 
     def set_clip(self, clip):
@@ -160,7 +175,7 @@ class Gaussian(Distribution):
 
     def set_std(self, std):
         if std is not None:
-            if not isinstance(std, torch.tensor):
+            if not isinstance(std, torch.Tensor):
                 std = torch.tensor(std).float()  # Can be size == 1 or dim.
             if std.numel() == 1:
                 std = std * torch.ones(self.dim).float()  # Make it size dim.

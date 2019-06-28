@@ -5,7 +5,7 @@ import ctypes
 
 class EpsilonGreedyAgentMixin(object):
 
-    def initialize(self, env_spec, share_memory=False):
+    def initialize(self, env_spaces, share_memory=False):
         if share_memory:
             self.eval_epsilon = mp.RawValue(ctypes.c_float, 0)
             # Does not support vector-valued epsilon.

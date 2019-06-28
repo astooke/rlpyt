@@ -6,7 +6,7 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.distributions.gaussian import Gaussian, DistInfo
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.logging import logger
-from rlpyt.models.dpg.mlp import MuMlpModel, QofMuMlpModel
+from rlpyt.models.qpg.mlp import MuMlpModel, QofMuMlpModel
 from rlpyt.models.utils import update_state_dict
 from rlpyt.utils.collections import namedarraytuple
 
@@ -36,8 +36,8 @@ class DdpgAgent(BaseAgent):
         save__init__args(locals())
         self.min_itr_learn = 0  # Used in TD3
 
-    def initialize(self, env_spec, share_memory=False):
-        env_model_kwargs = self.make_env_to_model_kwargs(env_spec)
+    def initialize(self, env_spaces, share_memory=False):
+        env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
         self.mu_model = self.MuModelCls(**env_model_kwargs, **self.mu_model_kwargs)
         self.q_model = self.QModelCls(**env_model_kwargs, **self.q_model_kwargs)
         if share_memory:
@@ -55,10 +55,14 @@ class DdpgAgent(BaseAgent):
         self.target_q_model = self.QModelCls(**env_model_kwargs,
             **self.q_model_kwargs)
         self.target_q_model.load_state_dict(self.q_model.state_dict())
-        self.distribution = Gaussian(dim=env_spec.action_space.size,
-            std=self.action_std, noise_clip=self.action_noise_clip,
-            clip=env_spec.action_space.high)  # Assume symmetric low=-high.
-        self.env_spec = env_spec
+        assert len(env_spaces.action.shape) == 1
+        self.distribution = Gaussian(
+            dim=env_spaces.action.shape[0],
+            std=self.action_std, 
+            noise_clip=self.action_noise_clip,
+            clip=env_spaces.action.high[0],  # Assume symmetric low=-high.
+        )
+        self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
 
     def initialize_cuda(self, cuda_idx=None):
@@ -75,11 +79,11 @@ class DdpgAgent(BaseAgent):
         self.target_q_model.to(self.device)
         logger.log(f"Initialized agent models on device: {self.device}.")
 
-    def make_env_to_model_kwargs(self, env_spec):
+    def make_env_to_model_kwargs(self, env_spaces):
+        assert len(env_spaces.action.shape) == 1
         return dict(
-            observation_size=env_spec.observation_space.size,
-            action_size=env_spec.action_space.size,
-            obs_n_dim=len(env_spec.observation_space.shape),
+            observation_shape=env_spaces.observation.shape,
+            action_size=env_spaces.action.shape[0],
         )
 
     def give_min_itr_learn(self, min_itr_learn):
@@ -132,13 +136,24 @@ class DdpgAgent(BaseAgent):
     def train_mode(self, itr):
         self.q_model.train()
         self.mu_model.train()
+        self._mode = "train"
 
     def sample_mode(self, itr):
         self.q_model.eval()
         self.mu_model.eval()
         self.distribution.set_std(self.action_std)
+        self._mode = "sample"
 
     def eval_mode(self, itr):
         self.q_model.eval()
         self.mu_model.eval()
         self.distribution.set_std(0.)  # Deterministic
+        self._mode = "eval"
+
+    def state_dict(self):
+        return dict(
+            q_model=self.q_model.state_dict(),
+            mu_model=self.mu_model.state_dict(),
+            q_target=self.target_q_model.state_dict(),
+            mu_target=self.target_mu_model.state_dict(),
+        )

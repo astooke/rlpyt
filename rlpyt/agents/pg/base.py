@@ -13,15 +13,15 @@ class BasePgAgent(BaseAgent):
 
     distribution = None  # type: Distribution
 
-    def initialize(self, env_spec, share_memory=False):
-        env_model_kwargs = self.make_env_to_model_kwargs(env_spec)
+    def initialize(self, env_spaces, share_memory=False):
+        env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
         self.model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
         if share_memory:
             self.model.share_memory()
             self.shared_model = self.model
         if self.initial_model_state_dict is not None:
             self.model.load_state_dict(self.initial_model_state_dict)
-        self.env_spec = env_spec
+        self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
         self.share_memory = share_memory
 
@@ -36,5 +36,5 @@ class BasePgAgent(BaseAgent):
         self.model.to(self.device)
         logger.log(f"Initialized agent model on device: {self.device}.")
 
-    def make_env_to_model_kwargs(self, env_spec):
+    def make_env_to_model_kwargs(self, env_spaces):
         raise NotImplementedError

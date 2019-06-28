@@ -3,7 +3,7 @@
 from rlpyt.spaces.base import Space
 
 
-class Composition(Space):
+class Composite(Space):
 
     def __init__(self, spaces, NamedArrayTupleCls):
         self._spaces = spaces

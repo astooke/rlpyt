@@ -42,4 +42,15 @@ class PolicyGradientAlgo(RlAlgorithm):
             valid = valid_from_done(done)  # Recurrent: no reset during training.
         else:
             valid = None  # OR: torch.ones_like(done)
+
+        if self.normalize_advantage:
+            if valid is not None:
+                valid_mask = valid > 0
+                adv_mean = advantage[valid_mask].mean()
+                adv_std = advantage[valid_mask].std()
+            else:
+                adv_mean = advantage.mean()
+                adv_std = advantage.std()
+            advantage[:] = (advantage - adv_mean) / max(adv_std, 1e-6)
+        
         return return_, advantage, valid

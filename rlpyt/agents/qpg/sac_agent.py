@@ -1,8 +1,9 @@
 
 import torch
+import numpy as np
 
 from rlpyt.agents.base import BaseAgent, AgentStep
-from rlpyt.models.qpg.mlp import QpfMuMlpModel, VMlpModel, PiMlpModel
+from rlpyt.models.qpg.mlp import QofMuMlpModel, VMlpModel, PiMlpModel
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.distributions.gaussian import Gaussian, DistInfoStd
 from rlpyt.utils.buffer import buffer_to
@@ -10,6 +11,9 @@ from rlpyt.utils.logging import logger
 from rlpyt.models.utils import update_state_dict
 from rlpyt.utils.collections import namedarraytuple
 
+
+MIN_LOG_STD = -20
+MAX_LOG_STD = 2
 
 AgentInfo = namedarraytuple("AgentInfo", ["dist_info"])
 
@@ -20,7 +24,7 @@ class SacAgent(BaseAgent):
 
     def __init__(
             self,
-            QModelCls=QpfMuMlpModel,
+            QModelCls=QofMuMlpModel,
             VModelCls=VMlpModel,
             PiModelCls=PiMlpModel,
             q_model_kwargs=None,
@@ -42,8 +46,8 @@ class SacAgent(BaseAgent):
         save__init__args(locals())
         self.min_itr_learn = 0  # Get from algo.
 
-    def initialize(self, env_spec, share_memory=False):
-        env_model_kwargs = self.make_env_to_model_kwargs(env_spec)
+    def initialize(self, env_spaces, share_memory=False):
+        env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
         self.q1_model = self.QModelCls(**env_model_kwargs, **self.q_model_kwargs)
         self.q2_model = self.QModelCls(**env_model_kwargs, **self.q_model_kwargs)
         self.v_model = self.VModelCls(**env_model_kwargs, **self.v_model_kwargs)
@@ -62,9 +66,14 @@ class SacAgent(BaseAgent):
         self.target_v_model = self.VModelCls(**env_model_kwargs,
             **self.v_model_kwargs)
         self.target_v_model.load_state_dict(self.v_model.state_dict())
-        self.distribution = Gaussian(dim=env_spec.action_space.size,
-            squash=self.action_squash)
-        self.env_spec = env_spec
+        assert len(env_spaces.action.shape) == 1
+        self.distribution = Gaussian(
+            dim=env_spaces.action.shape[0],
+            squash=self.action_squash,
+            min_std=np.exp(MIN_LOG_STD),
+            max_std=np.exp(MAX_LOG_STD),
+        )
+        self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
 
     def initialize_cuda(self, cuda_idx=None):
@@ -85,11 +94,11 @@ class SacAgent(BaseAgent):
     def give_min_itr_learn(self, min_itr_learn):
         self.min_itr_learn = min_itr_learn  # From algo.
 
-    def make_env_to_model_kwargs(self, env_spec):
+    def make_env_to_model_kwargs(self, env_spaces):
+        assert len(env_spaces.action.shape) == 1
         return dict(
-            observation_size=env_spec.observation_space.size,
-            action_size=env_spec.action_space.size,
-            obs_n_dim=len(env_spec.observation_space.shape),
+            observation_shape=env_spaces.observation.shape,
+            action_size=env_spaces.action.shape[0],
         )
 
     def q(self, observation, prev_action, prev_reward, action):
@@ -110,9 +119,12 @@ class SacAgent(BaseAgent):
             device=self.device)
         mean, log_std = self.pi_model(*model_inputs)
         dist_info = DistInfoStd(mean=mean, log_std=log_std)
-        action = self.distribution.sample(dist_info)
-        log_pi = self.distribution.log_likelihood(action, dist_info)
+        action, log_pi = self.distribution.sample_loglikelihood(dist_info)
+        # action = self.distribution.sample(dist_info)
+        # log_pi = self.distribution.log_likelihood(action, dist_info)
         log_pi, dist_info = buffer_to((log_pi, dist_info), device="cpu")
+        if np.any(log_pi.detach().numpy() < -1e8):
+            breakpoint()
         return action, log_pi, dist_info  # Action stays on device for q models.
 
     def target_v(self, observation, prev_action, prev_reward):
@@ -130,6 +142,8 @@ class SacAgent(BaseAgent):
         action = self.distribution.sample(dist_info)
         agent_info = AgentInfo(dist_info=dist_info)
         action, agent_info = buffer_to((action, agent_info), device="cpu")
+        if np.any(np.isnan(action.numpy())):
+            breakpoint()
         return AgentStep(action=action, agent_info=agent_info)
 
     def update_target(self, tau=1):
@@ -153,14 +167,26 @@ class SacAgent(BaseAgent):
     def train_mode(self, itr):
         for model in self.models:
             model.train()
+        self._mode = "train"
 
     def sample_mode(self, itr):
         for model in self.models:
             model.eval()
         std = None if itr >= self.min_itr_learn else self.pretrain_std
         self.distribution.set_std(std)  # If None: std from policy dist_info.
+        self._mode = "sample"
 
     def eval_mode(self, itr):
         for model in self.models:
             model.eval()
         self.distribution.set_std(0.)  # Deterministic (dist_info std ignored).
+        self._mode = "eval"
+
+    def state_dict(self):
+        return dict(
+            q1_model=self.q1_model.state_dict(),
+            q2_model=self.q2_model.state_dict(),
+            v_model=self.v_model.state_dict(),
+            pi_model=self.pi_model.state_dict(),
+            v_target=self.target_v_model.state_dict(),
+        )

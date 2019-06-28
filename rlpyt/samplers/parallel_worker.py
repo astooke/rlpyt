@@ -78,4 +78,4 @@ def sampling_process(common_kwargs, worker_kwargs):
         ctrl.barrier_out.wait()
 
     for env in envs + eval_envs:
-        env.terminate()
+        env.close()

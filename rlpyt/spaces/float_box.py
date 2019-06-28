@@ -1,6 +1,5 @@
 
 import numpy as np
-import torch
 
 from rlpyt.spaces.base import Space
 
@@ -19,16 +18,16 @@ class FloatBox(Space):
         self.dtype = np.dtype(dtype)
         assert np.issubdtype(self.dtype, np.floating)
         if shape is None:
-            assert low.shape == high.shape
             self.low = np.asarray(low, dtype=dtype)
             self.high = np.asarray(high, dtype=dtype)
+            assert self.low.shape == self.high.shape
         else:
             assert np.isscalar(low) and np.isscalar(high)
             self.low = np.asarray(low + np.zeros(shape), dtype=dtype)
             self.high = np.asarray(high + np.zeros(shape), dtype=dtype)
         self._null_value = null_value
 
-    def sample(self, size=None, null=False, torchify=False):
+    def sample(self, size=None, null=False):
         if size is None:
             size = ()
         elif isinstance(size, int):
@@ -39,8 +38,6 @@ class FloatBox(Space):
         else:
             sample = np.asarray(np.random.uniform(low=self.low, high=self.high,
                 size=size + self.shape), dtype=self.dtype)
-        if torchify:
-            sample = torch.from_numpy(sample)
         return sample
 
     @property

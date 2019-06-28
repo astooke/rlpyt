@@ -25,7 +25,7 @@ class BaseAgent(object):
         """Returns values from model forward pass on training data."""
         raise NotImplementedError
 
-    def initialize(self, env_spec, share_memory=False):
+    def initialize(self, env_spaces, share_memory=False):
         """Builds the model."""
         raise NotImplementedError
 
@@ -53,7 +53,7 @@ class BaseAgent(object):
         return self.model.state_dict()
 
     def load_state_dict(self, state_dict):
-        self.model.loac_state_dict(state_dict)
+        self.model.load_state_dict(state_dict)
 
     def train_mode(self, itr):
         """Go into training mode."""

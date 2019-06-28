@@ -16,9 +16,9 @@ class CatDqnAgent(DqnAgent):
         super().__init__(**kwargs)
         self.n_atoms = self.model_kwargs["n_atoms"] = n_atoms
 
-    def initialize(self, env_spec, share_memory=False):
-        super().initialize(env_spec, share_memory)  # Then overwrite distribution.
-        self.distribution = CategoricalEpsilonGreedy(dim=env_spec.action_space.n,
+    def initialize(self, env_spaces, share_memory=False):
+        super().initialize(env_spaces, share_memory)  # Then overwrite distribution.
+        self.distribution = CategoricalEpsilonGreedy(dim=env_spaces.action.n,
             z=torch.linspace(-1, 1, self.n_atoms))  # z placeholder for init.
 
     def give_V_min_max(self, V_min, V_max):

@@ -28,11 +28,11 @@ class CpuParallelSampler(BaseSampler):
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spec, share_memory=True)  # Actual agent initialization.
+        agent.initialize(env.spaces, share_memory=True)  # Actual agent initialization.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
             subprocess=True)  # TODO: subprocess=True fix!!
-        env.terminate()
+        env.close()
         del env
 
         ctrl, traj_infos_queue, sync = build_par_objs(n_parallel)

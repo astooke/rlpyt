@@ -66,7 +66,7 @@ class BaseCollector(object):
     def start_agent(self):
         if getattr(self, "agent", None) is not None:
             self.agent.reset()
-            self.agent.model.eval()  # Do once inside worker.
+            self.agent.sample_mode(itr=0)
 
     def collect_batch(self, agent_inputs, traj_infos):
         raise NotImplementedError

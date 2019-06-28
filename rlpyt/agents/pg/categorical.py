@@ -16,9 +16,9 @@ class CategoricalPgAgent(BasePgAgent):
         pi, value = self.model(*model_inputs)
         return buffer_to((DistInfo(prob=pi), value), device="cpu")
 
-    def initialize(self, env_spec, share_memory=False):
-        super().initialize(env_spec, share_memory)
-        self.distribution = Categorical(dim=env_spec.action_space.n)
+    def initialize(self, env_spaces, share_memory=False):
+        super().initialize(env_spaces, share_memory)
+        self.distribution = Categorical(dim=env_spaces.action.n)
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
@@ -48,12 +48,13 @@ class RecurrentCategoricalPgAgent(RecurrentAgentMixin, BasePgAgent):
         prev_action = self.distribution.to_onehot(prev_action)
         model_inputs = buffer_to((observation, prev_action, prev_reward,
             init_rnn_state), device=self.device)
-        pi, value, _next_rnn_state = self.model(*model_inputs)
-        return buffer_to((DistInfo(prob=pi), value), device="cpu")
+        pi, value, next_rnn_state = self.model(*model_inputs)
+        dist_info, value = buffer_to((DistInfo(prob=pi), value), device="cpu")
+        return dist_info, value, next_rnn_state  # Leave rnn_state on device.
 
-    def initialize(self, env_spec, share_memory=False):
-        super().initialize(env_spec, share_memory)
-        self.distribution = Categorical(dim=env_spec.action_space.n)
+    def initialize(self, env_spaces, share_memory=False):
+        super().initialize(env_spaces, share_memory)
+        self.distribution = Categorical(dim=env_spaces.action.n)
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
@@ -66,7 +67,7 @@ class RecurrentCategoricalPgAgent(RecurrentAgentMixin, BasePgAgent):
         # Model handles None, but Buffer does not, make zeros if needed:
         prev_rnn_state = self.prev_rnn_state or buffer_func(rnn_state, torch.zeros_like)
         # Transpose the rnn_state from [N,B,H] --> [B,N,H] for storage.
-        # (Special case, model should always leave B dimension in.)
+        # (Special case: model should always leave B dimension in.)
         prev_rnn_state = buffer_method(prev_rnn_state, "transpose", 0, 1)
         agent_info = AgentInfoRnn(dist_info=dist_info, value=value,
             prev_rnn_state=prev_rnn_state)

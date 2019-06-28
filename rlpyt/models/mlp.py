@@ -8,7 +8,7 @@ class MlpModel(torch.nn.Module):
     def __init__(
             self,
             input_size,
-            hidden_sizes,
+            hidden_sizes,  # Can be empty list for none.
             output_size=None,  # if None, last layer has nonlinearity applied.
             nonlinearity=torch.nn.ReLU,  # Module, not Functional.
             ):

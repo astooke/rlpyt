@@ -5,7 +5,7 @@ from collections import namedtuple
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
-from rlpyt.replays.uniform import UniformReplayBuffer
+from rlpyt.replays.non_sequence.uniform import UniformReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.algos.utils import valid_from_done
@@ -35,8 +35,9 @@ class DDPG(RlAlgorithm):
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             initial_optim_state_dict=None,
-            grad_norm_clip=1e6,
+            clip_grad_norm=1e6,
             q_target_clip=1e6,
+            n_step_return=1,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -79,6 +80,7 @@ class DDPG(RlAlgorithm):
             example=example_to_buffer,
             size=self.replay_size,
             B=batch_spec.B,
+            n_step_return=self.n_step_return
         )
         self.replay_buffer = UniformReplayBuffer(**replay_kwargs)
 
@@ -95,7 +97,7 @@ class DDPG(RlAlgorithm):
             return opt_info
         for _ in range(self.updates_per_optimize):
             self.update_counter += 1
-            samples_from_replay = self.replay_buffer.sample(self.batch_size)
+            samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             if self.mid_batch_reset and not self.agent.recurrent:
                 valid = None  # OR: torch.ones_like(samples.done, dtype=torch.float)
             else:
@@ -131,7 +133,8 @@ class DDPG(RlAlgorithm):
         q = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
             target_q = self.agent.target_q_at_mu(*samples.target_inputs)
-        y = samples.reward + (1 - samples.done.float()) * self.discount * target_q
+        disc = self.discount ** self.n_step_return
+        y = samples.return_ + (1 - samples.done_n.float()) * disc * target_q
         y = torch.clamp(y, -self.q_target_clip, self.q_target_clip)
         q_losses = 0.5 * (y - q) ** 2
         q_loss = valid_mean(q_losses, valid)  # valid can be None.
