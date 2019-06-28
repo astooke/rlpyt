@@ -151,7 +151,7 @@ class Gaussian(Distribution):
             std = torch.exp(log_std)
         else:
             shape = mean.shape[:-1]
-            std = self.std.repeat(*shape, 1)
+            std = self.std.repeat(*shape, 1).to(mean.device)
         noise = torch.normal(mean=0, std=std)
         if self.noise_clip is not None:
             noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
