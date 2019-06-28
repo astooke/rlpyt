@@ -12,7 +12,7 @@ affinity_code = encode_affinity(
     n_socket=2,
     # cpu_per_run=2,
 )
-runs_per_setting = 1
+runs_per_setting = 4
 default_config_key = "ppo_1M_serial"
 experiment_title = "ppo_mujoco_serial"
 variant_levels = list()
