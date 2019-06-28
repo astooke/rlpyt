@@ -7,7 +7,7 @@ from rlpyt.agents.pg.base import BasePgAgent, AgentInfo, AgentInfoRnn
 from rlpyt.distributions.gaussian import Gaussian, DistInfoStd
 from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
 
-MIN_STD = 1e-6
+# MIN_STD = 1e-6
 
 
 class GaussianPgAgent(BasePgAgent):
@@ -25,8 +25,8 @@ class GaussianPgAgent(BasePgAgent):
         assert np.all(env_spaces.action.low == -env_spaces.action.high)
         self.distribution = Gaussian(
             dim=env_spaces.action.shape[0],
-            min_std=MIN_STD,
-            clip=env_spaces.action.high[0],  # Probably +1?
+            # min_std=MIN_STD,
+            # clip=env_spaces.action.high[0],  # Probably +1?
         )
 
     @torch.no_grad()
@@ -63,8 +63,8 @@ class RecurrentGaussianPgAgent(RecurrentAgentMixin, BasePgAgent):
         assert len(env_spaces.action.shape == 1)
         self.distribution = Gaussian(
             dim=env_spaces.action.shape[0],
-            min_std=MIN_STD,
-            clip=env_spaces.action.high[0],  # Probably +1?
+            # min_std=MIN_STD,
+            # clip=env_spaces.action.high[0],  # Probably +1?
         )
 
     @torch.no_grad()

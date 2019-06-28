@@ -35,7 +35,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         affinity=affinity,
         **config["runner"]
     )
-    name = config["env"]["id"]
+    name = "ppo_" + config["env"]["id"]
     with logger_context(log_dir, run_ID, name, config):
         runner.train()
 

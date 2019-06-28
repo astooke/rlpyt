@@ -100,7 +100,7 @@ class Gaussian(Distribution):
     def mean_perplexity(self, dist_info, valid=None):
         return valid_mean(self.perplexity(dist_info), valid)
 
-    def log_likelihood(self, locations, dist_info):
+    def log_likelihood(self, x, dist_info):
         mean = dist_info.mean
         if self.std is None:
             log_std = dist_info.log_std
@@ -110,28 +110,26 @@ class Gaussian(Distribution):
             std = torch.exp(log_std)
         else:
             std, log_std = self.std, torch.log(self.std)
+        # When squashing: instead of numerically risky arctanh, assume param
+        # 'x' is pre-squash action, see sample_loglikelihood() below.
         # if self.squash is not None:
-        #     locations = torch.atanh(locations / self.squash)
-        z = (locations - mean) / (std + EPS)
+        #     x = torch.atanh(x / self.squash)  # No torch implementation.
+        z = (x - mean) / (std + EPS)
         logli = -(torch.sum(log_std + 0.5 * z ** 2, dim=-1) +
             0.5 * self.dim * math.log(2 * math.pi))
         if self.squash is not None:
-            squash_adjust = -torch.sum(
-                torch.log(self.squash * (1 - torch.tanh(locations) ** 2) + EPS),
+            logli -= torch.sum(
+                torch.log(self.squash * (1 - torch.tanh(x) ** 2) + EPS),
                 dim=-1)
-            # print("GAUSSIAN SWAUSH ADJUST:\n", squash_adjust)
-            # print("\nLOGLI before ADJUSt:\n", logli)
-            # print("\nlog_std:\n", log_std)
-            logli += squash_adjust
         return logli
 
-    def likelihood_ratio(self, locations, old_dist_info, new_dist_info):
-        logli_old = self.log_likelihood(locations, old_dist_info)
-        logli_new = self.log_likelihood(locations, new_dist_info)
+    def likelihood_ratio(self, x, old_dist_info, new_dist_info):
+        logli_old = self.log_likelihood(x, old_dist_info)
+        logli_new = self.log_likelihood(x, new_dist_info)
         return torch.exp(logli_new - logli_old)
 
     def sample_loglikelihood(self, dist_info):
-        """Trick for SAC with squash correction, since log_likelihood() expects raw_action."""
+        """Use in SAC with squash correction, since log_likelihood() expects raw_action."""
         squash = self.squash
         self.squash = None  # Temporarily turn OFF.
         sample = self.sample(dist_info)
