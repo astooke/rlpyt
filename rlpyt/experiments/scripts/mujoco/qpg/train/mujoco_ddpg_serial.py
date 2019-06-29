@@ -28,7 +28,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         eval_env_kwargs=config["eval_env"],
         **config["sampler"]
     )
-    algo = DDPG(optim_kwargs=config["optim"],**config["algo"])
+    algo = DDPG(optim_kwargs=config["optim"], **config["algo"])
     agent = DdpgAgent(**config["agent"])
     runner = MinibatchRlEval(
         algo=algo,
