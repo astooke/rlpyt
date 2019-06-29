@@ -115,8 +115,6 @@ class SAC(RlAlgorithm):
             grad_norms = [torch.nn.utils.clip_grad_norm_(ps, self.clip_grad_norm)
                 for ps in self.agent.parameters_by_model()]
             self.optimizer.step()
-            if np.any([np.any(np.isnan(p.detach().numpy())) for p in self.agent.parameters()]):
-                breakpoint()
             self.append_opt_info_(opt_info, losses, grad_norms, values)
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target(self.target_update_tau)
@@ -162,9 +160,6 @@ class SAC(RlAlgorithm):
         pi_loss = valid_mean(pi_losses, valid)
 
         losses = (q1_loss, q2_loss, v_loss, pi_loss)
-        # for loss in losses:
-        #     if abs(loss) > 1e8:
-        #         breakpoint()
         values = tuple(val.detach() for val in (q1, q2, v, pi_mean, pi_log_std))
         return losses, values
 

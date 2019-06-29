@@ -123,8 +123,6 @@ class SacAgent(BaseAgent):
         # action = self.distribution.sample(dist_info)
         # log_pi = self.distribution.log_likelihood(action, dist_info)
         log_pi, dist_info = buffer_to((log_pi, dist_info), device="cpu")
-        if np.any(log_pi.detach().numpy() < -1e8):
-            breakpoint()
         return action, log_pi, dist_info  # Action stays on device for q models.
 
     def target_v(self, observation, prev_action, prev_reward):

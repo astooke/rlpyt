@@ -4,25 +4,22 @@ from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 affinity_code = encode_affinity(
-    n_cpu_cores=16,
-    n_gpu=8,
-    contexts_per_gpu=2,
-    hyperthread_offset=24,
-    n_socket=2,
-    # cpu_per_run=2,
+    n_cpu_cores=2,
+    n_gpu=0,
+    hyperthread_offset=2,
+    n_socket=1,
+    cpu_per_run=1,
 )
-runs_per_setting = 3
+runs_per_setting = 2
 variant_levels = list()
 
-env_ids = ["Hopper-v3", "HalfCheetah-v3",
-    "Walker2d-v3", "Ant-v3", "Humanoid-v3"]
+env_ids = ["Hopper-v2"]  # , "Swimmer-v3"]
 values = list(zip(env_ids))
 dir_names = ["env_{}".format(*v) for v in values]
 keys = [("env", "id")]
 variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
-
 
 default_config_key = "ddpg_from_td3_1M_serial"
 script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_serial.py"

@@ -7,7 +7,7 @@ from rlpyt.samplers.cpu.collectors import ResetCollector
 from rlpyt.envs.gym import make as gym_make
 from rlpyt.algos.qpg.ddpg import DDPG
 from rlpyt.agents.qpg.ddpg_agent import DdpgAgent
-from rlpyt.runners.minibatch_rl import MinibatchRl
+from rlpyt.runners.minibatch_rl_eval import MinibatchRlEval
 from rlpyt.utils.logging.context import logger_context
 from rlpyt.utils.launching.variant import load_variant, update_config
 
@@ -28,7 +28,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     )
     algo = DDPG(optim_kwargs=config["optim"],**config["algo"])
     agent = DdpgAgent(**config["agent"])
-    runner = MinibatchRl(
+    runner = MinibatchRlEval(
         algo=algo,
         agent=agent,
         sampler=sampler,
