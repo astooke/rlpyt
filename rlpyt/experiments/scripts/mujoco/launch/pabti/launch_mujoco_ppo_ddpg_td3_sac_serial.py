@@ -11,7 +11,7 @@ affinity_code = encode_affinity(
     n_socket=2,
     # cpu_per_run=2,
 )
-runs_per_setting = 3
+runs_per_setting = 2
 variant_levels = list()
 
 env_ids = ["Hopper-v3", "HalfCheetah-v3",
