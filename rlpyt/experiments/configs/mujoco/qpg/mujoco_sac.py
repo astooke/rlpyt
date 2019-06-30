@@ -21,6 +21,7 @@ config = dict(
         reward_scale=5
     ),
     env=dict(id="Hopper-v3"),
+    eval_env=dict(id="Hopper-v3"),
     model=dict(),
     optim=dict(),
     runner=dict(

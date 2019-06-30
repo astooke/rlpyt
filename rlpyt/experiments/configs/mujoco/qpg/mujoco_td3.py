@@ -19,6 +19,7 @@ config = dict(
         q_learning_rate=1e-3,
     ),
     env=dict(id="Hopper-v3"),
+    eval_env=dict(id="Hopper-v3"),
     model=dict(),
     optim=dict(),
     runner=dict(
