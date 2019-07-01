@@ -2,7 +2,7 @@
 import torch
 
 from rlpyt.algos.pg.base import PolicyGradientAlgo, OptInfo
-from rlpyt.agents.base import AgentInputs, AgentInputsRnn
+from rlpyt.agents.base import AgentInputs
 
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.utils.quick_args import save__init__args
@@ -31,10 +31,6 @@ class A2C(PolicyGradientAlgo):
     def optimize_agent(self, samples, itr):
         self.optimizer.zero_grad()
         loss, entropy, perplexity = self.loss(samples)
-        if itr % 20 == 0:
-            print("max action:", samples.agent.action.max())
-            print("max mu: ", samples.agent.agent_info.dist_info.mean.max())
-            print("max log_std: ", samples.agent.agent_info.dist_info.log_std.max())
         loss.backward()
         grad_norm = torch.nn.utils.clip_grad_norm_(
             self.agent.parameters(), self.clip_grad_norm)

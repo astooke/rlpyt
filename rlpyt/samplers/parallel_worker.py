@@ -10,14 +10,17 @@ from rlpyt.utils.seed import set_seed
 
 def initialize_worker(rank, seed=None, cpu=None, torch_threads=None, group=None):
     log_str = f"Sampler rank {rank} initialized"
+    cpu = [cpu] if isinstance(cpu, int) else cpu
     p = psutil.Process()
     try:
         if cpu is not None:
-            p.cpu_affinity([cpu] if isinstance(cpu, int) else cpu)
+            p.cpu_affinity(cpu)
         cpu_affin = p.cpu_affinity()
     except AttributeError:
         cpu_affin = "UNAVAILABLE MacOS"
     log_str += f", CPU affinity {cpu_affin}"
+    torch_threads = (len(cpu) if torch_threads is None and cpu is not None else
+        torch_threads)
     if torch_threads is not None:
         torch.set_num_threads(torch_threads)
     log_str += f", Torch threads {torch.get_num_threads()}"

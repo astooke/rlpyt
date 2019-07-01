@@ -1,6 +1,7 @@
 
-import torch
 import numpy as np
+import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.models.qpg.mlp import QofMuMlpModel, VMlpModel, PiMlpModel
@@ -76,7 +77,7 @@ class SacAgent(BaseAgent):
         self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
 
-    def initialize_cuda(self, cuda_idx=None):
+    def initialize_cuda(self, cuda_idx=None, ddp=False):
         if cuda_idx is None:
             return  # CPU
         if self.shared_pi_model is not None:
@@ -88,8 +89,20 @@ class SacAgent(BaseAgent):
         self.q2_model.to(self.device)
         self.v_model.to(self.device)
         self.pi_model.to(self.device)
+        if ddp:
+            self.q1_model = DDP(self.q1_model, device_ids=[cuda_idx],
+                output_device=cuda_idx)
+            self.q2_model = DDP(self.q2_model, device_ids=[cuda_idx],
+                output_device=cuda_idx)
+            self.v_model = DDP(self.v_model, device_ids=[cuda_idx],
+                output_device=cuda_idx)
+            self.pi_model = DDP(self.pi_model, device_ids=[cuda_idx],
+                output_device=cuda_idx)
+            logger.log("Initialized DistributedDataParallel agent model "
+                f"on device: {self.device}.")
+        else:
+            logger.log(f"Initialized agent models on device: {self.device}.")
         self.target_v_model.to(self.device)
-        logger.log(f"Initialized agent models on device: {self.device}.")
 
     def give_min_itr_learn(self, min_itr_learn):
         self.min_itr_learn = min_itr_learn  # From algo.

@@ -35,10 +35,12 @@ class MinibatchRlBase(BaseRunner):
             cpu_affin = p.cpu_affinity()
         except AttributeError:
             cpu_affin = "UNAVAILABLE MacOS"
-        logger.log(f"Runner master CPU affinity: {cpu_affin}.")
+        logger.log(f"Runner {getattr(self, 'rank', '')} master CPU affinity: "
+            f"{cpu_affin}.")
         if "master_torch_threads" in self.affinity:
             torch.set_num_threads(self.affinity["master_torch_threads"])
-        logger.log(f"Runner master Torch threads: {torch.get_num_threads()}.")
+        logger.log(f"Runner {getattr(self, 'rank', '')} master Torch threads: "
+            f"{torch.get_num_threads()}.")
         if self.seed is None:
             self.seed = make_seed()
         set_seed(self.seed)
@@ -49,8 +51,13 @@ class MinibatchRlBase(BaseRunner):
             bootstrap_value=getattr(self.algo, "bootstrap_value", False),
             traj_info_kwargs=self.get_traj_info_kwargs(),
         )
-        n_itr = self.get_n_itr(self.sampler.batch_spec.size)
-        self.agent.initialize_cuda(self.affinity.get("cuda_idx", None))
+        n_runners = getattr(self, "n_runners", 1)
+        self.itr_batch_size = self.sampler.batch_spec.size * n_runners
+        n_itr = self.get_n_itr()
+        self.agent.initialize_cuda(
+            cuda_idx=self.affinity.get("cuda_idx", None),
+            ddp=n_runners > 1,  # Multi-GPU training (and maybe sampling).
+        )
         self.algo.initialize(
             agent=self.agent,
             n_itr=n_itr,
@@ -64,8 +71,9 @@ class MinibatchRlBase(BaseRunner):
     def get_traj_info_kwargs(self):
         return dict(discount=getattr(self.algo, "discount", 1))
 
-    def get_n_itr(self, batch_size):
-        log_interval_itrs = max(self.log_interval_steps // batch_size, 1)
+    def get_n_itr(self):
+        log_interval_itrs = max(self.log_interval_steps //
+            self.itr_batch_size, 1)
         n_itr = math.ceil(self.n_steps / self.log_interval_steps) * log_interval_itrs
         self.log_interval_itrs = log_interval_itrs
         self.n_itr = n_itr
@@ -84,7 +92,7 @@ class MinibatchRlBase(BaseRunner):
     def get_itr_snapshot(self, itr):
         return dict(
             itr=itr,
-            cum_samples=itr * self.sampler.batch_spec.size,
+            cum_steps=itr * self.itr_batch_size,
             agent_state_dict=self.agent.state_dict(),
             optimizer_state_dict=self.algo.optim_state_dict(),
         )

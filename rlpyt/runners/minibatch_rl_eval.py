@@ -54,7 +54,7 @@ class MinibatchRlEval(MinibatchRlBase):
             logger.log("WARNING: had no complete trajectories in eval.")
         steps_in_eval = sum([info["Length"] for info in eval_traj_infos])
         logger.record_tabular('Iteration', itr)
-        logger.record_tabular('CumCompletedSteps', itr * self.sampler.batch_spec.size)
+        logger.record_tabular('CumSteps', itr * self.itr_batch_size)
         logger.record_tabular('StepsInEval', steps_in_eval)
         logger.record_tabular('TrajsInEval', len(eval_traj_infos))
 
@@ -68,7 +68,7 @@ class MinibatchRlEval(MinibatchRlBase):
         self.cum_total_time += log_interval_time
         self._last_time = new_time
         samples_per_second = (float('nan') if itr == 0 else
-            self.log_interval_itrs * self.sampler.batch_spec.size / new_train_time)
+            self.log_interval_itrs * self.itr_batch_size / new_train_time)
 
         logger.record_tabular('CumTrainTime', self.cum_train_time)
         logger.record_tabular('CumEvalTime', self.cum_eval_time)

@@ -1,5 +1,6 @@
 
 import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.utils.quick_args import save__init__args
@@ -58,14 +59,14 @@ class DdpgAgent(BaseAgent):
         assert len(env_spaces.action.shape) == 1
         self.distribution = Gaussian(
             dim=env_spaces.action.shape[0],
-            std=self.action_std, 
+            std=self.action_std,
             noise_clip=self.action_noise_clip,
             clip=env_spaces.action.high[0],  # Assume symmetric low=-high.
         )
         self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
 
-    def initialize_cuda(self, cuda_idx=None):
+    def initialize_cuda(self, cuda_idx=None, ddp=False):
         if cuda_idx is None:
             return  # CPU
         if self.shared_mu_model is not None:
@@ -75,9 +76,17 @@ class DdpgAgent(BaseAgent):
         self.device = torch.device("cuda", index=cuda_idx)
         self.mu_model.to(self.device)
         self.q_model.to(self.device)
+        if ddp:
+            self.mu_model = DDP(self.mu_model, device_ids=[cuda_idx],
+                output_device=cuda_idx)
+            self.q_model = DDP(self.q_model, device_ids=[cuda_idx],
+                output_device=cuda_idx)
+            logger.log("Initialized DistributedDataParallel agent model "
+                f"on device: {self.device}.")
+        else:
+            logger.log(f"Initialized agent models on device: {self.device}.")
         self.target_mu_model.to(self.device)
         self.target_q_model.to(self.device)
-        logger.log(f"Initialized agent models on device: {self.device}.")
 
     def make_env_to_model_kwargs(self, env_spaces):
         assert len(env_spaces.action.shape) == 1

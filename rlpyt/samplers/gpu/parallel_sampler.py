@@ -70,7 +70,8 @@ class GpuParallelSampler(BaseSampler):
             traj_infos_queue=traj_infos_queue,
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
-            torch_threads=None,
+            # Workers shouldn't run torch anyway.
+            torch_threads=affinity.get("worker_torch_threads", None),
             eval_n_envs=eval_n_envs_per,
             eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
             eval_env_kwargs=self.eval_env_kwargs,

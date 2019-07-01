@@ -27,8 +27,13 @@ def launch_experiment(script, run_slot, affinity_code, log_dir, variant, run_ID,
     slot_affinity_code = prepend_run_slot(run_slot, affinity_code)
     affinity = get_affinity(slot_affinity_code)
     call_list = list()
-    if affinity.get("all_cpus", ()):
+    if isinstance(affinity, dict) and affinity.get("all_cpus", False):
         cpus = ",".join(str(c) for c in affinity["all_cpus"])
+    elif isinstance(affinity, list) and affinity[0].get("all_cpus", False):
+        cpus = ",".join(str(c) for aff in affinity for c in aff["all_cpus"])
+    else:
+        cpus = ()
+    if cpus:
         call_list += ["taskset", "-c", cpus]  # PyTorch obeys better than just psutil.
     call_list += ["python", script, slot_affinity_code, log_dir, str(run_ID)]
     call_list += [str(a) for a in args]

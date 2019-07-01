@@ -54,7 +54,7 @@ def encode_affinity(n_cpu_cores=1, n_gpu=0, cpu_reserved=0,
     if contexts_per_gpu > 1:
         affinity_code += f"_{contexts_per_gpu}{CONTEXTS_PER_GPU}"
     if contexts_per_run > 1:
-        raise NotImplementedError  # (parallel training)
+        affinity_code += f"_{contexts_per_run}{CONTEXTS_PER_RUN}"
     if n_gpu == 0:
         affinity_code += f"_{cpu_per_run}{CPU_PER_RUN}"
     if cpu_per_worker > 1:
@@ -80,7 +80,9 @@ def get_affinity(run_slot_affinity_code):
     """Use in individual experiment script; pass output to Runner."""
     run_slot, aff_code = remove_run_slot(run_slot_affinity_code)
     aff_params = decode_affinity(aff_code)
-    if aff_params.get("gpu", 0) > 0:
+    if aff_params.get(N_GPU, 0) > 0:
+        if aff_params.get(CONTEXTS_PER_RUN, 1) > 1:
+            return build_multigpu_affinity(run_slot, **aff_params)
         return build_gpu_affinity(run_slot, **aff_params)
     return build_cpu_affinity(run_slot, **aff_params)
 
@@ -134,6 +136,7 @@ def build_cpu_affinity(slt, cpu, cpr, cpw=1, hto=None, res=0, skt=1, gpu=0):
         workers_cpus=workers_cpus,
         master_torch_threads=len(cores),
         worker_torch_threads=cpw,
+        run_slot=slt,
     )
     return affinity
 
@@ -141,17 +144,23 @@ def build_cpu_affinity(slt, cpu, cpr, cpw=1, hto=None, res=0, skt=1, gpu=0):
 def build_gpu_affinity(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, res=0,
         skt=1):
     """Divides CPUs evenly among GPUs."""
-    if cxr > 1:
-        raise NotImplementedError  # (parallel training)
+    assert cxg == 1 or cxr == 1
     n_ctx = gpu * cxg
-    n_run_slots = n_ctx // cxr
-    assert slt < n_run_slots
+    assert slt < n_ctx
     assert cpu % n_ctx == 0
     cpr = cpu // n_ctx
-    slt = (slt % gpu) * cxg + slt // gpu  # Re-order to spread over GPUs first.
+    if cxg > 1:
+        slt = (slt % gpu) * cxg + slt // gpu  # Spread over GPUs first.
     affinity = build_cpu_affinity(slt, cpu, cpr, cpw, hto, res, skt)
     affinity["cuda_idx"] = slt // cxg
     return affinity
+
+
+def build_multigpu_affinity(slt, gpu, cpu, cxg=1, cxr=1, cpw=1, hto=None, res=0,
+        skt=1):
+    assert cxg == 1
+    return [build_gpu_affinity(slot, gpu, cpu, cpw=cpw, hto=hto, res=res,
+        skt=skt) for slot in range(slt * cxr, (slt + 1) * cxr)]
 
 
 def offset_for_socket(hto, cpu, skt, slt, n_run_slots):

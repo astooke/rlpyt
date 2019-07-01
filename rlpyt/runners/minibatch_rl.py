@@ -50,9 +50,9 @@ class MinibatchRl(MinibatchRlBase):
         self.save_itr_snapshot(itr)
         new_time = time.time()
         samples_per_second = (self.log_interval_itrs *
-            self.sampler.batch_spec.size) / (new_time - self._last_time)
+            self.itr_batch_size) / (new_time - self._last_time)
         logger.record_tabular('Iteration', itr)
-        logger.record_tabular('CumTotalSteps', (itr + 1) * self.sampler.batch_spec.size)
+        logger.record_tabular('CumSteps', (itr + 1) * self.itr_batch_size)
         logger.record_tabular('CumTime (s)', new_time - self._start_time)
         logger.record_tabular('SamplesPerSecond', samples_per_second)
         logger.record_tabular('CumCompletedTrajs', self._cum_completed_trajs)
