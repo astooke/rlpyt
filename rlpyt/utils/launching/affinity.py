@@ -43,6 +43,8 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
         return encode_affinity(n_cpu_cores=n_cpu_cores, n_gpu=n_gpu,
             hyperthread_offset=hyperthread_offset, n_socket=n_socket)
     else:
+        if n_parallel is None:
+            raise ValueError("n_parallel must be given if use_gpu=False or no GPUs are present.")
         n_parallel = min(n_parallel, n_cpu_cores)
         n_cpu_cores = (n_cpu_cores // n_parallel) * n_parallel  # Same for all.
         cpu_per_run = n_cpu_cores // n_parallel
