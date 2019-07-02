@@ -4,7 +4,7 @@
 
 Runs reinforcement learning algorithms with parallel sampling and GPU training, if available.  Highly modular (modifiable) and optimized codebase with functionality for launching large sets of parallel experiments locally on multi-GPU or many-core machines.
 
-Based on [accel_rl](https://github.com/astooke/accel_rl), which in turn was based on [rllab](https://github.com/rll/rllab) (the `logger` is nearly a direct copy).
+Based in part on [accel_rl](https://github.com/astooke/accel_rl), which in turn was inspired by [rllab](https://github.com/rll/rllab) (the `logger` is nearly a direct copy).
 
 Follows the rllab interfaces: agents output `action, agent_info`, environments output `observation, reward, done, env_info`, but introduces new object classes `namedarraytuple` for easier organization (see `rlpyt/utils/collections.py`).  This permits each output to be be either an individual numpy array [torch tensor] or an arbitrary collection of numpy arrays [torch tensors], without changing interfaces.  In general, agent inputs/outputs are torch tensors, and environment inputs/ouputs are numpy arrays, with conversions handled automatically.
 
@@ -16,9 +16,11 @@ Start from `rlpyt/experiments/scripts/atari/pg/launch/launch_atari_ff_a2c_cpu.py
 
 ## Current Status
 
-Multi-GPU training within one learning run is not implemented (see [accel_rl](https://github.com/astooke/accel_rl) for hint of how it might be done, or maybe easier with PyTorch's data parallel functionality).  Stacking multiple experiments per machine is more effective for multiple runs / variations.
+Algorithms in place: A2C, PPO, DDPG, TD3, SAC, DQN, CatDQN, R2D2 (R2D2 learning curves not verified yet).
 
-A2C is the first algorithm in place.  See [accel_rl](https://github.com/astooke/accel_rl) for similar implementations of other algorithms, including DQN+variants, which could be ported.
+Multi-GPU training with DistributedDataParallel using synchronous runner is implemented (basically runs replicas of the entire single-GPU arrangement, sampler and algo).  Runner for asynchronous sampler/optimizer is under development.
+
+Overall fairly stable but still developing, expect changes.
 
 
 
@@ -46,7 +48,12 @@ export PYTHONPATH=path_to_rlpyt:$PYTHONPATH
 pip install -e .
 ```
 
-3. Install any packages / files pertaining to desired environments.  Atari is included.
+3. Install any packages / files pertaining to desired environments (e.g. gym, mujoco).  Atari is included.
+
+Hint: for easy access, add the following to your `~/.bashrc` (might substitute `conda` for `source`).
+```
+alias rlpyt="source activate rlpyt; cd path_to_rlpyt"
+```
 
 
 
@@ -61,7 +68,7 @@ The class types perform the following roles:
         * **Space** - Interface specifications from `environment` to `agent`.
       * **TrajectoryInfo** - Diagnostics logged on a per-trajectory basis.
   * **Agent** - Chooses control action to the `environment` in `sampler`; trained by the `algorithm`.  Interface to `model`.
-    * **Model** - Neural network module, attached to the `agent`.
+    * **Model** - Torch neural network module, attached to the `agent`.
     * **Distribution** - Samples actions for stochastic `agents` and defines related formulas for use in loss function, attached to the `agent`.
   * **Algorithm** - Uses gathered samples to train the `agent` (e.g. defines a loss function and performs gradient descent).
     * **Optimizer** - Training update rule (e.g. Adam), attached to the `algorithm`.
