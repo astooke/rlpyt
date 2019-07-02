@@ -25,7 +25,7 @@ class GpuParallelSampler(BaseSampler):
         if not self.batch_spec.B % n_parallel == 0:
             logger.log("WARNING: unequal number of envs per process, from "
                 f"batch_B {self.batch_spec.B} and n_parallel {n_parallel} "
-                "(possibly suboptimal speed).")
+                "(possible suboptimal speed).")
             for b in range(self.batch_spec.B % n_parallel):
                 n_envs_list[b] += 1
 
@@ -34,7 +34,7 @@ class GpuParallelSampler(BaseSampler):
         agent.initialize(env.spaces, share_memory=False)  # Actual agent initialization, keep.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=False)
+            subprocess=False)  # Would like subprocess=True, but might hang?
         env.close()
         del env
         step_buffer_pyt, step_buffer_np = build_step_buffer(examples, self.batch_spec.B)
@@ -43,7 +43,7 @@ class GpuParallelSampler(BaseSampler):
             # assert self.eval_n_envs % n_parallel == 0
             eval_n_envs_per = max(1, self.eval_n_envs // n_parallel)
             eval_n_envs = eval_n_envs_per * n_parallel
-            logger.log(f"Total parallel evaluation envs: {eval_n_envs}")
+            logger.log(f"Total parallel evaluation envs: {eval_n_envs}.")
             self.eval_max_T = eval_max_T = int(self.eval_max_steps // eval_n_envs)
             eval_step_buffer_pyt, eval_step_buffer_np = build_step_buffer(examples,
                 eval_n_envs)
@@ -102,7 +102,7 @@ class GpuParallelSampler(BaseSampler):
         return examples  # e.g. In case useful to build replay buffer
 
     def obtain_samples(self, itr):
-        self.samples_np[:] = 0  # Reset all batch sample values (optional?).
+        # self.samples_np[:] = 0  # Reset all batch sample values (optional?).
         self.agent.sample_mode(itr)
         self.ctrl.barrier_in.wait()
         self.serve_actions(itr)  # Worker step environments here.
@@ -161,7 +161,7 @@ class GpuParallelSampler(BaseSampler):
                 step_np.action[b_reset] = 0  # Null prev_action into agent.
                 step_np.reward[b_reset] = 0  # Null prev_reward into agent.
                 self.agent.reset_one(idx=b_reset)
-            # step_np.done[:] = False  # Turn OFF here, after use.
+            # step_np.done[:] = False  # Worker resets at start of next.
 
     def serve_actions_evaluation(self, itr):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters

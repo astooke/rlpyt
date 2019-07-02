@@ -87,7 +87,6 @@ def build_par_objs(n, groups=1):
         stop_eval=mp.RawValue(ctypes.c_bool, False),
     )
     return ctrl, traj_infos_queue, sync
-    return ctrl, traj_infos_queue
 
 
 def get_example_outputs(agent, env, examples):

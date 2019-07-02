@@ -4,6 +4,7 @@ from rlpyt.replays.sequence.n_step import SequenceNStepReturnBuffer
 from rlpyt.replays.frame import FrameBufferMixin
 from rlpyt.replays.sequence.uniform import UniformSequenceReplay
 from rlpyt.replays.sequence.prioritized import PrioritizedSequenceReplay
+from rlpyt.replays.async import AsyncReplayBufferMixin
 
 
 class SequenceNStepFrameBuffer(FrameBufferMixin, SequenceNStepReturnBuffer):
@@ -42,11 +43,19 @@ class SequenceNStepFrameBuffer(FrameBufferMixin, SequenceNStepReturnBuffer):
 
 class UniformSequenceReplayFrameBuffer(UniformSequenceReplay,
         SequenceNStepFrameBuffer):
-
     pass
 
 
 class PrioritizedSequenceReplayFrameBuffer(PrioritizedSequenceReplay,
         SequenceNStepFrameBuffer):
+    pass
 
+
+class AsyncUniformSequenceReplayFrameBuffer(AsyncReplayBufferMixin,
+        UniformSequenceReplayFrameBuffer):
+    pass
+
+
+class AsyncPrioritizedSequenceReplayFrameBuffer(AsyncReplayBufferMixin,
+        PrioritizedSequenceReplayFrameBuffer):
     pass

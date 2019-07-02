@@ -94,14 +94,15 @@ class SAC(RlAlgorithm):
             self.action_prior_distribution = Gaussian(
                 dim=agent.env_spaces.action.size, std=1.)
 
-    def optimize_agent(self, samples, itr):
-        samples_to_buffer = SamplesToBuffer(
-            observation=samples.env.observation,
-            action=samples.agent.action,
-            reward=samples.env.reward,
-            done=samples.env.done,
-        )
-        self.replay_buffer.append_samples(samples_to_buffer)
+    def optimize_agent(self, itr, samples=None):
+        if samples is not None:
+            samples_to_buffer = SamplesToBuffer(
+                observation=samples.env.observation,
+                action=samples.agent.action,
+                reward=samples.env.reward,
+                done=samples.env.done,
+            )
+            self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
             return opt_info

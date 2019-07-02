@@ -2,6 +2,7 @@
 import numpy as np
 
 from rlpyt.replays.non_sequence.n_step import NStepReturnBuffer
+from rlpyt.replays.async import AsyncReplayBufferMixin
 
 
 class UniformReplay(object):
@@ -21,5 +22,8 @@ class UniformReplay(object):
 
 
 class UniformReplayBuffer(UniformReplay, NStepReturnBuffer):
+    pass
 
+
+class AsyncUniformReplayBuffer(AsyncReplayBufferMixin, UniformReplayBuffer):
     pass

@@ -45,7 +45,7 @@ class PPO(PolicyGradientAlgo):
                 lr_lambda=lambda itr: (n_itr - itr) / n_itr)  # Step once per itr.
             self._ratio_clip = self.ratio_clip  # Save base value.
 
-    def optimize_agent(self, samples, itr):
+    def optimize_agent(self, itr, samples):
         recurrent = self.agent.recurrent
         agent_inputs = AgentInputs(  # Move inputs to device once, index there.
             observation=samples.env.observation,

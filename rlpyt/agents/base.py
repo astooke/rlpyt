@@ -1,8 +1,8 @@
-
 import torch
 
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
+from rlpyt.utils.synchronize import RWLock
 
 AgentInputs = namedarraytuple("AgentInputs",
     ["observation", "prev_action", "prev_reward"])
@@ -20,6 +20,7 @@ class BaseAgent(object):
     def __init__(self, ModelCls, model_kwargs, initial_model_state_dict=None):
         save__init__args(locals())
         self.env_model_kwargs = dict()  # Populate in initialize().
+        self._rw_lock = RWLock()  # For async runner.
 
     def __call__(self, observation, prev_action, prev_reward):
         """Returns values from model forward pass on training data."""
@@ -75,8 +76,17 @@ class BaseAgent(object):
         if self.shared_model is not self.model:  # (self.model gets trained)
             self.shared_model.load_state_dict(self.model.state_dict())
 
+    def send_shared_memory(self):
+        with self._rw_lock.write_lock:
+            self.sync_shared_memory()
 
-AgentInputsRnn = namedarraytuple("AgentInputsRnn",  # Training, not sampling.
+    def recv_shared_memory(self):
+        if self.shared_model is not self.model:
+            with self._rw_lock:
+                self.model.load_state_dict(self.shared_model.state_dict())
+
+
+AgentInputsRnn = namedarraytuple("AgentInputsRnn",  # Training only.
     ["observation", "prev_action", "prev_reward", "init_rnn_state"])
 
 

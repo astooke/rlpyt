@@ -6,7 +6,8 @@ from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlpyt.replays.non_sequence.frame import (UniformReplayFrameBuffer,
-    PrioritizedReplayFrameBuffer)
+    PrioritizedReplayFrameBuffer, AsyncUniformReplayFrameBuffer,
+    AsyncPrioritizedReplayFrameBuffer)
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
 from rlpyt.algos.utils import valid_from_done
@@ -57,10 +58,66 @@ class DQN(RlAlgorithm):
             default_priority = delta_clip
         save__init__args(locals())
 
+    def initialize_replay_buffer(self, batch_spec, examples, mid_batch_reset,
+            async=False):
+        example_to_buffer = SamplesToBuffer(
+            observation=examples["observation"],
+            action=examples["action"],
+            reward=examples["reward"],
+            done=examples["done"],
+        )
+        replay_kwargs = dict(
+            example=example_to_buffer,
+            size=self.replay_size,
+            B=batch_spec.B,
+            discount=self.discount,
+            n_step_return=self.n_step_return,
+            shared_memory=async,
+        )
+        if self.prioritized_replay:
+            replay_kwargs.update(dict(
+                alpha=self.pri_alpha,
+                beta=self.pri_beta_init,
+                default_priority=self.default_priority,
+            ))
+            ReplayCls = (AsyncPrioritizedReplayFrameBuffer if async else
+                PrioritizedReplayFrameBuffer)
+        else:
+            ReplayCls = (AsyncUniformReplayFrameBuffer if async else
+                UniformReplayFrameBuffer)
+        self.replay_buffer = ReplayCls(**replay_kwargs)
+        self.mid_batch_reset = mid_batch_reset
+        return self.replay_buffer
+
+    def initialize_async(self, agent, updates_per_sync):
+        if agent.recurrent:
+            raise TypeError("For recurrent agents use r2d1 algo.")
+        self.agent = agent
+        # if (self.eps_final_min is not None and
+        #         self.eps_final_min != self.eps_final):  # vector-valued epsilon
+        #     self.eps_init = self.eps_init * torch.ones(batch_spec.B)
+        #     self.eps_final = torch.logspace(
+        #         torch.log10(torch.tensor(self.eps_final_min)),
+        #         torch.log10(torch.tensor(self.eps_final)),
+        #         batch_spec.B)
+        # agent.set_sample_epsilon_greedy(self.eps_init)
+        # agent.give_eval_epsilon_greedy(self.eps_eval)
+        self.mid_batch_reset = mid_batch_reset
+        self.optimizer = self.OptimCls(agent.parameters(),
+            lr=self.learning_rate, **self.optim_kwargs)
+        if self.initial_optim_state_dict is not None:
+            self.optimizer.load_state_dict(self.initial_optim_state_dict)
+        self.updates_per_optimize = updates_per_sync
+
+        self.target_update_itr = round(self.target_update_steps / sample_bs)
+        self.eps_itr = max(1, self.eps_steps // sample_bs)
+        self.min_itr_learn = 0  # Done by optim throttle; keep min_steps_learn.
+        if self.prioritized_replay:
+            self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
+
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
         if agent.recurrent:
             raise TypeError("For recurrent agents use r2d1 algo.")
-
         self.agent = agent
         if (self.eps_final_min is not None and
                 self.eps_final_min != self.eps_final):  # vector-valued epsilon
@@ -72,7 +129,6 @@ class DQN(RlAlgorithm):
         agent.set_sample_epsilon_greedy(self.eps_init)
         agent.give_eval_epsilon_greedy(self.eps_eval)
         self.n_itr = n_itr
-        self.mid_batch_reset = mid_batch_reset
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
@@ -92,38 +148,17 @@ class DQN(RlAlgorithm):
         if self.prioritized_replay:
             self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
 
-        example_to_buffer = SamplesToBuffer(
-            observation=examples["observation"],
-            action=examples["action"],
-            reward=examples["reward"],
-            done=examples["done"],
-        )
-        replay_kwargs = dict(
-            example=example_to_buffer,
-            size=self.replay_size,
-            B=batch_spec.B,
-            discount=self.discount,
-            n_step_return=self.n_step_return,
-        )
-        if self.prioritized_replay:
-            replay_kwargs.update(dict(
-                alpha=self.pri_alpha,
-                beta=self.pri_beta_init,
-                default_priority=self.default_priority,
-            ))
-            ReplayCls = PrioritizedReplayFrameBuffer
-        else:
-            ReplayCls = UniformReplayFrameBuffer
-        self.replay_buffer = ReplayCls(**replay_kwargs)
+        self.initialize_replay_buffer(batch_spec, examples, mid_batch_reset)
 
-    def optimize_agent(self, samples, itr):
-        samples_to_buffer = SamplesToBuffer(
-            observation=samples.env.observation,
-            action=samples.agent.action,
-            reward=samples.env.reward,
-            done=samples.env.done,
-        )
-        self.replay_buffer.append_samples(samples_to_buffer)
+    def optimize_agent(self, itr, samples=None):
+        if samples is not None:
+            samples_to_buffer = SamplesToBuffer(
+                observation=samples.env.observation,
+                action=samples.agent.action,
+                reward=samples.env.reward,
+                done=samples.env.done,
+            )
+            self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
             return opt_info

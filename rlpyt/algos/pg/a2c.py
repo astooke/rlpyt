@@ -28,7 +28,7 @@ class A2C(PolicyGradientAlgo):
             optim_kwargs = dict()
         save__init__args(locals())
 
-    def optimize_agent(self, samples, itr):
+    def optimize_agent(self, itr, samples):
         self.optimizer.zero_grad()
         loss, entropy, perplexity = self.loss(samples)
         loss.backward()

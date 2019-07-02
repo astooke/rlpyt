@@ -22,7 +22,7 @@ class MinibatchRl(MinibatchRlBase):
                 self.agent.sample_mode(itr)  # Might not be this agent sampling.
                 samples, traj_infos = self.sampler.obtain_samples(itr)
                 self.agent.train_mode(itr)
-                opt_info = self.algo.optimize_agent(samples, itr)
+                opt_info = self.algo.optimize_agent(itr, samples)
                 self.store_diagnostics(itr, traj_infos, opt_info)
                 if (itr + 1) % self.log_interval_itrs == 0:
                     self.log_diagnostics(itr)

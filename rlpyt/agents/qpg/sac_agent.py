@@ -175,6 +175,11 @@ class SacAgent(BaseAgent):
         if self.shared_pi_model is not self.pi_model:
             self.shared_pi_model.load_state_dict(self.pi_model.state_dict())
 
+    def recv_shared_memory(self):
+        if self.shared_pi_model is not self.pi_model:
+            with self._rw_lock:
+                self.pi_model.load_state_dict(self.shared_pi_model.state_dict())
+
     def train_mode(self, itr):
         for model in self.models:
             model.train()

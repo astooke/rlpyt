@@ -136,6 +136,11 @@ class DdpgAgent(BaseAgent):
         if self.shared_mu_model is not self.mu_model:
             self.shared_mu_model.load_state_dict(self.mu_model.state_dict())
 
+    def recv_shared_memory(self):
+        with self._rw_lock:
+            if self.mu_model is not self.shared_mu_model:
+                self.mu_model.load_state_dict(self.shared_mu_model)
+
     def q_parameters(self):
         return self.q_model.parameters()
 

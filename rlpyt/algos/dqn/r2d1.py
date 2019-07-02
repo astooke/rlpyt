@@ -65,6 +65,7 @@ class R2D1(RlAlgorithm):
             default_priority = delta_clip
         save__init__args(locals())
         self.update_counter = 0
+        self.batch_size = (self.batch_T + self.warmup_T) * self.batch_B
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
         if not agent.recurrent:
@@ -131,17 +132,18 @@ class R2D1(RlAlgorithm):
             ReplayCls = UniformSequenceReplayFrameBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
-    def optimize_agent(self, samples, itr):
-        samples_to_buffer = SamplesToBuffer(
-            observation=samples.env.observation,
-            action=samples.agent.action,
-            reward=samples.env.reward,
-            done=samples.env.done,
-        )
-        if self.store_rnn_state_interval > 0:
-            samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
-                prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
-        self.replay_buffer.append_samples(samples_to_buffer)
+    def optimize_agent(self, itr, samples=None):
+        if samples is not None:
+            samples_to_buffer = SamplesToBuffer(
+                observation=samples.env.observation,
+                action=samples.agent.action,
+                reward=samples.env.reward,
+                done=samples.env.done,
+            )
+            if self.store_rnn_state_interval > 0:
+                samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
+                    prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
+            self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
             return opt_info

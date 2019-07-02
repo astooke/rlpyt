@@ -1,5 +1,6 @@
 
 from rlpyt.replays.non_sequence.n_step import NStepReturnBuffer, SamplesFromReplay
+from rlpyt.replays.async import AsyncReplayBufferMixin
 from rlpyt.replays.sum_tree import SumTree
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
@@ -52,5 +53,9 @@ class PrioritizedReplay(object):
 
 
 class PrioritizedReplayBuffer(PrioritizedReplay, NStepReturnBuffer):
+    pass
 
+
+class AsyncPrioritizedReplayBuffer(AsyncReplayBufferMixin,
+        PrioritizedReplayBuffer):
     pass

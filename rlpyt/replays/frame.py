@@ -22,24 +22,26 @@ class FrameBufferMixin(object):
     observation frames overwritten.
     """
 
-    def __init__(self, example, **kwargs):
+    def __init__(self, example, shared_memory=False, **kwargs):
         field_names = [f for f in example._fields if f != "observation"]
         global BufferSamples
         BufferSamples = namedarraytuple("BufferSamples", field_names)
         buffer_example = BufferSamples(*(v for k, v in example.items()
             if k != "observation"))
-        super().__init__(example=buffer_example, **kwargs)
+        super().__init__(example=buffer_example, shared_memory=shared_memory,
+            **kwargs)
         # Equivalent to image.shape[0] if observation is image array (C,H,W):
         self.n_frames = n_frames = get_leading_dims(example.observation,
             n_dim=1)[0]
         logger.log(f"Frame-based buffer using {n_frames}-frame sequences.")
         # frames: oldest stored at t; duplicate n_frames - 1 beginning & end.
         self.samples_frames = buffer_from_example(example.observation[0],
-            (self.T + n_frames - 1, self.B))  # [T+n_frames-1,B,H,W]
+            (self.T + n_frames - 1, self.B),
+            shared_memory=shared_memory)  # [T+n_frames-1,B,H,W]
         # new_frames: shifted so newest stored at t; no duplication.
         self.samples_new_frames = self.samples_frames[n_frames - 1:]  # [T,B,H,W]
         self.samples_n_blanks = buffer_from_example(np.zeros(1, dtype="uint8"),
-            (self.T, self.B))
+            (self.T, self.B), shared_memory=shared_memory)
         self.off_forward = max(self.off_forward, n_frames - 1)
 
     def append_samples(self, samples):
