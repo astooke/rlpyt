@@ -1,13 +1,12 @@
 
 from contextlib import contextmanager
 import datetime
-import os
 import os.path as osp
 import json
 
 from rlpyt.utils.logging import logger
 
-LOG_DIR = osp.abspath(osp.join(osp.dirname(__file__), '../../..')) + "/data"
+LOG_DIR = osp.abspath(osp.join(osp.dirname(__file__), '../../../data'))
 
 
 def get_log_dir(experiment_name):
@@ -20,12 +19,12 @@ def get_log_dir(experiment_name):
 def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none"):
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_log_tabular_only(False)
-    abs_log_dir = osp.abspath(osp.join(log_dir, f"run_{run_ID}"))
-    if LOG_DIR != osp.commonpath([abs_log_dir, LOG_DIR]):
+    log_dir = osp.join(log_dir, f"run_{run_ID}")
+    exp_dir = osp.abspath(log_dir)
+    if LOG_DIR != osp.commonpath([exp_dir, LOG_DIR]):
         print(f"logger_context received log_dir outside of {LOG_DIR}: "
             f"prepending by {LOG_DIR}/local/<yyyymmdd>/")
-        abs_log_dir = get_log_dir(log_dir)
-    exp_dir = abs_log_dir  # osp.join(abs_log_dir, exp_name)
+        exp_dir = get_log_dir(log_dir)
     tabular_log_file = osp.join(exp_dir, "progress.csv")
     text_log_file = osp.join(exp_dir, "debug.log")
     params_log_file = osp.join(exp_dir, "params.json")

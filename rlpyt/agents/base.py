@@ -17,7 +17,8 @@ class BaseAgent(object):
     recurrent = False
     _mode = None
 
-    def __init__(self, ModelCls, model_kwargs, initial_model_state_dict=None):
+    def __init__(self, ModelCls, model_kwargs=None, initial_model_state_dict=None):
+        model_kwargs = dict() if model_kwargs is None else model_kwargs
         save__init__args(locals())
         self.env_model_kwargs = dict()  # Populate in initialize().
         self._rw_lock = RWLock()  # For async runner.

@@ -30,14 +30,14 @@ class MinibatchRlBase(BaseRunner):
     def startup(self):
         p = psutil.Process()
         try:
-            if "master_cpus" in self.affinity:
+            if self.affinity.get("master_cpus", None) is not None:
                 p.cpu_affinity(self.affinity["master_cpus"])
             cpu_affin = p.cpu_affinity()
         except AttributeError:
             cpu_affin = "UNAVAILABLE MacOS"
         logger.log(f"Runner {getattr(self, 'rank', '')} master CPU affinity: "
             f"{cpu_affin}.")
-        if "master_torch_threads" in self.affinity:
+        if self.affinity.get("master_torch_threads", None) is not None:
             torch.set_num_threads(self.affinity["master_torch_threads"])
         logger.log(f"Runner {getattr(self, 'rank', '')} master Torch threads: "
             f"{torch.get_num_threads()}.")

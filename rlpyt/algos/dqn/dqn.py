@@ -59,7 +59,7 @@ class DQN(RlAlgorithm):
         save__init__args(locals())
 
     def initialize_replay_buffer(self, batch_spec, examples, mid_batch_reset,
-            async=False):
+            async_=False):
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -72,7 +72,7 @@ class DQN(RlAlgorithm):
             B=batch_spec.B,
             discount=self.discount,
             n_step_return=self.n_step_return,
-            shared_memory=async,
+            shared_memory=async_,
         )
         if self.prioritized_replay:
             replay_kwargs.update(dict(
@@ -80,10 +80,10 @@ class DQN(RlAlgorithm):
                 beta=self.pri_beta_init,
                 default_priority=self.default_priority,
             ))
-            ReplayCls = (AsyncPrioritizedReplayFrameBuffer if async else
+            ReplayCls = (AsyncPrioritizedReplayFrameBuffer if async_ else
                 PrioritizedReplayFrameBuffer)
         else:
-            ReplayCls = (AsyncUniformReplayFrameBuffer if async else
+            ReplayCls = (AsyncUniformReplayFrameBuffer if async_ else
                 UniformReplayFrameBuffer)
         self.replay_buffer = ReplayCls(**replay_kwargs)
         self.mid_batch_reset = mid_batch_reset

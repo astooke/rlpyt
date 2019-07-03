@@ -132,7 +132,7 @@ def build_cpu_affinity(slt, cpu, cpr, cpw=1, hto=None, res=0, skt=1, gpu=0):
     assert gpu == 0
     assert cpu % cpr == 0
     hto = cpu if hto is None else hto  # Default is None, 0 is OFF.
-    assert (hto - cpu % skt) == 0
+    assert (hto - cpu) % skt == 0
     n_run_slots = cpu // cpr
     assert slt <= n_run_slots
     cpu_per_skt = max(cpu, hto) // skt

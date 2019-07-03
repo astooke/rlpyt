@@ -41,7 +41,7 @@ class AsyncRl(BaseRunner):
             batch_spec=self.sampler.batch_spec,
             examples=examples,
             mid_batch_reset=self.sampler.mid_batch_reset,
-            async=True,
+            async_=True,
         )
         n_itr = self.get_n_itr()
         self.ctrl = self.build_ctrl(len(self.affinity.optimizer))

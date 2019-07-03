@@ -10,6 +10,9 @@ class EpsilonGreedyAgentMixin(object):
             self.eval_epsilon = mp.RawValue(ctypes.c_float, 0)
             # Does not support vector-valued epsilon.
             self.sample_epsilon = mp.RawValue(ctypes.c_float, 1)
+        else:
+            self.eval_epsilon = 1
+            self.sample_epsilon = 1
 
     def set_sample_epsilon_greedy(self, epsilon):
         if self.share_memory:

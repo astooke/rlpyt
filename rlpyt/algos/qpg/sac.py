@@ -42,7 +42,7 @@ class SAC(RlAlgorithm):
             initial_optim_state_dict=None,
             action_prior="uniform",  # or "gaussian"
             reward_scale=1,
-            reparameterize=False,
+            reparameterize=True,
             clip_grad_norm=1e6,
             policy_output_regularization=0.001,
             n_step_return=1,

@@ -10,7 +10,7 @@ Follows the rllab interfaces: agents output `action, agent_info`, environments o
 
 Recurrent agents are supported, as training batches are organized with leading indexes as `[Time, Batch]`, and agents receive previous action and previous reward as input, in addition to the observation.
 
-Start from `rlpyt/experiments/scripts/atari/pg/launch/launch_atari_ff_a2c_cpu.py` as a complete launch script example, and follow the code backwards from there.  :)
+Get started in the examples folder, with scripts ordered by increasing complexity.
 
 
 
