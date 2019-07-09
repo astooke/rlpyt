@@ -14,10 +14,10 @@ Modular, optimized implementations of common deep RL algorithms in PyTorch, with
 * Launching utilities for stacking/queueing sets of experiments in parallel on given **local** hardware resources (e.g. run 40 experiments on an 8-GPU machine with 1 experiment per GPU at a time).
 * Compatible with the OpenAI Gym environment interface.<sup>1</sup>
 
-### Implemented Algorithms.
+### Implemented Algorithms
 **Policy Gradient** A2C, PPO.
 
-**Replay Buffers** (supporting both DQN + QPG) Non-sequence and Sequence (for recurrent), N-step returns, Uniform or Prioritized replay, Full-observation or frame-based buffer (e.g. for Atari, stores only unique frames to save memory, reconstructs multi-frame observations).
+**Replay Buffers** (supporting both DQN + QPG) non-sequence and sequence (for recurrent) replay, n-step returns, uniform or prioritized replay, full-observation or frame-based buffer (e.g. for Atari, stores only unique frames to save memory, reconstructs multi-frame observations).
 
 **Deep Q-Learning** DQN + variants: Double, Dueling, Categorical (up to Rainbow minus Noisy Nets), Recurrent (R2D2-style).
 
@@ -25,12 +25,12 @@ Modular, optimized implementations of common deep RL algorithms in PyTorch, with
 
 All implementations, except possibly recurrent DQN, produce learning curves verifying performance against published results, to be posted soon (docs still under construction).
 
-### Getting Started.
+### Getting Started
 Follow the installation instructions below, and then get started in the examples folder.  Example scripts are ordered by increasing complexity.
 
 For newcomers to deep RL, we recommend familiarizing with algorithms using a different resource, such as the excellent OpenAI Spinning Up [docs](https://spinningup.openai.com/en/latest/), [code](https://github.com/openai/spinningup).
 
-### New data structure: `namedarraytuple`.
+### New data structure: `namedarraytuple`
 Rlpyt introduces new object classes `namedarraytuple` for easier organization of collections of numpy arrays / torch tensors. (see `rlpyt/utils/collections.py`).  A `namedarraytuple` is essentially a `namedtuple` which exposes indexed or sliced read/writes into the structure.  For example, consider writing into a (possibly nested) dictionary of arrays:
 ```python
 for k, v in src.items():
@@ -44,7 +44,7 @@ for k, v in src.items():
  ```
  Importantly, this syntax looks the same whether `dest` and `src` are indiviual numpy arrays or arbitrarily-structured collections of arrays (the structures of `dest` and `src` must match).  Rlpyt uses this data structure extensively--different elements of training data are organized with the same leading dimensions, making it easy to interact with desired time- or batch-dimensions.
  
-This is also intended to support environments with multi-model observations or actions.  For example, consider and environment with joint-angle and camera-image observations.  Rather than flattening and merging these into one observation vector, the environment can store them as-is into a `namedarraytuple` for the observation, and in the forward method of the model, `observation.joint` and `observation.image` can be fed into the desired layers.  Intermediate infrastructure code need not change. 
+This is also intended to support environments with multi-modal observations or actions.  For example, consider and environment with joint-angle and camera-image observations.  Rather than flattening and merging these into one observation vector, the environment can store them as-is into a `namedarraytuple` for the observation, and in the forward method of the model, `observation.joint` and `observation.image` can be fed into the desired layers.  Intermediate infrastructure code need not change. 
 
 ## Future Developments.
 
