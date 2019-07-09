@@ -1,6 +1,6 @@
-<img align="right" width="205" height="109" src="/images/bair_logo.png">
-
 # rlpyt
+
+<img align="right" width="205" height="109" src="/images/bair_logo.png">
 
 ## Deep Reinforcement Learning in PyTorch
 
