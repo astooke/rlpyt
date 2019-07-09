@@ -23,7 +23,8 @@ ABBREVS = [N_GPU, CONTEXTS_PER_GPU, GPU_PER_RUN, N_CPU_CORES,
 # API
 
 def quick_affinity_code(n_parallel=None, use_gpu=True):
-    assert use_gpu or n_parallel
+    if not (use_gpu or n_parallel):
+        raise ValueError("Either use_gpu must be True or n_parallel > 0 must be given.")
     import psutil
     n_cpu_cores = psutil.cpu_count(logical=False)
     has_hyperthreads = psutil.cpu_count() == n_cpu_cores * 2
@@ -43,6 +44,10 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
         return encode_affinity(n_cpu_cores=n_cpu_cores, n_gpu=n_gpu,
             hyperthread_offset=hyperthread_offset, n_socket=n_socket)
     else:
+        if not n_parallel:
+            raise ValueError(
+                "n_parallel > 0 must be given if use_gpu=False or no GPUs are present."
+            )
         n_parallel = min(n_parallel, n_cpu_cores)
         n_cpu_cores = (n_cpu_cores // n_parallel) * n_parallel  # Same for all.
         cpu_per_run = n_cpu_cores // n_parallel
