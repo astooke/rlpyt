@@ -93,7 +93,7 @@ Hint: for easy access, add the following to your `~/.bashrc` (might substitute `
 alias rlpyt="source activate rlpyt; cd path_to_rlpyt"
 ```
 
-## Extended Notes.
+## Extended Notes
 
 ### Code Organization
 
@@ -118,7 +118,7 @@ This code is a revision of [accel_rl](https://github.com/astooke/accel_rl), whic
 
 Accel_rl was inspired by [rllab](https://github.com/rll/rllab) (the `logger` here is nearly a direct copy).  Rlpyt follows the rllab interfaces: agents output `action, agent_info`, environments output `observation, reward, done, env_info`.  In general in rlpyt, agent inputs/outputs are torch tensors, and environment inputs/ouputs are numpy arrays, with conversions handled automatically.
 
-1.  For OpenAI Gym compatibility, use a `namedtuple` for `env_info` rather than a dict.  This makes for easier data recording but does require the same fields to be output at every environment step.
+1.  Regarding OpenAI Gym compatibility, rlpyt uses a `namedtuple` for `env_info` rather than a `dict`.  This makes for easier data recording but does require the same fields to be output at every environment step.  An environment wrapper is provided.
 
 ### Acknowledgements
 Thank you to the Fannie & John Hertz Foundation and the NVIDIA Corporation for generous support of graduate studies.  Thanks to Pieter Abbeel for extensive support and advising, Max Jaderberg for further mentoring, the BAIR community, and OpenAI for patient support during finishing stages.  And thanks in advance to any contributors!  Happy reinforcement learning!
