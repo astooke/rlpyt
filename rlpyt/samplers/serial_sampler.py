@@ -58,7 +58,7 @@ class SerialSampler(BaseSampler):
         self.samples_np[:] = 0
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
             self.agent_inputs, self.traj_infos, itr)
-        agent_inputs = self.collector.reset_if_needed(agent_inputs)
+        self.collector.reset_if_needed(agent_inputs)
         self.agent_inputs = agent_inputs
         self.traj_infos = traj_infos
         return self.samples_pyt, completed_infos

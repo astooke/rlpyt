@@ -73,7 +73,7 @@ class BaseCollector(object):
 
     def reset_if_needed(self, agent_inputs):
         """Reset agent and or env as needed, if doing between batches."""
-        return agent_inputs
+        pass
 
 
 class BaseEvalCollector(object):
