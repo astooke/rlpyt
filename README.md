@@ -30,7 +30,7 @@ All implementations, except possibly recurrent DQN, produce learning curves veri
 ### Getting Started
 Follow the installation instructions below, and then get started in the examples folder.  Example scripts are ordered by increasing complexity.
 
-For newcomers to deep RL, we recommend familiarizing with algorithms using a different resource, such as the excellent OpenAI Spinning Up [docs](https://spinningup.openai.com/en/latest/), [code](https://github.com/openai/spinningup).
+For newcomers to deep RL, it may be better to get familiar with the algorithms using a different resource, such as the excellent OpenAI Spinning Up: [docs](https://spinningup.openai.com/en/latest/), [code](https://github.com/openai/spinningup).
 
 ### New data structure: `namedarraytuple`
 Rlpyt introduces new object classes `namedarraytuple` for easier organization of collections of numpy arrays / torch tensors. (see `rlpyt/utils/collections.py`).  A `namedarraytuple` is essentially a `namedtuple` which exposes indexed or sliced read/writes into the structure.  For example, consider writing into a (possibly nested) dictionary of arrays:
@@ -121,4 +121,6 @@ Accel_rl was inspired by [rllab](https://github.com/rll/rllab) (the `logger` her
 1.  Regarding OpenAI Gym compatibility, rlpyt uses a `namedtuple` for `env_info` rather than a `dict`.  This makes for easier data recording but does require the same fields to be output at every environment step.  An environment wrapper is provided.
 
 ### Acknowledgements
-Thank you to the Fannie & John Hertz Foundation and the NVIDIA Corporation for generous support of graduate studies.  Thanks to Pieter Abbeel for extensive support and advising, Max Jaderberg for further mentoring, the BAIR community, and OpenAI for patient support during finishing stages.  And thanks in advance to any contributors!  Happy reinforcement learning!
+Thank you to the Fannie & John Hertz Foundation and the NVIDIA Corporation for generous support of graduate studies.  Thanks to Pieter Abbeel for extensive support and advising, Max Jaderberg for further mentoring, the BAIR community, and OpenAI for patient support during finishing stages.  And thanks in advance to any contributors!  
+
+Happy reinforcement learning!
