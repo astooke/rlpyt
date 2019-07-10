@@ -44,7 +44,7 @@ for k, v in src.items():
  ```python
  dest[slice_or_indexes] = src
  ```
- Importantly, this syntax looks the same whether `dest` and `src` are indiviual numpy arrays or arbitrarily-structured collections of arrays (the structures of `dest` and `src` must match).  Rlpyt uses this data structure extensively--different elements of training data are organized with the same leading dimensions, making it easy to interact with desired time- or batch-dimensions.
+ Importantly, this syntax looks the same whether `dest` and `src` are indiviual numpy arrays or arbitrarily-structured collections of arrays (the structures of `dest` and `src` must match, or `src` can be a single value).  Rlpyt uses this data structure extensively--different elements of training data are organized with the same leading dimensions, making it easy to interact with desired time- or batch-dimensions.
  
 This is also intended to support environments with multi-modal observations or actions.  For example, consider and environment with joint-angle and camera-image observations.  Rather than flattening and merging these into one observation vector, the environment can store them as-is into a `namedarraytuple` for the observation, and in the forward method of the model, `observation.joint` and `observation.image` can be fed into the desired layers.  Intermediate infrastructure code need not change. 
 
@@ -52,7 +52,7 @@ This is also intended to support environments with multi-modal observations or a
 
 Overall the code is fairly stable but still developing, expect changes.
 
-### My list
+### Underway
 * Asynchronous sampling/optimization mode.  Should yield major speedups for e.g. Atari DQN, so sampler and optimizer both always running full speed, vs now when code is either sampling or optimizing.
 * Alternating GPU sampler.  Should yield speedups for sampling, like the old accel_rl code, two sets of environments: one steps while the other waits for actions back from GPU.
 
