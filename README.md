@@ -46,7 +46,7 @@ for k, v in src.items():
  ```
  Importantly, this syntax looks the same whether `dest` and `src` are indiviual numpy arrays or arbitrarily-structured collections of arrays (the structures of `dest` and `src` must match, or `src` can be a single value).  Rlpyt uses this data structure extensively--different elements of training data are organized with the same leading dimensions, making it easy to interact with desired time- or batch-dimensions.
  
-This is also intended to support environments with multi-modal observations or actions.  For example, consider and environment with joint-angle and camera-image observations.  Rather than flattening and merging these into one observation vector, the environment can store them as-is into a `namedarraytuple` for the observation, and in the forward method of the model, `observation.joint` and `observation.image` can be fed into the desired layers.  Intermediate infrastructure code need not change. 
+This is also intended to support environments with multi-modal observations or actions.  For example, consider and environment with joint-angle and camera-image observations.  Rather than flattening and merging these into one observation vector, the environment can store them as-is into a `namedarraytuple` for the observation, and in the forward method of the model, `observation.joint` and `observation.image` can be fed into the desired layers.  Intermediate infrastructure code doesn’t change. 
 
 ## Future Developments.
 
@@ -121,6 +121,6 @@ Accel_rl was inspired by [rllab](https://github.com/rll/rllab) (the `logger` her
 1.  Regarding OpenAI Gym compatibility, rlpyt uses a `namedtuple` for `env_info` rather than a `dict`.  This makes for easier data recording but does require the same fields to be output at every environment step.  An environment wrapper is provided.
 
 ### Acknowledgements
-Thank you to the Fannie & John Hertz Foundation and the NVIDIA Corporation for generous support of graduate studies.  Thanks to Pieter Abbeel for extensive support and advising, Max Jaderberg for further mentoring, the BAIR community, and OpenAI for patient support during finishing stages.  And thanks in advance to any contributors!  
+Thanks for support / mentoring from the Fannie & John Hertz Foundation, NVIDIA, Pieter Abbeel, Max Jaderberg, OpenAI, and the BAIR community.  And thanks in advance to any contributors!
 
 Happy reinforcement learning!
