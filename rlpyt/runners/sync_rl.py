@@ -3,8 +3,7 @@ import multiprocessing as mp
 import time
 import torch.distributed
 
-from rlpyt.runners.minibatch_rl import MinibatchRl
-from rlpyt.runners.minibatch_rl_eval import MinibatchRlEval
+from rlpyt.runners.minibatch_rl import MinibatchRl, MinibatchRlEval
 from rlpyt.utils.seed import make_seed
 from rlpyt.utils.collections import AttrDict
 from rlpyt.utils.quick_args import save__init__args
@@ -15,7 +14,7 @@ from rlpyt.utils.quick_args import save__init__args
 ###############################################################################
 
 
-class MultiGpuRlMixin(object):
+class SyncRlMixin(object):
 
     def startup(self):
         self.launch_workers()
@@ -27,12 +26,13 @@ class MultiGpuRlMixin(object):
     def launch_workers(self):
         self.affinities = self.affinity
         self.affinity = self.affinities[0]
-        self.n_runners = n_runners = len(self.affinities)
+        self.world_size = world_size = len(self.affinities)
         self.rank = rank = 0
-        self.par = par = self.build_par_objs(n_runners)
+        self.par = par = self.build_par_objs(world_size)
         if self.seed is None:
             self.seed = make_seed()
         port = find_port(offset=self.affinity.get("run_slot", 0))
+        backend = "gloo" if self.affinity.get("cuda_idx", None) is None else "nccl"
         workers_kwargs = [dict(
             algo=self.algo,
             agent=self.agent,
@@ -42,24 +42,25 @@ class MultiGpuRlMixin(object):
             affinity=self.affinities[rank],
             log_interval_steps=self.log_interval_steps,
             rank=rank,
-            n_runners=n_runners,
+            world_size=world_size,
             port=port,
+            backend=backend,
             par=par,
             )
-            for rank in range(1, n_runners)]
+            for rank in range(1, world_size)]
         workers = [self.WorkerCls(**w_kwargs) for w_kwargs in workers_kwargs]
         self.workers = [mp.Process(target=w.train, args=()) for w in workers]
         for w in self.workers:
             w.start()
         torch.distributed.init_process_group(
-            backend="nccl",
+            backend=backend,
             rank=rank,
-            world_size=n_runners,
+            world_size=world_size,
             init_method=f"tcp://127.0.0.1:{port}",
         )
 
-    def build_par_objs(self, n_runners):
-        barrier = mp.Barrier(n_runners)
+    def build_par_objs(self, world_size):
+        barrier = mp.Barrier(world_size)
         traj_infos_queue = mp.Queue()
         mgr = mp.Manager()
         mgr_dict = mgr.dict()  # For any other comms.
@@ -71,11 +72,11 @@ class MultiGpuRlMixin(object):
         return par
 
 
-class MultiGpuRl(MultiGpuRlMixin, MinibatchRl):
+class SyncRl(SyncRlMixin, MinibatchRl):
 
     @property
     def WorkerCls(self):
-        return MultiGpuWorker
+        return SyncWorker
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
         while self.par.traj_infos_queue.qsize():
@@ -83,11 +84,11 @@ class MultiGpuRl(MultiGpuRlMixin, MinibatchRl):
         super().store_diagnostics(itr, traj_infos, opt_info)
 
 
-class MultiGpuRlEval(MultiGpuRlMixin, MinibatchRlEval):
+class SyncRlEval(SyncRlMixin, MinibatchRlEval):
 
     @property
     def WorkerCls(self):
-        return MultiGpuWorkerEval
+        return SyncWorkerEval
 
     def log_diagnostics(self, *args, **kwargs):
         super().log_diagnostics(*args, **kwargs)
@@ -99,7 +100,7 @@ class MultiGpuRlEval(MultiGpuRlMixin, MinibatchRlEval):
 ###############################################################################
 
 
-class MultiGpuWorkerMixin(object):
+class SyncWorkerMixin(object):
 
     def __init__(
             self,
@@ -111,17 +112,18 @@ class MultiGpuWorkerMixin(object):
             affinity,
             log_interval_steps,
             rank,
-            n_runners,
+            world_size,
             port,
+            backend
             par,
             ):
         save__init__args(locals())
 
     def startup(self):
         torch.distributed.init_process_group(
-            backend="nccl",
+            backend=self.backend,
             rank=self.rank,
-            world_size=self.n_runners,
+            world_size=self.world_size,
             init_method=f"tcp://127.0.0.1:{self.port}",
         )
         n_itr = super().startup()
@@ -135,7 +137,7 @@ class MultiGpuWorkerMixin(object):
         self.sampler.shutdown()
 
 
-class MultiGpuWorker(MultiGpuWorkerMixin, MinibatchRl):
+class SyncWorker(SyncWorkerMixin, MinibatchRl):
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
         for traj_info in traj_infos:
@@ -146,7 +148,7 @@ class MultiGpuWorker(MultiGpuWorkerMixin, MinibatchRl):
         pass
 
 
-class MultiGpuWorkerEval(MultiGpuWorkerMixin, MinibatchRlEval):
+class SyncWorkerEval(SyncWorkerMixin, MinibatchRlEval):
 
     def store_diagnostics(self, *args, **kwargs):
         pass

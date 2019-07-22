@@ -1,6 +1,7 @@
 
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.nn.parallel import DistributedDataParallelCPU as DDPC
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.utils.quick_args import save__init__args
@@ -66,8 +67,12 @@ class DdpgAgent(BaseAgent):
         self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
 
-    def initialize_cuda(self, cuda_idx=None, ddp=False):
+    def initialize_device(self, cuda_idx=None, ddp=False):
         if cuda_idx is None:
+            if ddp:
+                self.mu_model = DDPC(self.mu_model)
+                self.q_model = DDPC(self.q_model)
+                logger.log("Initialized DistributedDataParallelCPU agent model.")
             return  # CPU
         if self.shared_mu_model is not None:
             self.mu_model = self.MuModelCls(**self.env_model_kwargs,

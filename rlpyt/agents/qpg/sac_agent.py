@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.nn.paralell import DistributedDataParallelCPU as DDPC
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.models.qpg.mlp import QofMuMlpModel, VMlpModel, PiMlpModel
@@ -77,8 +78,14 @@ class SacAgent(BaseAgent):
         self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
 
-    def initialize_cuda(self, cuda_idx=None, ddp=False):
+    def initialize_device(self, cuda_idx=None, ddp=False):
         if cuda_idx is None:
+            if ddp:
+                self.q1_model = DDPC(self.q1_model)
+                self.q2_model = DDPC(self.q2_model)
+                self.v_model = DDPC(self.v_model)
+                self.pi_model = DDPC(self.pi_model)
+                logger.log("Initialized DistributedDataParallelCPU agent model.")
             return  # CPU
         if self.shared_pi_model is not None:
             self.pi_model = self.PiModelCls(**self.env_model_kwargs,

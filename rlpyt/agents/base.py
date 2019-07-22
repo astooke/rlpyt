@@ -27,14 +27,18 @@ class BaseAgent(object):
         """Returns values from model forward pass on training data."""
         raise NotImplementedError
 
-    def initialize(self, env_spaces, share_memory=False):
+    def initialize(self, env_spaces, share_memory=False, batch_B=None):
         """Builds the model."""
         raise NotImplementedError
 
-    def initialize_cuda(self, cuda_idx=None):
+    def initialize_device(self, cuda_idx=None, ddp=False):
         """Call after initialize() and after forking sampler workers, but
         before initializing algorithm."""
         raise NotImplementedError
+
+    def collector_initialize(self, global_B=1, env_ranks=None):
+        """If need to initialize within CPU sampler (e.g. vector eps greedy)"""
+        pass
 
     @torch.no_grad()  # Hint: apply this decorator on overriding method.
     def step(self, observation, prev_action, prev_reward):

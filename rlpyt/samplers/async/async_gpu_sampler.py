@@ -13,7 +13,7 @@ from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.collections import AttrDict
 
 
-EVAL_TRAJ_CHECK = 0.2  # Seconds.
+EVAL_TRAJ_CHECK = 0.1  # Seconds.
 
 
 class AsyncGpuSampler(BaseSampler):
@@ -45,7 +45,7 @@ class AsyncGpuSampler(BaseSampler):
     # Sampler runner methods (forked).
     ###########################################################################
 
-    def sample_runner_initialize(self, affinity):
+    def sampler_process_initialize(self, affinity):
         n_server = len(affinity)
         n_worker = sum(len(aff["workers_cpus"]) for aff in affinity)
         n_envs_list = [self.batch_spec.B // n_worker] * n_worker
@@ -72,13 +72,15 @@ class AsyncGpuSampler(BaseSampler):
             barrier_out=mp.Barrier(n_server + n_worker + 1),
             do_eval=mp.RawValue(ctypes.c_bool, False),
             itr=mp.RawValue(ctypes.c_long, 0),
+            j=mp.RawValue("i", 0),  # Double buffer index.
         )
         traj_infos_queue = mp.Queue()
 
         common_kwargs = dict(
             ctrl=ctrl,
             traj_infos_queue=traj_infos_queue,
-            )
+            world_size=n_server,
+        )
         servers_kwargs = assemble_servers_kwargs(affinity, n_envs_list,
             self.seed, self.double_buffer)
         servers = [mp.Process(target=self.action_server_process,
@@ -90,7 +92,9 @@ class AsyncGpuSampler(BaseSampler):
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
 
-    def obtain_samples(self, itr):
+    def obtain_samples(self, itr, j):
+        self.ctrl.itr.value = itr
+        self.ctrl.j.value = j  # Tell collectors which buffer to use.
         self.ctrl.barrier_in.wait()
         # Sampling in sub-processes here.
         self.ctrl.barrier_out.wait()
@@ -134,26 +138,29 @@ class AsyncGpuSampler(BaseSampler):
     # Methods in forked action server process.
     ###########################################################################
 
-    def action_server_process(self, double_buffer_slice, ctrl, traj_infos_queue,
-            affinity, seed, n_envs_list):
+    def action_server_process(self, rank, env_ranks, double_buffer_slice, ctrl,
+            traj_infos_queue, affinity, seed, n_envs_list):
         """Runs in forked process, inherits from original process, so can easily
         pass args to env worker processes, forked from here."""
+        self.rank = rank
         self.ctrl = ctrl
         self.launch_workers(double_buffer_slice, traj_infos_queue, affinity,
             seed, n_envs_list)
-        self.agent.initialize_cuda(cuda_idx=affinity["cuda_idx"], ddp=False)
+        self.agent.initialize_device(cuda_idx=affinity["cuda_idx"], ddp=False)
+        self.agent.collector_initialize(global_B=self.batch_spec.B,  # Not updated.
+            env_ranks=env_ranks)  # For vector eps-greedy.
         while True:
-            self.ctrl.barrier_in.wait()
+            ctrl.barrier_in.wait()
             if self.ctrl.quit.value:
                 break
             self.agent.recv_shared_memory()
-            if self.ctrl.do_eval.value:
+            if ctrl.do_eval.value:
                 self.agent.eval_mode(self.ctrl.itr.value)
                 self.serve_actions_evaluation()
             else:
                 self.agent.sample_mode(self.ctrl.itr.value)
                 self.serve_actions()
-            self.ctrl.barrier_out.wait()
+            ctrl.barrier_out.wait()
         self.shutdown_workers()
 
     def serve_actions(self):
@@ -187,7 +194,7 @@ class AsyncGpuSampler(BaseSampler):
                 step_np.action[b_reset] = 0  # Null prev_action into agent.
                 step_np.reward[b_reset] = 0  # Null prev_reward into agent.
                 self.agent.reset_one(idx=b_reset)
-            # step_np.done[:] = False  # Worker resets at start of next.
+            # step_np.done[:] = False  # DON'T DO. Worker resets later.
 
     def serve_actions_evaluation(self, itr):
         step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
@@ -220,6 +227,7 @@ class AsyncGpuSampler(BaseSampler):
             step_blockers=[mp.Semaphore(0) for _ in range(n_worker)],
             act_waiters=[mp.Semaphore(0) for _ in range(n_worker)],
             stop_eval=mp.RawValue(ctypes.c_bool, False),
+            j=self.ctrl.j,  # Copy into sync which passes to Collector.
         )
         step_buffer_pyt, step_buffer_np = build_step_buffer(self.examples,
             sum(n_envs_list))
@@ -266,7 +274,7 @@ class AsyncGpuSampler(BaseSampler):
 
     def shutdown_workers(self):
         for w in self.workers:
-            w.join()  # Already signaled by central master.
+            w.join()  # Already signaled to quit by central master.
 
 
 def assemble_servers_kwargs(double_buffer, affinity, n_envs_list, seed):
@@ -278,6 +286,8 @@ def assemble_servers_kwargs(double_buffer, affinity, n_envs_list, seed):
         n_env = sum(n_envs_list[i_worker:i_worker + n_worker])
         slice_B = slice(i_env, i_env + n_env)
         server_kwargs = dict(
+            rank=rank,
+            env_ranks=list(range(i_env, i_env + n_env)),
             double_buffer_slice=tuple(buf[:, slice_B] for buf in double_buffer),
             affinity=affinity[rank],
             n_envs_list=n_envs_list[i_worker:i_worker + n_worker],
@@ -300,6 +310,7 @@ def assemble_workers_kwargs(affinity, seed, double_buffer, n_envs_list,
             step_blocker=sync.step_blockers[rank],
             act_waiter=sync.act_waiters[rank],
             stop_eval=sync.stop_eval,
+            j=sync.j,
         )
         worker_kwargs = dict(
             rank=rank,

@@ -33,7 +33,7 @@ class SAC(RlAlgorithm):
             batch_size=256,
             min_steps_learn=int(1e4),
             replay_size=int(1e6),
-            training_ratio=256,  # data_consumption / data_generation
+            replay_ratio=256,  # data_consumption / data_generation
             target_update_tau=0.005,  # tau=1 for hard update.
             target_update_interval=1,  # interval=1000 for hard update.
             learning_rate=3e-4,
@@ -66,12 +66,12 @@ class SAC(RlAlgorithm):
 
         sample_bs = batch_spec.size
         train_bs = self.batch_size
-        assert (self.training_ratio * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int((self.training_ratio * sample_bs) //
+        assert (self.replay_ratio * sample_bs) % train_bs == 0
+        self.updates_per_optimize = int((self.replay_ratio * sample_bs) //
             train_bs)
         logger.log(f"From sampler batch size {sample_bs}, training "
             f"batch size {train_bs}, and training ratio "
-            f"{self.training_ratio}, computed {self.updates_per_optimize} "
+            f"{self.replay_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
         self.min_itr_learn = self.min_steps_learn // sample_bs
         self.agent.give_min_itr_learn(self.min_itr_learn)

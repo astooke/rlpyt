@@ -13,7 +13,7 @@ config = dict(
         batch_B=32,  # In the paper, 64.
         warmup_T=40,
         store_rnn_state_interval=40,
-        training_ratio=4,  # In the paper, more like 0.8.
+        replay_ratio=4,  # In the paper, more like 0.8.
         learning_rate=1e-4,
         clip_grad_norm=10.,
         min_steps_learn=int(1e5),
@@ -41,7 +41,7 @@ config = dict(
         log_interval_steps=1e6,
     ),
     sampler=dict(
-        batch_T=30,  # Match the algo / training_ratio.
+        batch_T=30,  # Match the algo / replay_ratio.
         batch_B=32,
         max_decorrelation_steps=1000,
         eval_n_envs=4,
@@ -57,7 +57,7 @@ configs["r2d1"] = config
 config = copy.deepcopy(configs["r2d1"])
 config["algo"]["replay_size"] = int(4e6)
 config["algo"]["batch_B"] = 64  # Not sure will fit.
-config["algo"]["training_ratio"] = 1
+config["algo"]["replay_ratio"] = 1
 config["algo"]["eps_final"] = 0.1
 config["algo"]["eps_final_min"] = 0.0005
 config["runner"]["n_steps"] = 20e9
@@ -78,16 +78,16 @@ configs["r2d1_profile"] = config
 
 config = copy.deepcopy(configs["r2d1_profile"])
 config["algo"]["batch_B"] = 32
-config["algo"]["training_ratio"] = 0.5
+config["algo"]["replay_ratio"] = 0.5
 configs["r2d1_prof_halftrain"] = config
 
 config = copy.deepcopy(configs["r2d1_profile"])
 config["algo"]["batch_B"] = 16
-config["algo"]["training_ratio"] = 0.25
+config["algo"]["replay_ratio"] = 0.25
 configs["r2d1_prof_quartertrain"] = config
 
 config = copy.deepcopy(configs["r2d1_long"])
-config["algo"]["training_ratio"] = 4
+config["algo"]["replay_ratio"] = 4
 config["sampler"]["eval_n_envs"] = 12
 config["sampler"]["eval_max_steps"] = int(28e3 * 12)
 configs["r2d1_long_4tr"] = config

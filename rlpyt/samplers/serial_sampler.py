@@ -11,10 +11,22 @@ class SerialSampler(BaseSampler):
     with collectors which sample actions themselves (e.g. under cpu
     category)."""
 
-    def initialize(self, agent, affinity=None, seed=None,
-            bootstrap_value=False, traj_info_kwargs=None):
-        envs = [self.EnvCls(**self.env_kwargs) for _ in range(self.batch_spec.B)]
-        agent.initialize(envs[0].spaces, share_memory=False)
+    def initialize(
+            self,
+            agent,
+            affinity=None,
+            seed=None,
+            bootstrap_value=False,
+            traj_info_kwargs=None,
+            rank=0,
+            world_size=1,
+            ):
+        B = self.batch_spec.B
+        envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
+        global_B = B * world_size
+        env_ranks = list(range(rank * B, (rank + 1) * B))
+        agent.initialize(envs[0].spaces, share_memory=False,
+            global_B=global_B, env_ranks=env_ranks)
         samples_pyt, samples_np, examples = build_samples_buffer(agent, envs[0],
             self.batch_spec, bootstrap_value, agent_shared=False,
             env_shared=False, subprocess=False)
@@ -28,6 +40,8 @@ class SerialSampler(BaseSampler):
             batch_T=self.batch_spec.T,
             TrajInfoCls=self.TrajInfoCls,
             agent=agent,
+            global_B=global_B,
+            env_ranks=env_ranks,  # Might get applied redundantly to agent.
         )
         if self.eval_n_envs > 0:  # May do evaluation.
             eval_envs = [self.EnvCls(**self.eval_env_kwargs)
@@ -55,7 +69,7 @@ class SerialSampler(BaseSampler):
         return examples
 
     def obtain_samples(self, itr):
-        self.samples_np[:] = 0
+        # self.samples_np[:] = 0  # Unnecessary and may take time.
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
             self.agent_inputs, self.traj_infos, itr)
         self.collector.reset_if_needed(agent_inputs)

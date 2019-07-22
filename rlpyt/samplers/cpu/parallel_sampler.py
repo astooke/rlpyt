@@ -15,20 +15,32 @@ EVAL_TRAJ_CHECK = 1  # Seconds.
 
 class CpuParallelSampler(BaseSampler):
 
-    def initialize(self, agent, affinity, seed,
-            bootstrap_value=False, traj_info_kwargs=None):
+    def initialize(
+            self,
+            agent,
+            affinity,
+            seed,
+            bootstrap_value=False,
+            traj_info_kwargs=None,
+            rank=0,
+            world_size=1,
+            ):
+        B = self.batch_spec.B
         n_parallel = len(affinity["workers_cpus"])
-        n_envs_list = [self.batch_spec.B // n_parallel] * n_parallel
-        if not self.batch_spec.B % n_parallel == 0:
+        n_envs_list = [B // n_parallel] * n_parallel
+        if not B % n_parallel == 0:
             logger.log("WARNING: unequal number of envs per process, from "
                 f"batch_B {self.batch_spec.B} and n_parallel {n_parallel} "
                 "(possibly suboptimal speed).")
-            for b in range(self.batch_spec.B % n_parallel):
+            for b in range(B % n_parallel):
                 n_envs_list[b] += 1
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spaces, share_memory=True)  # Actual agent initialization.
+        global_B = B * world_size
+        env_ranks = list(range(rank * B, (rank + 1) * B))
+        agent.initialize(env.spaces, share_memory=True,  # Actual agent initialization.
+            global_B=global_B, env_ranks=env_ranks)  # Maybe overridden in worker.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
             subprocess=True)  # TODO: subprocess=True fix!!
@@ -65,6 +77,7 @@ class CpuParallelSampler(BaseSampler):
             eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
             eval_env_kwargs=self.eval_env_kwargs,
             eval_max_T=eval_max_T,
+            global_B=global_B,
         )
 
         workers_kwargs = assemble_workers_kwargs(affinity, seed, samples_np,
@@ -89,7 +102,7 @@ class CpuParallelSampler(BaseSampler):
 
     def obtain_samples(self, itr):
         self.agent.sync_shared_memory()  # New weights in workers, if needed.
-        self.samples_np[:] = 0  # Reset all batch sample values (optional?).
+        # self.samples_np[:] = 0  # Reset all batch sample values (optional?).
         self.ctrl.itr.value = itr
         self.ctrl.barrier_in.wait()
         # Workers step environments and sample actions here.
@@ -134,20 +147,24 @@ class CpuParallelSampler(BaseSampler):
             w.join()
 
 
-def assemble_workers_kwargs(affinity, seed, samples_np, n_envs_list, sync):
+def assemble_workers_kwargs(affinity, seed, samples_np, n_envs_list, sync, rank):
     workers_kwargs = list()
     i_env = 0
-    for rank in range(len(affinity["workers_cpus"])):
-        n_envs = n_envs_list[rank]
+    g_env = sum(n_envs_list) * rank
+    for w_rank in range(len(affinity["workers_cpus"])):
+        n_envs = n_envs_list[w_rank]
         slice_B = slice(i_env, i_env + n_envs)
+        env_ranks = list(range(g_env, g_env + n_envs))
         worker_kwargs = dict(
-            rank=rank,
-            seed=seed + rank,
-            cpus=affinity["workers_cpus"][rank],
+            rank=w_rank,
+            env_ranks=env_ranks,
+            seed=seed + w_rank,
+            cpus=affinity["workers_cpus"][w_rank],
             n_envs=n_envs,
             samples_np=samples_np[:, slice_B],
             sync=sync,  # (only for eval, on cpu.)
         )
         i_env += n_envs
+        g_env += n_envs
         workers_kwargs.append(worker_kwargs)
     return workers_kwargs

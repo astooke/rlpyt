@@ -1,5 +1,5 @@
 
-import torch
+# import torch
 from collections import namedtuple
 
 from rlpyt.algos.base import RlAlgorithm
@@ -17,7 +17,7 @@ class PolicyGradientAlgo(RlAlgorithm):
     opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
     def initialize(self, agent, n_itr, batch_spec=None, mid_batch_reset=False,
-            examples=None):
+            examples=None, rank=0, world_size=1):
         """Params batch_spec and examples unused."""
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
@@ -52,5 +52,5 @@ class PolicyGradientAlgo(RlAlgorithm):
                 adv_mean = advantage.mean()
                 adv_std = advantage.std()
             advantage[:] = (advantage - adv_mean) / max(adv_std, 1e-6)
-        
+
         return return_, advantage, valid

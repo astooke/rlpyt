@@ -1,4 +1,7 @@
 
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.nn.parallel import DistributedDataParallelCPU as DDPC
+
 from rlpyt.agents.qpg.ddpg_agent import DdpgAgent
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.distributions.gaussian import Gaussian, DistInfo
@@ -36,11 +39,16 @@ class Td3Agent(DdpgAgent):
             clip=env_spaces.action.high[0],  # Assume symmetric low=-high.
         )
 
-    def initialize_cuda(self, cuda_idx=None):
-        super().initialize_cuda(cuda_idx)
+    def initialize_device(self, cuda_idx=None, ddp=False):
+        super().initialize_device(cuda_idx, ddp)
         if cuda_idx is None:
+            if ddp:
+                self.q2_model = DDPC(self.q2_model)
             return
         self.q2_model.to(self.device)
+        if ddp:
+            self.q2_model = DDP(self.q2_model, device_ids=[cuda_idx],
+                output_device=cuda_idx)
         self.target_q2_model.to(self.device)
 
     def give_min_itr_learn(self, min_itr_learn):

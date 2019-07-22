@@ -1,6 +1,7 @@
 
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.nn.parallel import DistributedDataParallelCPU as DDPC
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.agents.dqn.epsilon_greedy import EpsilonGreedyAgentMixin
@@ -22,7 +23,8 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         q = self.model(*model_inputs)
         return q.cpu()
 
-    def initialize(self, env_spaces, share_memory=False):
+    def initialize(self, env_spaces, share_memory=False,
+            global_B=1, env_ranks=None):
         env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
         self.model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
         if share_memory:
@@ -36,10 +38,13 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
         self.share_memory = share_memory
-        super().initialize(env_spaces, share_memory)
+        super().initialize(env_spaces, share_memory, global_B, env_ranks)
 
-    def initialize_cuda(self, cuda_idx=None, ddp=False):
+    def initialize_device(self, cuda_idx=None, ddp=False):
         if cuda_idx is None:
+            if ddp:
+                self.model = DDPC(self.model)
+                logger.log("Initialized DistributedDataParallelCPU agent model.")
             return  # CPU
         if self.shared_model is not None:
             self.model = self.ModelCls(**self.env_model_kwargs,

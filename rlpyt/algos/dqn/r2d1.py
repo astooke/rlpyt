@@ -36,7 +36,7 @@ class R2D1(RlAlgorithm):
             min_steps_learn=int(5e4),
             delta_clip=1.,
             replay_size=int(1e6),
-            training_ratio=1,
+            replay_ratio=1,
             target_update_interval=2500,  # Might shrink this?
             n_step_return=5,
             learning_rate=1e-4,
@@ -67,7 +67,8 @@ class R2D1(RlAlgorithm):
         self.update_counter = 0
         self.batch_size = (self.batch_T + self.warmup_T) * self.batch_B
 
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
+    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
+            rank=0, world_size=1):
         if not agent.recurrent:
             raise TypeError("For nonrecurrent agents use dqn (or fake recurrent).")
         self.agent = agent
@@ -89,12 +90,12 @@ class R2D1(RlAlgorithm):
 
         sample_bs = batch_spec.size
         train_bs = (self.batch_T + self.warmup_T) * self.batch_B
-        # assert (self.training_ratio * sample_bs) % train_bs == 0
+        # assert (self.replay_ratio * sample_bs) % train_bs == 0
         self.updates_per_optimize = max(1,
-            round(self.training_ratio * sample_bs / train_bs))
+            round(self.replay_ratio * sample_bs / train_bs))
         logger.log(f"From sampler batch size {sample_bs}, training "
             f"batch size {train_bs}, and training ratio "
-            f"{self.training_ratio}, rounded to {self.updates_per_optimize} "
+            f"{self.replay_ratio}, rounded to {self.updates_per_optimize} "
             f"updates per iteration.")
 
         self.eps_itr = max(1, self.eps_steps // sample_bs)

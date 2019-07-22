@@ -18,20 +18,31 @@ EVAL_TRAJ_CHECK = 20  # Time steps.
 
 class GpuParallelSampler(BaseSampler):
 
-    def initialize(self, agent, affinity, seed,
-            bootstrap_value=False, traj_info_kwargs=None):
+    def initialize(
+            self,
+            agent,
+            affinity,
+            seed,
+            bootstrap_value=False,
+            traj_info_kwargs=None,
+            rank=0,
+            world_size=1):
+        B = self.batch_spec.B
         n_parallel = len(affinity["workers_cpus"])
-        n_envs_list = [self.batch_spec.B // n_parallel] * n_parallel
-        if not self.batch_spec.B % n_parallel == 0:
+        n_envs_list = [B // n_parallel] * n_parallel
+        if not B % n_parallel == 0:
             logger.log("WARNING: unequal number of envs per process, from "
                 f"batch_B {self.batch_spec.B} and n_parallel {n_parallel} "
                 "(possible suboptimal speed).")
-            for b in range(self.batch_spec.B % n_parallel):
+            for b in range(B % n_parallel):
                 n_envs_list[b] += 1
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spaces, share_memory=False)  # Actual agent initialization, keep.
+        global_B = B * world_size
+        env_ranks = list(range(rank * B, (rank + 1) * B))
+        agent.initialize(env.spaces, share_memory=False,  # Actual agent initialization, keep.
+            global_B=global_B, env_ranks=env_ranks)
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
             subprocess=False)  # Would like subprocess=True, but might hang?

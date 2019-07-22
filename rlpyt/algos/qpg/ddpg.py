@@ -26,7 +26,7 @@ class DDPG(RlAlgorithm):
             batch_size=64,
             min_steps_learn=int(1e4),
             replay_size=int(1e6),
-            training_ratio=64,  # data_consumption / data_generation
+            replay_ratio=64,  # data_consumption / data_generation
             target_update_tau=0.01,
             target_update_interval=1,
             policy_update_interval=1,
@@ -44,7 +44,8 @@ class DDPG(RlAlgorithm):
         save__init__args(locals())
         self.update_counter = 0
 
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
+    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
+            rank=0, world_size=1):
         if agent.recurrent:
             raise NotImplementedError
         self.agent = agent
@@ -60,12 +61,12 @@ class DDPG(RlAlgorithm):
 
         sample_bs = batch_spec.size
         train_bs = self.batch_size
-        assert (self.training_ratio * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int((self.training_ratio * sample_bs) //
+        assert (self.replay_ratio * sample_bs) % train_bs == 0
+        self.updates_per_optimize = int((self.replay_ratio * sample_bs) //
             train_bs)
         logger.log(f"From sampler batch size {sample_bs}, training "
             f"batch size {train_bs}, and training ratio "
-            f"{self.training_ratio}, computed {self.updates_per_optimize} "
+            f"{self.replay_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
         self.min_itr_learn = self.min_steps_learn // sample_bs
         self.agent.give_min_itr_learn(self.min_itr_learn)

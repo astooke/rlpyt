@@ -30,19 +30,19 @@ class DQN(RlAlgorithm):
             min_steps_learn=int(5e4),
             delta_clip=1.,
             replay_size=int(1e6),
-            training_ratio=8,  # data_consumption / data_generation.
-            target_update_steps=int(1e4),  # Per env steps sampled.
+            replay_ratio=8,  # data_consumption / data_generation.
+            target_update_interval=2500,  # Maybe equiv to every 1e4 env steps.
             n_step_return=1,
             learning_rate=2.5e-4,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             initial_optim_state_dict=None,
             clip_grad_norm=10.,
-            eps_init=1,
-            eps_final=0.01,
-            eps_final_min=None,  # set < eps_final to use vector-valued eps.
-            eps_steps=int(1e6),
-            eps_eval=0.001,
+            # eps_init=1,  # NOW IN AGENT.
+            # eps_final=0.01,
+            # eps_final_min=None,  # set < eps_final to use vector-valued eps.
+            # eps_eval=0.001,
+            eps_steps=int(1e6),  # STILL IN ALGO (to convert to itr).
             double_dqn=False,
             prioritized_replay=False,
             pri_alpha=0.6,
@@ -57,6 +57,7 @@ class DQN(RlAlgorithm):
         if default_priority is None:
             default_priority = delta_clip
         save__init__args(locals())
+        self.update_counter = 0
 
     def initialize_replay_buffer(self, batch_spec, examples, mid_batch_reset,
             async_=False):
@@ -87,70 +88,43 @@ class DQN(RlAlgorithm):
                 UniformReplayFrameBuffer)
         self.replay_buffer = ReplayCls(**replay_kwargs)
         self.mid_batch_reset = mid_batch_reset
+        self.sampler_bs = batch_spec.size
         return self.replay_buffer
 
-    def initialize_async(self, agent, updates_per_sync):
-        if agent.recurrent:
-            raise TypeError("For recurrent agents use r2d1 algo.")
-        self.agent = agent
-        # if (self.eps_final_min is not None and
-        #         self.eps_final_min != self.eps_final):  # vector-valued epsilon
-        #     self.eps_init = self.eps_init * torch.ones(batch_spec.B)
-        #     self.eps_final = torch.logspace(
-        #         torch.log10(torch.tensor(self.eps_final_min)),
-        #         torch.log10(torch.tensor(self.eps_final)),
-        #         batch_spec.B)
-        # agent.set_sample_epsilon_greedy(self.eps_init)
-        # agent.give_eval_epsilon_greedy(self.eps_eval)
-        self.mid_batch_reset = mid_batch_reset
-        self.optimizer = self.OptimCls(agent.parameters(),
-            lr=self.learning_rate, **self.optim_kwargs)
-        if self.initial_optim_state_dict is not None:
-            self.optimizer.load_state_dict(self.initial_optim_state_dict)
+    def async_initialize(self, agent, updates_per_sync, sampler_n_itr,
+            rank=0, world_size=1):
         self.updates_per_optimize = updates_per_sync
+        self._initialize(agent, sampler_n_itr)
 
-        self.target_update_itr = round(self.target_update_steps / sample_bs)
-        self.eps_itr = max(1, self.eps_steps // sample_bs)
-        self.min_itr_learn = 0  # Done by optim throttle; keep min_steps_learn.
-        if self.prioritized_replay:
-            self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
+    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
+            rank=0, world_size=1):
+        self.sampler_bs = batch_spec.size
+        self.updates_per_optimize = round(self.replay_ratio * batch_spec.size /
+            self.batch_size)
+        logger.log(f"From sampler batch size {batch_spec.size}, training "
+            f"batch size {self.batch_size}, and training ratio "
+            f"{self.replay_ratio}, computed {self.updates_per_optimize} "
+            f"updates per iteration.")
+        self._initialize(agent, n_itr)
+        self.initialize_replay_buffer(batch_spec, examples, mid_batch_reset)
 
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
+    def _initialize(self, agent, n_itr):
         if agent.recurrent:
             raise TypeError("For recurrent agents use r2d1 algo.")
         self.agent = agent
-        if (self.eps_final_min is not None and
-                self.eps_final_min != self.eps_final):  # vector-valued epsilon
-            self.eps_init = self.eps_init * torch.ones(batch_spec.B)
-            self.eps_final = torch.logspace(
-                torch.log10(torch.tensor(self.eps_final_min)),
-                torch.log10(torch.tensor(self.eps_final)),
-                batch_spec.B)
-        agent.set_sample_epsilon_greedy(self.eps_init)
-        agent.give_eval_epsilon_greedy(self.eps_eval)
         self.n_itr = n_itr
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
-
-        sample_bs = batch_spec.size
-        train_bs = self.batch_size
-        self.updates_per_optimize = round(self.training_ratio * sample_bs /
-            train_bs)
-        logger.log(f"From sampler batch size {sample_bs}, training "
-            f"batch size {train_bs}, and training ratio "
-            f"{self.training_ratio}, computed {self.updates_per_optimize} "
-            f"updates per iteration.")
-        self.target_update_itr = round(self.target_update_steps / sample_bs)
-        self.eps_itr = max(1, self.eps_steps // sample_bs)
-        self.min_itr_learn = self.min_steps_learn // sample_bs
+        self.min_itr_learn = self.min_steps_learn // self.sampler_bs
+        eps_itr_max = max(1, self.eps_steps // self.sampler_bs)
+        agent.set_epsilon_itr_min_max(self.min_itr_learn, eps_itr_max)
         if self.prioritized_replay:
-            self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
+            self.pri_beta_itr = max(1, self.pri_beta_steps // self.sampler_bs)
 
-        self.initialize_replay_buffer(batch_spec, examples, mid_batch_reset)
-
-    def optimize_agent(self, itr, samples=None):
+    def optimize_agent(self, itr, samples=None, sampler_itr=None):
+        itr = itr if sampler_itr is None else sampler_itr  # Async uses sampler_itr.
         if samples is not None:
             samples_to_buffer = SamplesToBuffer(
                 observation=samples.env.observation,
@@ -163,6 +137,7 @@ class DQN(RlAlgorithm):
         if itr < self.min_itr_learn:
             return opt_info
         for _ in range(self.updates_per_optimize):
+            self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             self.optimizer.zero_grad()
             loss, td_abs_errors = self.loss(samples_from_replay)
@@ -175,8 +150,8 @@ class DQN(RlAlgorithm):
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())  # Downsample.
-        if itr % self.target_update_itr == 0:
-            self.agent.update_target()
+            if self.update_counter % self.target_update_interval == 0:
+                self.agent.update_target()
         self.update_itr_hyperparams(itr)
         return opt_info
 
@@ -213,10 +188,11 @@ class DQN(RlAlgorithm):
         return loss, td_abs_errors
 
     def update_itr_hyperparams(self, itr):
-        if itr <= self.eps_itr:  # Epsilon can be vector-valued.
-            prog = min(1, max(0, itr - self.min_itr_learn) / self.eps_itr)
-            new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
-            self.agent.set_sample_epsilon_greedy(new_eps)
+        # EPS NOW IN AGENT.
+        # if itr <= self.eps_itr:  # Epsilon can be vector-valued.
+        #     prog = min(1, max(0, itr - self.min_itr_learn) / self.eps_itr)
+        #     new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
+        #     self.agent.set_sample_epsilon_greedy(new_eps)
         if self.prioritized_replay and itr <= self.pri_beta_itr:
             prog = min(1, max(0, itr - self.min_itr_learn) / self.pri_beta_itr)
             new_beta = (prog * self.pri_beta_final +

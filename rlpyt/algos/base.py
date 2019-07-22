@@ -5,10 +5,11 @@ class RlAlgorithm(object):
     opt_info_fields = ()
     bootstrap_value = False
 
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples):
+    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
+            rank=0, world_size=1):
         raise NotImplementedError
 
-    def optimize_agent(self, samples, itr):
+    def optimize_agent(self, itr, samples=None, sampler_itr=None):
         raise NotImplementedError
 
     def optim_state_dict(self):

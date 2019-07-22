@@ -56,6 +56,8 @@ class BaseCollector(object):
             agent=None,  # Present or not, depending on collector class.
             sync=None,
             step_buffer_np=None,
+            global_B=1,
+            env_ranks=None,
             ):
         save__init__args(locals())
 
@@ -64,7 +66,11 @@ class BaseCollector(object):
         raise NotImplementedError
 
     def start_agent(self):
-        if getattr(self, "agent", None) is not None:
+        if getattr(self, "agent", None) is not None:  # Not in GPU sampler.
+            self.agent.collector_initialize(
+                global_B=self.global_B,
+                env_ranks=self.env_ranks,
+            )
             self.agent.reset()
             self.agent.sample_mode(itr=0)
 
