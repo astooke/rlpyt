@@ -19,7 +19,8 @@ class DecorrelatingStartCollector(BaseCollector):
         observation = buffer_from_example(observations[0], len(self.envs))
         for b, obs in enumerate(observations):
             observation[b] = obs  # numpy array or namedarraytuple
-        prev_action = self.envs[0].action_space.sample(len(self.envs), null=True)
+        prev_action = np.stack([env.action_space.sample(null=True)
+            for env in self.envs])
         prev_reward = np.zeros(len(self.envs), dtype="float32")
         if self.rank == 0:
             logger.log("Sampler decorrelating envs, max steps: "
@@ -28,8 +29,8 @@ class DecorrelatingStartCollector(BaseCollector):
             return AgentInputs(observation, prev_action, prev_reward), traj_infos
         for b, env in enumerate(self.envs):
             n_steps = 1 + int(np.random.rand() * max_decorrelation_steps)
-            env_actions = env.action_space.sample(n_steps)
-            for a in env_actions:
+            for _ in n_steps:
+                a = env.action_space.sample()
                 o, r, d, info = env.step(a)
                 traj_infos[b].step(o, a, r, d, None, info)
                 if getattr(info, "traj_done", d):

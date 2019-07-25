@@ -131,19 +131,65 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
     return result
 
 
-def namedarraytuple_like(namedtuple, classname_suffix=False):
+def is_namedtuple_class(obj):
+    """Heuristic, might be spoofed.
+    Returns False if obj is namedarraytuple class."""
+    if type(obj) is not type or obj is type:
+        return False
+    if len(obj.mro()) != 3:
+        return False
+    if obj.mro()[1] is not tuple:
+        return False
+    if not all(hasattr(obj, attr)
+            for attr in ["_fields", "_asdict", "_make", "_replace"]):
+        return False
+    return True
+
+
+def is_namedarraytuple_class(obj):
+    """Heuristic, might be spoofed.
+    Returns False if obj is namedtuple class."""
+    if type(obj) is not type or obj is type:
+        return False
+    if len(obj.mro()) != 4:
+        return False
+    if not is_namedtuple_class(obj.mro()[1]):
+        return False
+    if not all(hasattr(obj, attr) for attr in RESERVED_NAMES):
+        return False
+    return True
+
+
+def is_namedtuple(obj):
+    """Heuristic, might be spoofed.
+    Returns False if obj is namedarraytuple."""
+    return is_namedtuple_class(type(obj))
+
+
+def is_namedarraytuple(obj):
+    """Heuristic, might be spoofed.
+    Returns False if obj is namedtuple."""
+    return is_namedarraytuple_class(type(obj))
+
+
+def namedarraytuple_like(namedtuple_or_class, classname_suffix=False):
     """Returns namedarraytuple class with same name and fields as input
-    namedtuple class or instance.  If input is namedarraytuple class or
-    instance, the same class is returned directly."""
-    if not ((isinstance(namedtuple, tuple) or issubclass(namedtuple, tuple)) and
-            hasattr(namedtuple, "_fields")):
-        raise TypeError("Input must be namedtuple (incl. namedarraytuple) "
-            f"class or instance, not {type(namedtuple)}")
-    input_type = type(namedtuple) if isinstance(namedtuple, tuple) else namedtuple
-    if input_type.__getitem__ is tuple.__getitem__:  # strict namedtuple
-        return namedarraytuple(input_type.__name__, input_type._fields,
+    namedtuple or namedarraytuple instance or class.  If input is
+    namedarraytuple instance or class, the same class is returned directly."""
+    ntc = namedtuple_or_class
+    if is_namedtuple(ntc):
+        return namedarraytuple(type(ntc).__name__, ntc._fields,
             classname_suffix=classname_suffix)
-    return input_type
+    elif is_namedtuple_class(ntc):
+        return namedarraytuple(ntc.__name__, ntc._fields,
+            classname_suffix=classname_suffix)
+    elif is_namedarraytuple(ntc):
+        return type(ntc)
+    elif is_namedarraytuple_class(ntc):
+        return ntc
+    else:
+        raise TypeError("Input must be namedtuple or namedarraytuple instance"
+            f" or class, got {type(ntc)}.")
 
 
 class AttrDict(dict):

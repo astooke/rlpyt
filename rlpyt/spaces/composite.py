@@ -5,23 +5,22 @@ from rlpyt.spaces.base import Space
 
 class Composite(Space):
 
-    def __init__(self, spaces, NamedArrayTupleCls):
+    def __init__(self, spaces, NamedTupleCls):
         self._spaces = spaces
         # Should define NamedArrayTupleCls in the module creating this space.
-        self._NamedArrayTupleCls = NamedArrayTupleCls
+        self._NamedTupleCls = NamedTupleCls
 
-    def sample(self, size, null=False, torchify=False):
-        return self._NamedArrayTupleCls(*(space.sample(size, null, torchify)
+    def sample(self, null=False):
+        return self._NamedTupleCls(*(space.sample(null=null)
             for space in self._spaces))
 
     @property
     def shape(self):
-        # Could just be namedtuple.
-        return self._NamedArrayTupleCls(*(space.shape for space in self._spaces))
+        return self._NamedTupleCls(*(s.shape for s in self._spaces))
 
     @property
     def names(self):
-        return self._NamedArrayTupleCls._fields
+        return self._NamedTupleCls._fields
 
     @property
     def spaces(self):
@@ -29,7 +28,7 @@ class Composite(Space):
 
     @property
     def null_value(self):
-        return self._NamedArrayTupleCls(*(space.null_value for space in self._spaces))
+        return self._NamedTupleCls(*(s.null_value for s in self._spaces))
 
     def __repr__(self):
         return ", ".join(space.__repr__() for space in self._spaces)

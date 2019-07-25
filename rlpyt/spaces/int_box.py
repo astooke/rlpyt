@@ -21,17 +21,11 @@ class IntBox(Space):
         assert null_value >= low and null_value < high
         self._null_value = null_value
 
-    def sample(self, size=None, null=False):
-        if size is None:
-            size = ()
-        elif isinstance(size, int):
-            size = (size,)
-        size = size + self.shape
+    def sample(self, null=False):
+        sample = np.random.randint(low=self.low, high=self.high,
+            size=self.shape, dtype=self.dtype)
         if null:
-            sample = self._null_value * np.ones(size, dtype=self.dtype)
-        else:
-            sample = np.random.randint(low=self.low, high=self.high,
-                size=size, dtype=self.dtype)
+            sample[:] = self._null_value
         return sample
 
     @property

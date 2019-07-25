@@ -1,5 +1,6 @@
 
 import numpy as np
+from rlpyt.utils.buffer import np_mp_array
 
 
 class SumTree(object):
@@ -17,7 +18,7 @@ class SumTree(object):
     """
 
     def __init__(self, T, B, off_backward, off_forward,
-            default_value=1):
+            default_value=1, shared_memory=False):
         self.T = T
         self.B = B
         self.size = T * B
@@ -25,7 +26,11 @@ class SumTree(object):
         self.off_forward = off_forward
         self.default_value = default_value
         self.tree_levels = int(np.ceil(np.log2(self.size + 1)) + 1)
-        self.tree = np.zeros(2 ** self.tree_levels - 1)  # Double precision.
+        if shared_memory:
+            self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)
+            self.tree.fill(0)  # Just in case.
+        else:
+            self.tree = np.zeros(2 ** self.tree_levels - 1)  # Double precision.
         self.low_idx = 2 ** (self.tree_levels - 1) - 1  # pri_idx + low_idx -> tree_idx
         self.high_idx = self.size + self.low_idx
         self.priorities = self.tree[self.low_idx:self.high_idx].reshape(T, B)

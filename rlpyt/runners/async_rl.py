@@ -4,6 +4,7 @@ import multiprocessing as mp
 import psutil
 import torch
 from collections import deque
+import queue
 
 from rlpyt.runners.base import BaseRunner
 from rlpyt.utils.quick_args import save__init__args
@@ -42,8 +43,12 @@ class AsyncRlBase(BaseRunner):
         if self._eval:
             while self.ctrl.sampler_itr.value < 1:  # Sampler does eval first.
                 time.sleep(THROTTLE_WAIT)
-            while self.traj_infos_queue.qsize():
-                traj_infos = self.traj_infos.queue.get()
+            traj_infos = list()
+            while True:
+                try:
+                    traj_infos.append(self.traj_infos_queue.get(block=False))
+                except queue.Empty:
+                    break
             self.store_diagnostics(0, 0, traj_infos, ())
             self.log_diagnostics(0, 0, 0)
         log_counter = 0
@@ -66,8 +71,11 @@ class AsyncRlBase(BaseRunner):
                 traj_infos = list()
                 with self.ctrl.sampler_itr.lock:
                     # Lock to prevent traj_infos splitting across itr.
-                    while self.traj_infos_queue.qsize():
-                        traj_infos = self.traj_infos.queue.get()
+                    while True:
+                        try:
+                            traj_infos.append(self.traj_infos_queue.get(block=False))
+                        except queue.Empty:
+                            break
                     sampler_itr = self.ctrl.sampler_itr.value
                 self.store_diagnostics(itr, sampler_itr, traj_infos, opt_info)
                 if (sampler_itr // self.log_interval_itrs > log_counter):
@@ -90,6 +98,7 @@ class AsyncRlBase(BaseRunner):
             async_=True,
         )
         n_itr = self.get_n_itr()  # Number of sampler iterations.
+        self.traj_infos_queue = mp.Queue()
         self.launch_workers(n_itr, double_buffer, replay_buffer)
         self.world_size = len(self.affinity.optimizer)
         main_affinity = self.affinity.optimizer[0]

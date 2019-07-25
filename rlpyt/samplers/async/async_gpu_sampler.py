@@ -3,6 +3,7 @@ import time
 import numpy as np
 import multiprocessing as mp
 import ctypes
+import queue
 
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer, build_step_buffer
@@ -99,8 +100,11 @@ class AsyncGpuSampler(BaseSampler):
         # Sampling in sub-processes here.
         self.ctrl.barrier_out.wait()
         traj_infos = list()
-        while self.traj_infos_queue.qsize():
-            traj_infos.append(self.traj_infos_queue.get())
+        while True:
+            try:
+                traj_infos.append(self.traj_infos_queue.get(block=False))
+            except queue.Empty:
+                break
         return traj_infos
 
     def evaluate_agent(self, itr):
@@ -111,8 +115,11 @@ class AsyncGpuSampler(BaseSampler):
         if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
-                while self.traj_infos_queue.qsize():
-                    traj_infos.append(self.traj_infos_queue.get())
+                while True:
+                    try:
+                        traj_infos.append(self.traj_infos_queue.get(block=False))
+                    except queue.Empty:
+                        break
                 if len(traj_infos) >= self.eval_max_trajectories:
                     self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
@@ -123,8 +130,11 @@ class AsyncGpuSampler(BaseSampler):
                         f"({self.eval_max_T}).")
                     break  # Workers reached max_T.
         self.ctrl.barrier_out.wait()
-        while self.traj_infos_queue.qsize():
-            traj_infos.append(self.traj_infos_queue.get())
+        while True:
+            try:
+                traj_infos.append(self.traj_infos_queue.get(block=False))
+            except queue.Empty:
+                break
         self.ctrl.do_eval.value = False
         return traj_infos
 

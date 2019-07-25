@@ -1,5 +1,6 @@
 
 import multiprocessing as mp
+import queue
 import time
 import torch.distributed
 
@@ -79,8 +80,11 @@ class SyncRl(SyncRlMixin, MinibatchRl):
         return SyncWorker
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
-        while self.par.traj_infos_queue.qsize():
-            traj_infos.append(self.par.traj_infos_queue.get())
+        while True:
+            try:
+                traj_infos.append(self.traj_infos_queue.get(block=False))
+            except queue.Empty:
+                break
         super().store_diagnostics(itr, traj_infos, opt_info)
 
 

@@ -27,17 +27,11 @@ class FloatBox(Space):
             self.high = np.asarray(high + np.zeros(shape), dtype=dtype)
         self._null_value = null_value
 
-    def sample(self, size=None, null=False):
-        if size is None:
-            size = ()
-        elif isinstance(size, int):
-            size = (size,)
-
+    def sample(self, null=False):
+        sample = np.asarray(np.random.uniform(low=self.low, high=self.high,
+            size=self.shape), dtype=self.dtype)
         if null:
-            sample = self._null_value * np.ones(size + self.shape, dtype=self.dtype)
-        else:
-            sample = np.asarray(np.random.uniform(low=self.low, high=self.high,
-                size=size + self.shape), dtype=self.dtype)
+            sample[:] = self._null_value
         return sample
 
     @property

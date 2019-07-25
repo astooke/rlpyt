@@ -1,5 +1,6 @@
 
 import multiprocessing as mp
+import queue
 import numpy as np
 
 
@@ -119,8 +120,11 @@ class GpuParallelSampler(BaseSampler):
         self.serve_actions(itr)  # Worker step environments here.
         self.ctrl.barrier_out.wait()
         traj_infos = list()
-        while self.traj_infos_queue.qsize():
-            traj_infos.append(self.traj_infos_queue.get())
+        while True:
+            try:
+                traj_infos.append(self.traj_infos_queue.get(block=False))
+            except queue.Empty:
+                break
         return self.samples_pyt, traj_infos
 
     def evaluate_agent(self, itr):
@@ -130,8 +134,11 @@ class GpuParallelSampler(BaseSampler):
         self.ctrl.barrier_in.wait()
         traj_infos = self.serve_actions_evaluation(itr)
         self.ctrl.barrier_out.wait()
-        while self.traj_infos_queue.qsize():
-            traj_infos.append(self.traj_infos_queue.get())
+        while True:
+            try:
+                traj_infos.append(self.traj_infos_queue.get(block=False))
+            except queue.Empty:
+                break
         self.ctrl.do_eval.value = False
         return traj_infos
 
@@ -184,8 +191,11 @@ class GpuParallelSampler(BaseSampler):
 
         for t in range(self.eval_max_T):
             if t % EVAL_TRAJ_CHECK == 0:  # (While workers stepping.)
-                while self.traj_infos_queue.qsize():
-                    traj_infos.append(self.traj_infos_queue.get())
+                while True:
+                    try:
+                        traj_infos.append(self.traj_infos_queue.get(block=False))
+                    except queue.Empty:
+                        break
             for b in step_blockers:
                 b.acquire()
             for b_reset in np.where(step_np.done)[0]:

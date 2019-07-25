@@ -27,8 +27,7 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
         raise ValueError("Either use_gpu must be True or n_parallel > 0 must be given.")
     import psutil
     n_cpu_cores = psutil.cpu_count(logical=False)
-    has_hyperthreads = psutil.cpu_count() == n_cpu_cores * 2
-    hyperthread_offset = n_cpu_cores if has_hyperthreads else 0
+    hyperthread_offset = get_hyperthread_offset()  # In case not using all cores.
     if use_gpu:
         import torch
         n_gpu = torch.cuda.device_count()
@@ -39,8 +38,7 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
             n_gpu = min(n_parallel, n_gpu)
         n_cpu_cores = (n_cpu_cores // n_gpu) * n_gpu  # Same for all.
         import subprocess
-        n_socket = max(1, int(subprocess.check_output(
-            'cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l', shell=True)))
+        n_socket = get_n_socket()
         return encode_affinity(n_cpu_cores=n_cpu_cores, n_gpu=n_gpu,
             hyperthread_offset=hyperthread_offset, n_socket=n_socket)
     else:
@@ -57,10 +55,12 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
 
 def encode_affinity(n_cpu_cores=1, n_gpu=0, cpu_reserved=0,
         contexts_per_gpu=1, gpu_per_run=1, cpu_per_run=1, cpu_per_worker=1,
-        hyperthread_offset=None, n_socket=1, async_sample=0,
+        async_sample=0,
         sample_gpu_per_run=0, optim_sample_share_gpu=0, run_slot=None):
     """Use in run script to specify computer configuration."""
     affinity_code = f"{n_cpu_cores}{N_CPU_CORES}_{n_gpu}{N_GPU}"
+    hyperthread_offset = get_hyperthread_offset()
+    n_socket = get_n_socket()
     if contexts_per_gpu > 1:
         affinity_code += f"_{contexts_per_gpu}{CONTEXTS_PER_GPU}"
     if gpu_per_run > 1:
@@ -69,7 +69,7 @@ def encode_affinity(n_cpu_cores=1, n_gpu=0, cpu_reserved=0,
         affinity_code += f"_{cpu_per_run}{CPU_PER_RUN}"
     if cpu_per_worker > 1:
         affinity_code += f"_{cpu_per_worker}{CPU_PER_WORKER}"
-    if hyperthread_offset is not None:
+    if hyperthread_offset != n_cpu_cores:
         affinity_code += f"_{hyperthread_offset}{HYPERTHREAD_OFFSET}"
     if n_socket > 1:
         affinity_code += f"_{n_socket}{N_SOCKET}"
@@ -104,6 +104,18 @@ def get_affinity(run_slot_affinity_code):
 
 
 # Helpers
+
+def get_n_socket():
+    import subprocess
+    return max(1, int(subprocess.check_output(
+        'cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l',
+        shell=True)))
+
+
+def get_hyperthread_offset():
+    import psutil  # (If returns 0, will not try to use hyperthreads.)
+    return psutil.cpu_count() - psutil.cpu_count(logical=False)
+
 
 def get_n_run_slots(affinity_code):
     aff = decode_affinity(affinity_code)

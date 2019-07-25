@@ -5,42 +5,40 @@ from gym import Wrapper
 from collections import namedtuple
 
 from rlpyt.envs.base import EnvSpaces, EnvStep
-from rlpyt.spaces.gym_wrapper import SpaceWrapper
+from rlpyt.spaces.gym_wrapper import GymSpaceWrapper
+from rlpyt.utils.collections import is_namedtuple_class
 
 
-EnvInfo = None
+class GymEnvWrapper(Wrapper):
 
-
-class GymWrapper(Wrapper):
-    """Converts env_info from dict to namedtuple, and ensures actual
-    observation dtype matches that of observation space (e.g. gym mujoco
-    environments have float32 obs space but actually output float64."""
-
-    def __init__(self, env):
+    def __init__(self, env,
+            act_null_value=0, obs_null_value=0, force_float32=True):
         super().__init__(env)
         o = self.env.reset()
-        assert isinstance(o, np.ndarray)
-        o, r, d, info = self.env.step(self.action_space.sample())
-        global EnvInfo  # In case pickling, define at module level.
-        # (Might break down if wrapping multiple, different envs, if
-        # so, make different files.)
-        # (To record, need all env_info fields present at every step.)
-        EnvInfo = namedtuple("EnvInfo", list(info.keys()))
-        # Wrap spaces to allow multiple samples at once.
-        self.action_space = SpaceWrapper(self.env.action_space)
-        dtype = np.float32 if o.dtype == np.float64 else None
-        self.observation_space = SpaceWrapper(self.env.observation_space,
-            dtype=dtype)
+        o, r, d, info = self.env.step(self.env.action_space.sample())
+        self.action_space = GymSpaceWrapper(
+            space=self.env.action_space,
+            name="act",
+            null_value=act_null_value,
+            force_float32=force_float32,
+        )
+        self.observation_space = GymSpaceWrapper(
+            space=self.env.observation_space,
+            name="obs",
+            null_value=obs_null_value,
+            force_float32=force_float32,
+        )
+        build_info_tuples(info)
 
     def step(self, action):
-        o, r, d, info = self.env.step(action)
-        o = np.asarray(o, dtype=self.observation_space.dtype)
-        # Fields appearing in info must be the same at every step.
-        info = EnvInfo(**{k: v for k, v in info.items() if k in EnvInfo._fields})
-        return EnvStep(o, r, d, info)
+        a = self.action_space.revert(action)
+        o, r, d, info = self.env.step(a)
+        obs = self.observation_space.convert(o)
+        info = info_to_nt(info)
+        return EnvStep(obs, r, d, info)
 
     def reset(self):
-        return np.asarray(self.env.reset(), dtype=self.observation_space.dtype)
+        return self.observation_space.convert(self.env.reset())
 
     @property
     def spaces(self):
@@ -50,5 +48,68 @@ class GymWrapper(Wrapper):
         )
 
 
-def make(*args, **kwargs):
-    return GymWrapper(gym.make(*args, **kwargs))
+def build_info_tuples(info, name="info"):
+    ntc = globals().get(name)  # Define at module level for pickle.
+    if ntc is None:
+        globals()[name] = namedtuple(name, list(info.keys()))
+    elif not (is_namedtuple_class(ntc) and
+            sorted(ntc._fields) == sorted(list(info.keys()))):
+        raise ValueError(f"Name clash in globals: {name}.")
+    for k, v in info.items():
+        if isinstance(v, dict):
+            build_info_tuples(v, "_".join([name, k]))
+
+
+def info_to_nt(value, name="info"):
+    if not isinstance(value, dict):
+        return value
+    ntc = globals()[name]
+    # Disregard unrecognized keys:
+    values = {k: info_to_nt(v, "_".join([name, k]))
+        for k, v in value.items() if k in ntc._fields}
+    # Can catch some missing values (doesn't nest):
+    values.update({k: 0 for k in ntc._fields if k not in values})
+    return ntc(**values)
+
+
+# To use: return a dict of keys and default values which sometimes appear in
+# the wrapped env's env_info, so this env always presents those values (i.e.
+# make keys and values keep the same structure and shape at all time steps.)
+# Here, a dict of kwargs to be fed to `sometimes_info` should be passed as an
+# env_kwarg into the `make` function, which should be used as the EnvCls.
+def sometimes_info(*args, **kwargs):
+    # e.g. Feed the env_id.
+    return {}
+
+
+class EnvInfoWrapper(Wrapper):
+
+    def __init__(self, env, sometimes_info_kwargs):
+        super().__init__(env)
+        self._sometimes_info = sometimes_info(**sometimes_info_kwargs)
+
+    def info(self, info):
+        # Try to make info dict same key structure at every step.
+        return infill_info(info, self._sometimes_info)
+
+    def step(self, action):
+        o, r, d, info = super().step(action)
+        return o, r, d, self.info(info)
+
+
+def infill_info(info, sometimes_info):
+    for k, v in sometimes_info.items():
+        if k not in info:
+            info[k] = v
+        elif isinstance(v, dict):
+            infill_info(info[k], v)
+    return info
+
+
+def make(*args, sometimes_info_kwargs=None, **kwargs):
+    if sometimes_info_kwargs is None:
+        return GymEnvWrapper(gym.make(*args, **kwargs))
+    else:
+        return GymEnvWrapper(EnvInfoWrapper(
+            gym.make(*args, **kwargs), sometimes_info_kwargs))
+
