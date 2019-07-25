@@ -15,7 +15,7 @@ config = dict(
         store_rnn_state_interval=40,
         replay_ratio=4,  # In the paper, more like 0.8.
         learning_rate=1e-4,
-        clip_grad_norm=10.,
+        clip_grad_norm=80.,  # 80 (Steven.)
         min_steps_learn=int(1e5),
         double_dqn=True,
         prioritized_replay=True,
@@ -55,7 +55,7 @@ configs["r2d1"] = config
 
 
 config = copy.deepcopy(configs["r2d1"])
-config["algo"]["replay_size"] = int(4e6)
+config["algo"]["replay_size"] = int(4e6)  # Even bigger is better (Steven).
 config["algo"]["batch_B"] = 64  # Not sure will fit.
 config["algo"]["replay_ratio"] = 1
 config["algo"]["eps_final"] = 0.1
@@ -66,7 +66,7 @@ config["sampler"]["batch_T"] = 40  # = warmup_T = store_rnn_interval; new traj a
 config["sampler"]["batch_B"] = 192  # to make one update per sample batch.
 config["sampler"]["eval_n_envs"] = 6  # 6 cpus, 6 * 32 = 192, for pabti.
 config["sampler"]["eval_max_steps"] = int(28e3 * 6)
-config["env"]["episodic_lives"] = False
+config["env"]["episodic_lives"] = False  # Good effects some games (Steven).
 configs["r2d1_long"] = config
 
 config = copy.deepcopy(configs["r2d1_long"])

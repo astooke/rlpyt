@@ -34,7 +34,7 @@ class R2D1(RlAlgorithm):
             warmup_T=40,
             store_rnn_state_interval=40,  # 0 for none, 1 for all.
             min_steps_learn=int(5e4),
-            delta_clip=1.,
+            delta_clip=None,  # Typically use squared-error loss (Steven).
             replay_size=int(1e6),
             replay_ratio=1,
             target_update_interval=2500,  # Might shrink this?
@@ -43,9 +43,9 @@ class R2D1(RlAlgorithm):
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             initial_optim_state_dict=None,
-            clip_grad_norm=10.,
+            clip_grad_norm=80.,  # 80 (Steven).
             eps_init=1,
-            eps_final=0.05,
+            eps_final=0.1,
             eps_final_min=0.0005,
             eps_steps=int(1e6),
             eps_eval=0.001,
@@ -57,12 +57,12 @@ class R2D1(RlAlgorithm):
             pri_beta_steps=int(50e6),
             pri_eta=0.9,
             default_priority=None,
-            value_scale_eps=1e-2,
+            value_scale_eps=1e-3,  # 1e-3 (Steven).
             ):
         if optim_kwargs is None:
             optim_kwargs = dict(eps=1e-3)  # Assumes Adam.
         if default_priority is None:
-            default_priority = delta_clip
+            default_priority = delta_clip or 1.
         save__init__args(locals())
         self.update_counter = 0
         self.batch_size = (self.batch_T + self.warmup_T) * self.batch_B
@@ -134,6 +134,11 @@ class R2D1(RlAlgorithm):
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, itr, samples=None):
+        # TODO: estimate priorities for samples entering the replay buffer.
+        # Steven says: workers did this approximately by using the online
+        # network only for td-errors (not the target network).
+        # This could be tough since add samples before the priorities are ready
+        # (next batch), and in async case workers must do it.
         if samples is not None:
             samples_to_buffer = SamplesToBuffer(
                 observation=samples.env.observation,
@@ -243,7 +248,9 @@ class R2D1(RlAlgorithm):
             losses *= samples.is_weights.unsqueeze(0)  # weights: [B] --> [1,B]
         valid = valid_from_done(samples.done[wT:])  # 0 after first done.
         loss = valid_mean(losses, valid)
-        td_abs_errors = torch.clamp(abs_delta.detach(), 0, self.delta_clip)  # [T,B]
+        td_abs_errors = abs_delta.detach()
+        if self.delta_clip is not None:
+            td_abs_errors = torch.clamp(td_abs_errors, 0, self.delta_clip)  # [T,B]
         valid_td_abs_errors = td_abs_errors * valid
         max_d = torch.max(valid_td_abs_errors, dim=0).values
         mean_d = torch.mean(valid_td_abs_errors, dim=0)  # Lower if less valid.
@@ -261,10 +268,11 @@ class R2D1(RlAlgorithm):
             (2 * self.value_scale_eps)) ** 2 - 1)
 
     def update_itr_hyperparams(self, itr):
-        if itr <= self.eps_itr:  # Epsilon can be vector-valued.
-            prog = min(1, itr / self.eps_itr)
-            new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
-            self.agent.set_sample_epsilon_greedy(new_eps)
+        # NOW IN AGENT.
+        # if itr <= self.eps_itr:  # Epsilon can be vector-valued.
+        #     prog = min(1, itr / self.eps_itr)
+        #     new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
+        #     self.agent.set_sample_epsilon_greedy(new_eps)
         if self.prioritized_replay and itr <= self.pri_beta_itr:
             prog = min(1, itr / self.pri_beta_itr)
             new_beta = (prog * self.pri_beta_final +
