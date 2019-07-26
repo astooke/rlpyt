@@ -24,7 +24,7 @@ class AsyncSerialSampler(BaseSampler):
             global_B=self.batch_spec.B, env_ranks=list(range(self.batch_spec.B)))
         _, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=True)  # Would like subprocess=True, but might hang?
+            subprocess=False)  # Would like subprocess=True, but might hang?
         _, samples_np2, _ = build_samples_buffer(agent, env, self.batch_spec,
             bootstrap_value, agent_shared=True, env_shared=True, subprocess=False)
         env.close()
