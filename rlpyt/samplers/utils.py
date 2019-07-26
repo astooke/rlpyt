@@ -18,7 +18,8 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
     if subprocess:
         mgr = mp.Manager()
         examples = mgr.dict()  # Examples pickled back to master.
-        w = mp.Process(target=get_example_outputs, args=(agent, env, examples))
+        w = mp.Process(target=get_example_outputs,
+            args=(agent, env, examples, subprocess))
         w.start()
         w.join()
     else:
@@ -89,10 +90,10 @@ def build_par_objs(n, groups=1):
     return ctrl, traj_infos_queue, sync
 
 
-def get_example_outputs(agent, env, examples):
+def get_example_outputs(agent, env, examples, subprocess=False):
     """Do this in a sub-process to avoid setup conflict in master/workers (e.g.
     MKL)."""
-    if isinstance(examples, mp.managers.DictProxy):  # i.e. in sub-process.
+    if subprocess:  # i.e. in subprocess.
         torch.set_num_threads(1)  # Some fix to prevent MKL hang.
     o = env.reset()
     a = env.action_space.sample()
