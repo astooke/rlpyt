@@ -101,3 +101,9 @@ config = copy.deepcopy(configs["dqn"])
 config["sampler"]["eval_n_envs"] = 0
 config["runner"]["log_interval_steps"] = int(1e5)
 configs["no_eval"] = config
+
+
+config = copy.deepcopy(configs["dqn"])
+config["sampler"]["batch_T"] = 8
+config["sampler"]["batch_B"] = 2
+configs["serial"] = config
