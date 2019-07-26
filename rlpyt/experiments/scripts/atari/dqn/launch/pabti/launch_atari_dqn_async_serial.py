@@ -5,7 +5,7 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 script = "rlpyt/experiments/scripts/atari/dqn/train/atari_dqn_async_serial.py"
 affinity_code = encode_affinity(
-    n_cpu_cores=24,
+    n_cpu_core=24,
     n_gpu=8,
     async_sample=True,
     sample_gpu_per_run=0,
