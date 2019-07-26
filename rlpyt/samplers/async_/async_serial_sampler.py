@@ -44,7 +44,8 @@ class AsyncSerialSampler(BaseSampler):
     def sampler_process_initialize(self, affinity):
         p = psutil.Process()
         p.cpu_affinity(affinity["master_cpus"])
-        torch.set_num_threads(affinity["master_torch_threads"])
+        # torch.set_num_threads(affinity["master_torch_threads"])
+        torch.set_num_threads(1)  # FIXME: temporary to prevent MKL hang.
         B = self.batch_spec.B
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
         sync = AttrDict(j=AttrDict(value=0))  # Mimic the mp.RawValue format.

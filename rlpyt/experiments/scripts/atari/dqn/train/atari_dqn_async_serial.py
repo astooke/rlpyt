@@ -24,11 +24,10 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     config = update_config(config, variant)
     config["eval_env"]["game"] = config["env"]["game"]
 
-    CollectorCls = config["sampler"].pop("CollectorCls", None)
     sampler = AsyncSerialSampler(
         EnvCls=AtariEnv,
         env_kwargs=config["env"],
-        CollectorCls=CollectorCls or DbCpuResetCollector,
+        CollectorCls=DbCpuResetCollector,
         TrajInfoCls=AtariTrajInfo,
         eval_env_kwargs=config["eval_env"],
         **config["sampler"]
