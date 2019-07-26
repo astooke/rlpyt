@@ -10,7 +10,7 @@ affinity_code = encode_affinity(
     async_sample=True,
     sample_gpu_per_run=0,
     gpu_per_run=1,
-    # hyperthread_offset=24,
+    hyperthread_offset=24,
     # n_socket=2,
 )
 runs_per_setting = 2
