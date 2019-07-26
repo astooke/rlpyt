@@ -92,6 +92,8 @@ def build_par_objs(n, groups=1):
 def get_example_outputs(agent, env, examples):
     """Do this in a sub-process to avoid setup conflict in master/workers (e.g.
     MKL)."""
+    if isinstance(examples, mp.manager.DictProxy):  # i.e. in sub-process.
+        torch.set_num_threads(1)  # Some fix to prevent MKL hang.
     o = env.reset()
     a = env.action_space.sample()
     o, r, d, env_info = env.step(a)
