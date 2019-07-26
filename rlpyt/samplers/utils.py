@@ -94,6 +94,7 @@ def get_example_outputs(agent, env, examples, subprocess=False):
     """Do this in a sub-process to avoid setup conflict in master/workers (e.g.
     MKL)."""
     if subprocess:  # i.e. in subprocess.
+        import torch
         torch.set_num_threads(1)  # Some fix to prevent MKL hang.
     o = env.reset()
     a = env.action_space.sample()
