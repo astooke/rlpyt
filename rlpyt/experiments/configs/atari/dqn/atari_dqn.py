@@ -107,3 +107,8 @@ config = copy.deepcopy(configs["dqn"])
 config["sampler"]["batch_T"] = 8
 config["sampler"]["batch_B"] = 2
 configs["serial"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["sampler"]["batch_T"] = 4
+config["sampler"]["batch_B"] = 4
+configs["cpu"] = config
