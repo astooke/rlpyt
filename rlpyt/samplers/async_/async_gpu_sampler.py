@@ -36,7 +36,7 @@ class AsyncGpuSampler(BaseSampler):
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
             subprocess=True)  # Would like subprocess=True, but might hang?
         _, samples_np2, _ = build_samples_buffer(agent, env, self.batch_spec,
-            bootstrap_value, agent_shared=True, env_shared=True, subprocess=False)
+            bootstrap_value, agent_shared=True, env_shared=True, subprocess=True)
         env.close()
         del env
         if traj_info_kwargs:
@@ -52,6 +52,7 @@ class AsyncGpuSampler(BaseSampler):
     ###########################################################################
 
     def sampler_process_initialize(self, affinity):
+        torch.set_num_threads(1)  # Possibly needed to avoid MKL hang.
         self.world_size = n_server = len(affinity)
         n_worker = sum(len(aff["workers_cpus"]) for aff in affinity)
         n_envs_list = [self.batch_spec.B // n_worker] * n_worker
@@ -158,7 +159,8 @@ class AsyncGpuSampler(BaseSampler):
         # self.ctrl = ctrl
         p = psutil.Process()
         p.cpu_affinity(affinity["master_cpus"])
-        torch.set_num_threads(affinity["master_torch_threads"])
+        # torch.set_num_threads(affinity["master_torch_threads"])
+        torch.set_num_threads(1)  # Possibly needed to avoid MKL hang.
         self.launch_workers(double_buffer_slice, self.traj_infos_queue, affinity,
             seed, n_envs_list)
         self.agent.initialize_device(cuda_idx=affinity["cuda_idx"], ddp=False)
