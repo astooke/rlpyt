@@ -27,12 +27,18 @@ class FloatBox(Space):
             self.high = np.asarray(high + np.zeros(shape), dtype=dtype)
         self._null_value = null_value
 
-    def sample(self, null=False):
-        sample = np.asarray(np.random.uniform(low=self.low, high=self.high,
+    def sample(self):
+        return np.asarray(np.random.uniform(low=self.low, high=self.high,
             size=self.shape), dtype=self.dtype)
-        if null:
-            sample[:] = self._null_value
-        return sample
+
+    def null_value(self):
+        null = np.zeros(self.shape, dtype=self.dtype)
+        if self._null_value is not None:
+            try:
+                null[:] = self._null_value
+            except IndexError:
+                null.fill(self._null_value)
+        return null
 
     @property
     def shape(self):
@@ -41,10 +47,6 @@ class FloatBox(Space):
     @property
     def bounds(self):
         return self.low, self.high
-
-    @property
-    def null_value(self):
-        return self._null_value
 
     def __repr__(self):
         return f"FloatBox{self.shape}"

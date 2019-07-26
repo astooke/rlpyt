@@ -14,7 +14,7 @@ class DoubleBufferCollectorMixin(object):
 
     def collect_batch(self, *args, **kwargs):
         self.samples_np = self.double_buffer[self.sync.j.value]
-        super().collect_batch(*args, **kwargs)
+        return super().collect_batch(*args, **kwargs)
 
 
 class DbGpuResetCollector(DoubleBufferCollectorMixin, GpuRC):

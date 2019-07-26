@@ -9,6 +9,7 @@ from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer, build_step_buffer
 from rlpyt.samplers.parallel_worker import sampling_process
 from rlpyt.samplers.cpu.collectors import EvalCollector
+from rlpyt.utils.seed import make_seed
 from rlpyt.utils.logging import logger
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.collections import AttrDict
@@ -24,7 +25,8 @@ class AsyncCpuSampler(BaseSampler):
     ###########################################################################
 
     def master_runner_initialize(self, agent, bootstrap_value=False,
-            traj_info_kwargs=None):
+            traj_info_kwargs=None, seed=None):
+        self.seed = make_seed() if seed is None else seed
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
         agent.initialize(env.spaces, share_memory=True)  # Actual agent initialization, keep.
@@ -40,6 +42,7 @@ class AsyncCpuSampler(BaseSampler):
                 setattr(self.TrajInfoCls, "_" + k, v)
         self.double_buffer = double_buffer = (samples_np, samples_np2)
         self.examples = examples
+        self.agent = agent
         return double_buffer, examples
 
     ###########################################################################

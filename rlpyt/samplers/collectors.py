@@ -19,7 +19,7 @@ class DecorrelatingStartCollector(BaseCollector):
         observation = buffer_from_example(observations[0], len(self.envs))
         for b, obs in enumerate(observations):
             observation[b] = obs  # numpy array or namedarraytuple
-        prev_action = np.stack([env.action_space.sample(null=True)
+        prev_action = np.stack([env.action_space.null_value()
             for env in self.envs])
         prev_reward = np.zeros(len(self.envs), dtype="float32")
         if self.rank == 0:
@@ -29,7 +29,7 @@ class DecorrelatingStartCollector(BaseCollector):
             return AgentInputs(observation, prev_action, prev_reward), traj_infos
         for b, env in enumerate(self.envs):
             n_steps = 1 + int(np.random.rand() * max_decorrelation_steps)
-            for _ in n_steps:
+            for _ in range(n_steps):
                 a = env.action_space.sample()
                 o, r, d, info = env.step(a)
                 traj_infos[b].step(o, a, r, d, None, info)
@@ -37,7 +37,7 @@ class DecorrelatingStartCollector(BaseCollector):
                     o = env.reset()
                     traj_infos[b] = self.TrajInfoCls()
                 if d:
-                    a = env.action_space.sample(null=True)
+                    a = env.action_space.null_value()
                     r = 0
             observation[b] = o
             prev_action[b] = a
@@ -65,7 +65,7 @@ class SerialEvalCollector(object):
         for env in self.envs:
             observations.append(env.reset())
         observation = buffer_from_example(observations[0], len(self.envs))
-        action = buffer_from_example(self.envs[0].action_space.sample(null=True),
+        action = buffer_from_example(self.envs[0].action_space.null_value(),
             len(self.envs))
         reward = np.zeros(len(self.envs), dtype="float32")
         obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))

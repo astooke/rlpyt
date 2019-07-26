@@ -5,12 +5,13 @@ import psutil
 import torch
 from collections import deque
 import queue
+import math
 
 from rlpyt.runners.base import BaseRunner
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlpyt.utils.collections import AttrDict
-from rlpyt.utils.seed import set_seed
+from rlpyt.utils.seed import set_seed, make_seed
 from rlpyt.utils.prog_bar import ProgBarCounter
 
 
@@ -69,7 +70,7 @@ class AsyncRlBase(BaseRunner):
                     sampler_itr=self.ctrl.sampler_itr.value)
                 self.agent.send_shared_memory()  # To sampler.
                 traj_infos = list()
-                with self.ctrl.sampler_itr.lock:
+                with self.ctrl.sampler_itr.get_lock():
                     # Lock to prevent traj_infos splitting across itr.
                     while True:
                         try:
@@ -86,10 +87,14 @@ class AsyncRlBase(BaseRunner):
         self.shutdown()
 
     def startup(self):
+        if self.seed is None:
+            self.seed = make_seed()
+        set_seed(self.seed)
         double_buffer, examples = self.sampler.master_runner_initialize(
             agent=self.agent,
             bootstrap_value=getattr(self.algo, "bootstrap_value", False),
             traj_info_kwargs=self.get_traj_info_kwargs(),
+            seed=self.seed,
         )
         replay_buffer = self.algo.initialize_replay_buffer(
             batch_spec=self.sampler.batch_spec,
@@ -97,20 +102,20 @@ class AsyncRlBase(BaseRunner):
             mid_batch_reset=self.sampler.mid_batch_reset,
             async_=True,
         )
+        self.sampler_batch_size = self.sampler.batch_spec.size
+        self.world_size = len(self.affinity.optimizer)
         n_itr = self.get_n_itr()  # Number of sampler iterations.
         self.traj_infos_queue = mp.Queue()
         self.launch_workers(n_itr, double_buffer, replay_buffer)
-        self.world_size = len(self.affinity.optimizer)
         main_affinity = self.affinity.optimizer[0]
         p = psutil.Process()
         p.cpu_affinity(main_affinity["cpus"])
-        logger.log("Optimizer master CPU affinity: {p.cpu_affinity()}.")
+        logger.log(f"Optimizer master CPU affinity: {p.cpu_affinity()}.")
         torch.set_num_threads(main_affinity["torch_threads"])
-        logger.log("Optimizer master Torch threads: {torch.get_num_threads()}.")
-        set_seed(self.seed)
+        logger.log(f"Optimizer master Torch threads: {torch.get_num_threads()}.")
         self.agent.initialize_device(
-            cuda_idx=main_affinity.get("cuda_idx", None),
-            dpp=self.world_size > 1,
+            # cuda_idx=main_affinity.get("cuda_idx", None),
+            ddp=self.world_size > 1,
         )
         self.algo.async_initialize(
             agent=self.agent,
@@ -119,13 +124,12 @@ class AsyncRlBase(BaseRunner):
             rank=0,
             world_size=self.world_size,
         )
-        self.sampler_batch_size = self.sampler.batch_spec.size
         throttle_itr = 1 + getattr(self.algo,
             "min_steps_learn", 0) // self.sampler_batch_size
         delta_throttle_itr = (self.algo.batch_size * self.world_size *
             self.algo.updates_per_optimize /  # (is updates_per_sync)
-            (self.sampler_batch_size * self.replay_ratio))
-        self.initilaize_logging()
+            (self.sampler_batch_size * self.algo.replay_ratio))
+        self.initialize_logging()
         return throttle_itr, delta_throttle_itr
 
     def launch_workers(self, n_itr, double_buffer, replay_buffer):
@@ -166,7 +170,7 @@ class AsyncRlBase(BaseRunner):
             algo=self.algo,
             agent=self.agent,
             updates_per_sync=self.updates_per_sync,
-            affinity=affinities[i],
+            affinity=affinities[rank],
             seed=self.seed + 100,
             ctrl=self.ctrl,
             ) for rank in range(1, len(affinities))]
@@ -183,7 +187,8 @@ class AsyncRlBase(BaseRunner):
                 sample_ready=self.ctrl.sample_ready[i],
                 sample_copied=self.ctrl.sample_copied[i],
             )
-            args_list.append((sample_buffers[i], replay_buffer, ctrl))
+            args_list.append((sample_buffers[i], self.algo.samples_to_buffer,
+                replay_buffer, ctrl))
         procs = [mp.Process(target=memory_copier, args=a) for a in args_list]
         for p in procs:
             p.start()
@@ -195,7 +200,6 @@ class AsyncRlBase(BaseRunner):
             sampler=self.sampler,
             affinity=self.affinity.sampler,
             ctrl=self.ctrl,
-            seed=self.seed,
             traj_infos_queue=self.traj_infos_queue,
             n_itr=n_itr,
             )
@@ -229,11 +233,14 @@ class AsyncRlBase(BaseRunner):
             optimizer_state_dict=self.algo.optim_state_dict(),
         )
 
-    def save_itr_snapshot(self, itr):
+    def save_itr_snapshot(self, itr, sample_itr):
         logger.log("saving snapshot...")
-        params = self.get_itr_snapshot(itr)
+        params = self.get_itr_snapshot(itr, sample_itr)
         logger.save_itr_params(itr, params)
         logger.log("saved")
+
+    def get_traj_info_kwargs(self):
+        return dict(discount=getattr(self.algo, "discount", 1))
 
     def store_diagnostics(self, itr, sampler_itr, traj_infos, opt_info):
         self._traj_infos.extend(traj_infos)
@@ -253,7 +260,7 @@ class AsyncRlBase(BaseRunner):
             self.algo.updates_per_optimize * (itr - self._last_itr) / time_elapsed)
         cum_steps = sampler_itr * self.sampler_batch_size
         cum_updates = itr * self.algo.updates_per_optimize
-        replay_ratio = cum_updates * self.algo.batch_size / cum_steps
+        replay_ratio = cum_updates * self.algo.batch_size / max(1, cum_steps)
         logger.record_tabular('Iteration', itr)
         logger.record_tabular('SamplerIteration', sampler_itr)
         logger.record_tabular('CumTime (s)', new_time - self._start_time)
@@ -320,6 +327,7 @@ class AsyncRlEval(AsyncRlBase):
     def initialize_logging(self):
         self._traj_infos = list()
         super().initialize_logging()
+        self.pbar = ProgBarCounter(self.log_interval_itrs)
 
     def log_diagnostics(self, itr, sampler_itr, throttle_time):
         if not self._traj_infos:
@@ -330,6 +338,7 @@ class AsyncRlEval(AsyncRlBase):
         logger.record_tabular('CumEvalTime', self.ctrl.eval_time.value)
         super().log_diagnostics(itr, sampler_itr, throttle_time)
         self._traj_infos = list()  # Clear after each eval.
+        self.pbar = ProgBarCounter(self.log_interval_itrs)
 
 
 ###############################################################################
@@ -354,11 +363,13 @@ class AsyncOptWorker(object):
 
     def optimize(self):
         self.startup()
+        itr = 0
         while True:
             self.ctrl.opt_throttle.wait()
             if self.ctrl.quit_opt.value:
                 break
-            self.algo.optimize_agent(itr)  # Leave un-logged.
+            self.algo.optimize_agent(itr, sampler_itr=self.ctrl.sampler_itr.value)  # Leave un-logged.
+            itr += 1
         self.shutdown()
 
     def startup(self):
@@ -386,14 +397,14 @@ class AsyncOptWorker(object):
         pass
 
 
-def run_async_sampler(sampler, affinity, ctrl, seed, traj_infos_queue, n_itr):
-    sampler.sampler_process_initialize(affinity, seed)
+def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
+    sampler.sampler_process_initialize(affinity)
     j = 0
     for itr in range(n_itr):
         ctrl.sample_copied[j].acquire()
         traj_infos = sampler.obtain_samples(itr, j)
         ctrl.sample_ready[j].release()
-        with ctrl.sampler_itr.lock:
+        with ctrl.sampler_itr.get_lock():
             for traj_info in traj_infos:
                 traj_infos_queue.put(traj_info)
             ctrl.sampler_itr.value = itr
@@ -404,9 +415,9 @@ def run_async_sampler(sampler, affinity, ctrl, seed, traj_infos_queue, n_itr):
         s.release()  # Let memcpy workers finish and quit.
 
 
-def run_async_sampler_eval(sampler, affinity, ctrl, seed, traj_infos_queue,
+def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
         n_itr, eval_itrs):
-    sampler.sampler_process_initialize(affinity, seed)
+    sampler.sampler_process_initialize(affinity)
     j = 0
     for itr in range(n_itr):
         ctrl.sample_copied[j].acquire()
@@ -416,8 +427,8 @@ def run_async_sampler_eval(sampler, affinity, ctrl, seed, traj_infos_queue,
             eval_time = -time.time()
             traj_infos = sampler.evaluate_agent(itr)
             eval_time += time.time()
-            ctrl.eval.time.value += eval_time  # Not atomic but only writer.
-            with ctrl.sampler_itr.lock:
+            ctrl.eval_time.value += eval_time  # Not atomic but only writer.
+            with ctrl.sampler_itr.get_lock():
                 for traj_info in traj_infos:
                     traj_infos_queue.put(traj_info)
                 ctrl.sampler_itr.value = itr
@@ -430,10 +441,10 @@ def run_async_sampler_eval(sampler, affinity, ctrl, seed, traj_infos_queue,
         s.release()  # Let memcpy workers finish and quit.
 
 
-def memory_copier(sample_buffer, replay_buffer, ctrl):
+def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
     while True:
         ctrl.sample_ready.acquire()
         if ctrl.quit.value:
             break
-        replay_buffer.append_samples(sample_buffer)
+        replay_buffer.append_samples(samples_to_buffer(sample_buffer))
         ctrl.sample_copied.release()

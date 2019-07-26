@@ -126,12 +126,7 @@ class DQN(RlAlgorithm):
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr  # Async uses sampler_itr.
         if samples is not None:
-            samples_to_buffer = SamplesToBuffer(
-                observation=samples.env.observation,
-                action=samples.agent.action,
-                reward=samples.env.reward,
-                done=samples.env.done,
-            )
+            samples_to_buffer = self.samples_to_buffer(samples)
             self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
@@ -155,6 +150,14 @@ class DQN(RlAlgorithm):
         self.update_itr_hyperparams(itr)
         return opt_info
 
+    def samples_to_buffer(self, samples):
+        return SamplesToBuffer(
+            observation=samples.env.observation,
+            action=samples.agent.action,
+            reward=samples.env.reward,
+            done=samples.env.done,
+        )
+
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
         qs = self.agent(*samples.agent_inputs)
@@ -177,7 +180,9 @@ class DQN(RlAlgorithm):
             losses = torch.where(abs_delta <= self.delta_clip, losses, b)
         if self.prioritized_replay:
             losses *= samples.is_weights
-        td_abs_errors = torch.clamp(abs_delta.detach(), 0, self.delta_clip)
+        td_abs_errors = abs_delta.detach()
+        if self.delta_clip is not None:
+            td_abs_errors = torch.clamp(td_abs_errors, 0, self.delta_clip)
         if not self.mid_batch_reset:
             valid = valid_from_done(samples.done)
             loss = valid_mean(losses, valid)

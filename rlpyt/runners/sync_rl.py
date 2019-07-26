@@ -32,7 +32,7 @@ class SyncRlMixin(object):
         self.par = par = self.build_par_objs(world_size)
         if self.seed is None:
             self.seed = make_seed()
-        port = find_port(offset=self.affinity.get("run_slot", 0))
+        port = find_port(offset=self.affinity.get("master_cpus", [0])[0])
         backend = "gloo" if self.affinity.get("cuda_idx", None) is None else "nccl"
         workers_kwargs = [dict(
             algo=self.algo,

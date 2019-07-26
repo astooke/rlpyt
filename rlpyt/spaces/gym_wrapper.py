@@ -36,16 +36,26 @@ class GymSpaceWrapper(object):
             self._dtype = np.float32 if (space.dtype == np.float64 and
                 force_float32) else None
 
-    def sample(self, null=False):
-        if self.space is self._gym_space:
-            sample = self.space.sample()
-            if self._dtype is not None:  # Might force float64->float32.
-                sample = np.asarray(sample, dtype=self._dtype)
-            if null and self._null_value is not None:
-                sample[:] = self._null_value
-        else:  # is Composite
-            sample = self.space.sample(null=null)
+    def sample(self):
+        sample = self.space.sample()
+        if self.space is self._gym_space:  # Not Composite.
+            # Force numpy array, might force float64->float32.
+            sample = np.asarray(sample, dtype=self._dtype)
         return sample
+
+    def null_value(self):
+        if self.space is self._gym_space:
+            null = np.asarray(self.space.sample(), dtype=self._dtype)
+            if self._null_value is not None:
+                try:
+                    null[:] = self._null_value
+                except IndexError:  # e.g. scalar.
+                    null.fill(self._null_value)
+            else:
+                null.fill(0)
+        else:  # Is composite.
+            null = self.space.null_value()
+        return null
 
     def convert(self, value):
         # Convert wrapped env's observation from dict to namedtuple.

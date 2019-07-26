@@ -7,12 +7,14 @@ class Composite(Space):
 
     def __init__(self, spaces, NamedTupleCls):
         self._spaces = spaces
-        # Should define NamedArrayTupleCls in the module creating this space.
+        # Should define NamedTupleCls in the module creating this space.
         self._NamedTupleCls = NamedTupleCls
 
-    def sample(self, null=False):
-        return self._NamedTupleCls(*(space.sample(null=null)
-            for space in self._spaces))
+    def sample(self):
+        return self._NamedTupleCls(*(s.sample() for s in self._spaces))
+
+    def null_value(self):
+        return self._NamedTupleCls(*(s.null_value() for s in self._spaces))
 
     @property
     def shape(self):
@@ -25,10 +27,6 @@ class Composite(Space):
     @property
     def spaces(self):
         return self._spaces
-
-    @property
-    def null_value(self):
-        return self._NamedTupleCls(*(s.null_value for s in self._spaces))
 
     def __repr__(self):
         return ", ".join(space.__repr__() for space in self._spaces)

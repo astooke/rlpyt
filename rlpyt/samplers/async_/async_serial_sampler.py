@@ -2,20 +2,22 @@
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer
 from rlpyt.samplers.collectors import SerialEvalCollector
+from rlpyt.utils.seed import make_seed
 from rlpyt.utils.logging import logger
 from rlpyt.utils.collections import AttrDict
 
 
-class AsyncSerialSmapler(BaseSampler):
+class AsyncSerialSampler(BaseSampler):
 
     ###########################################################################
     # Master runner methods.
     ###########################################################################
 
     def master_runner_initialize(self, agent, bootstrap_value=False,
-            traj_info_kwargs=None):
+            traj_info_kwargs=None, seed=None):
+        self.seed = make_seed() if seed is None else seed
         env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spaces, share_memory=False,
+        agent.initialize(env.spaces, share_memory=True,
             global_B=self.batch_spec.B, env_ranks=list(range(self.batch_spec.B)))
         _, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
@@ -29,6 +31,7 @@ class AsyncSerialSmapler(BaseSampler):
                 setattr(self.TrajInfoCls, "_" + k, v)
         self.double_buffer = double_buffer = (samples_np, samples_np2)
         self.examples = examples
+        self.agent = agent
         return double_buffer, examples
 
     ###########################################################################
@@ -38,7 +41,7 @@ class AsyncSerialSmapler(BaseSampler):
     def sampler_process_initialize(self, affinity):
         B = self.batch_spec.B
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
-        sync = AttrDict(j=AttrDict(value=0)),  # Mimic the mp.RawValue format.
+        sync = AttrDict(j=AttrDict(value=0))  # Mimic the mp.RawValue format.
         collector = self.CollectorCls(
             rank=0,
             envs=envs,
@@ -59,7 +62,8 @@ class AsyncSerialSmapler(BaseSampler):
                 max_T=self.eval_max_steps // self.eval_n_envs,
                 max_trajectories=self.eval_max_trajectories,
             )
-        self.agent.initialize_cuda(cuda_idx=affinity.get("cuda_idx", None), ddp=False)
+        self.agent.initialize_device(cuda_idx=affinity.get("cuda_idx", None),
+            ddp=False)
 
         agent_inputs, traj_infos = collector.start_envs(
             self.max_decorrelation_steps)
