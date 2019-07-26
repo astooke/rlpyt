@@ -1,4 +1,7 @@
 
+import psutil
+import torch
+
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer
 from rlpyt.samplers.collectors import SerialEvalCollector
@@ -21,7 +24,7 @@ class AsyncSerialSampler(BaseSampler):
             global_B=self.batch_spec.B, env_ranks=list(range(self.batch_spec.B)))
         _, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=False)  # Would like subprocess=True, but might hang?
+            subprocess=True)  # Would like subprocess=True, but might hang?
         _, samples_np2, _ = build_samples_buffer(agent, env, self.batch_spec,
             bootstrap_value, agent_shared=True, env_shared=True, subprocess=False)
         env.close()
@@ -39,6 +42,9 @@ class AsyncSerialSampler(BaseSampler):
     ###########################################################################
 
     def sampler_process_initialize(self, affinity):
+        p = psutil.Process()
+        p.cpu_affinity(affinity["master_cpus"])
+        torch.set_num_threads(affinity["master_torch_threads"])
         B = self.batch_spec.B
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
         sync = AttrDict(j=AttrDict(value=0))  # Mimic the mp.RawValue format.

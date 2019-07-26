@@ -88,4 +88,15 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         return target_q.cpu()
 
     def update_target(self):
-        self.target_model.load_state_dict(self.model.state_dict())
+        # Workaround the fact that DistributedDataParallel prepends 'module.' to
+        # every key, but the target model will not be wrapped in
+        # DistributedDataParallel.
+        # (Solution from PyTorch forums.)
+        model_state_dict = self.model.state_dict()
+        new_state_dict = type(model_state_dict)()
+        for k, v in model_state_dict.items():
+            if k[:7] == "module.":
+                new_state_dict[k[7:]] = v
+            else:
+                new_state_dict[k] = v
+        self.target_model.load_state_dict(new_state_dict)

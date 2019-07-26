@@ -101,6 +101,7 @@ class AsyncRlBase(BaseRunner):
             examples=examples,
             mid_batch_reset=self.sampler.mid_batch_reset,
             async_=True,
+            updates_per_sync=self.updates_per_sync,
         )
         self.sampler_batch_size = self.sampler.batch_spec.size
         self.world_size = len(self.affinity.optimizer)
@@ -114,12 +115,11 @@ class AsyncRlBase(BaseRunner):
         torch.set_num_threads(main_affinity["torch_threads"])
         logger.log(f"Optimizer master Torch threads: {torch.get_num_threads()}.")
         self.agent.initialize_device(
-            # cuda_idx=main_affinity.get("cuda_idx", None),
+            cuda_idx=main_affinity.get("cuda_idx", None),
             ddp=self.world_size > 1,
         )
         self.algo.async_initialize(
             agent=self.agent,
-            updates_per_sync=self.updates_per_sync,
             sampler_n_itr=n_itr,
             rank=0,
             world_size=self.world_size,
@@ -136,7 +136,7 @@ class AsyncRlBase(BaseRunner):
         self.ctrl = self.build_ctrl(self.world_size)
         self.launch_sampler(n_itr)
         self.launch_memcpy(double_buffer, replay_buffer)
-        self.launch_optimizer_workers()
+        self.launch_optimizer_workers(n_itr)
 
     def get_n_itr(self):
         log_interval_itrs = max(self.log_interval_steps //
@@ -160,23 +160,32 @@ class AsyncRlBase(BaseRunner):
             eval_time=mp.Value('d', lock=True),
             )
 
-    def launch_optimizer_workers(self):
+    def launch_optimizer_workers(self, n_itr):
         if self.world_size == 1:
             return
+        offset = self.affinity.optimizer[0].get("master_cpus", [0])[0]
+        port = find_port(offset=offset)
         affinities = self.affinity.optimizer
         runners = [AsyncOptWorker(
             rank=rank,
             world_size=self.world_size,
             algo=self.algo,
             agent=self.agent,
-            updates_per_sync=self.updates_per_sync,
+            n_itr=n_itr,
             affinity=affinities[rank],
             seed=self.seed + 100,
             ctrl=self.ctrl,
+            port=port,
             ) for rank in range(1, len(affinities))]
         procs = [mp.Process(target=r.optimize, args=()) for r in runners]
         for p in procs:
             p.start()
+        torch.distributed.init_process_group(
+            backend="nccl",
+            rank=0,
+            world_size=self.world_size,
+            init_method=f"tcp://127.0.0.1:{port}",
+        )
         self.optimizer_procs = procs
 
     def launch_memcpy(self, sample_buffers, replay_buffer):
@@ -258,15 +267,17 @@ class AsyncRlBase(BaseRunner):
             self.log_interval_itrs * self.sampler_batch_size / time_elapsed)
         updates_per_second = (float('nan') if itr == 0 else
             self.algo.updates_per_optimize * (itr - self._last_itr) / time_elapsed)
+        replay_ratio = updates_per_second * self.algo.batch_size / samples_per_second
         cum_steps = sampler_itr * self.sampler_batch_size
         cum_updates = itr * self.algo.updates_per_optimize
-        replay_ratio = cum_updates * self.algo.batch_size / max(1, cum_steps)
+        cum_replay_ratio = cum_updates * self.algo.batch_size / max(1, cum_steps)
         logger.record_tabular('Iteration', itr)
         logger.record_tabular('SamplerIteration', sampler_itr)
         logger.record_tabular('CumTime (s)', new_time - self._start_time)
         logger.record_tabular('CumSteps', cum_steps)
         logger.record_tabular('CumUpdates', cum_updates)
         logger.record_tabular('ReplayRatio', replay_ratio)
+        logger.record_tabular('CumReplayRatio', cum_replay_ratio)
         logger.record_tabular('SamplesPerSecond', samples_per_second)
         logger.record_tabular('UpdatesPerSecond', updates_per_second)
         logger.record_tabular('OptThrottle', (time_elapsed - throttle_time) /
@@ -358,6 +369,7 @@ class AsyncOptWorker(object):
             affinity,
             seed,
             ctrl,
+            port
             ):
         save__init__args(locals())
 
@@ -373,22 +385,28 @@ class AsyncOptWorker(object):
         self.shutdown()
 
     def startup(self):
+        torch.distributed.init_process_group(
+            backend="nccl",
+            rank=self.rank,
+            world_size=self.world_size,
+            init_method=f"tcp://127.0.0.1:{self.port}",
+        )
+        print("INSIDE OPT WORKER STARTUP")
         p = psutil.Process()
         p.cpu_affinity(self.affinity["cpus"])
-        logger.log(f"Optimizer rank {rank} CPU affinity: {p.cpu_affinity()}.")
+        logger.log(f"Optimizer rank {self.rank} CPU affinity: {p.cpu_affinity()}.")
         torch.set_num_threads(self.affinity["torch_threads"])
-        logger.log(f"Optimizer rank {rank} Torch threads: {torch.get_num_threads()}.")
-        logger.log(f"Optimizer rank {rank} CUDA index: "
+        logger.log(f"Optimizer rank {self.rank} Torch threads: {torch.get_num_threads()}.")
+        logger.log(f"Optimizer rank {self.rank} CUDA index: "
             f"{self.affinity.get('cuda_idx', None)}.")
         set_seed(self.seed)
         self.agent.initialize_device(
             cuda_idx=self.affinity.get("cuda_idx", None),
-            dpp=True,
+            ddp=True,
         )
         self.algo.async_initialize(
             agent=self.agent,
-            updates_per_sync=self.updates_per_sync,
-            n_itr=self.n_itr,
+            sampler_n_itr=self.n_itr,
             rank=self.rank,
             world_size=self.world_size,
         )
@@ -448,3 +466,19 @@ def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
             break
         replay_buffer.append_samples(samples_to_buffer(sample_buffer))
         ctrl.sample_copied.release()
+
+
+# Helpers
+
+
+def find_port(offset):
+    # Find a unique open port, to stack multiple multi-GPU runs per machine.
+    assert offset < 100
+    for port in range(29500 + offset, 65000, 100):
+        try:
+            store = torch.distributed.TCPStore("127.0.0.1", port, 1, True)
+            break
+        except RuntimeError:
+            pass  # Port taken.
+    del store  # Before fork (small time gap; could be re-taken, hence offset).
+    return port

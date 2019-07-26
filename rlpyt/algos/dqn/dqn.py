@@ -60,7 +60,7 @@ class DQN(RlAlgorithm):
         self.update_counter = 0
 
     def initialize_replay_buffer(self, batch_spec, examples, mid_batch_reset,
-            async_=False):
+            async_=False, updates_per_sync=1):
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -89,11 +89,11 @@ class DQN(RlAlgorithm):
         self.replay_buffer = ReplayCls(**replay_kwargs)
         self.mid_batch_reset = mid_batch_reset
         self.sampler_bs = batch_spec.size
+        self.updates_per_sync = updates_per_sync
         return self.replay_buffer
 
-    def async_initialize(self, agent, updates_per_sync, sampler_n_itr,
-            rank=0, world_size=1):
-        self.updates_per_optimize = updates_per_sync
+    def async_initialize(self, agent, sampler_n_itr, rank=0, world_size=1):
+        self.updates_per_optimize = self.updates_per_sync
         self._initialize(agent, sampler_n_itr)
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,

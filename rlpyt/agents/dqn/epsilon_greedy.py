@@ -95,7 +95,7 @@ class EpsilonGreedyAgentMixin(object):
         super().eval_mode(itr)
         self.distribution.set_epsilon(self.eps_eval if itr > 0 else 1.)
 
-    def eval_mode(self, itr):
-        super().eval_mode(itr)
-        eval_epsilon = self.eval_epsilon.value if self.share_memory else self.eval_epsilon
-        self.distribution.set_epsilon(eval_epsilon if itr > 0 else 1.)
+    # def eval_mode(self, itr):
+    #     super().eval_mode(itr)
+    #     eval_epsilon = self.eval_epsilon.value if self.share_memory else self.eval_epsilon
+    #     self.distribution.set_epsilon(eval_epsilon if itr > 0 else 1.)

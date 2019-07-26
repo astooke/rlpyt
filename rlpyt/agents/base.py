@@ -83,7 +83,20 @@ class BaseAgent(object):
 
     def send_shared_memory(self):
         with self._rw_lock.write_lock:
-            self.sync_shared_memory()
+            if self.shared_model is not self.model:
+                # Workaround the fact that DistributedDataParallel prepends
+                # 'module.' to every key, but the sampler models will not be
+                # wrapped in DistributedDataParallel.
+                # (Solution from PyTorch forums.)
+                model_state_dict = self.model.state_dict()
+                new_state_dict = type(model_state_dict)()
+                for k, v in model_state_dict.items():
+                    if k[:7] == "module.":
+                        new_state_dict[k[7:]] = v
+                    else:
+                        new_state_dict[k] = v
+                self.shared_model.load_state_dict(new_state_dict)
+            # self.sync_shared_memory()
 
     def recv_shared_memory(self):
         if self.shared_model is not self.model:

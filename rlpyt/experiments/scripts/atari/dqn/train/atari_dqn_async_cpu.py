@@ -1,7 +1,8 @@
 
 from rlpyt.utils.launching.affinity import make_affinity
 # from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
-from rlpyt.samplers.async_.async_serial_sampler import AsyncSerialSampler
+# from rlpyt.samplers.async_.async_serial_sampler import AsyncSerialSampler
+from rlpyt.samplers.async_.async_cpu_sampler import AsyncCpuSampler
 # from rlpyt.samplers.cpu.collectors import ResetCollector
 from rlpyt.samplers.async_.collectors import DbCpuResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
@@ -19,7 +20,7 @@ def build_and_train(game="pong", run_ID=0):
     # Change these inputs to match local machine and desired parallelism.
     affinity = make_affinity(
         run_slot=0,
-        n_cpu_core=2,  # Use 16 cores across all experiments.
+        n_cpu_core=3,  # Use 16 cores across all experiments.
         n_gpu=1,  # Use 8 gpus across all experiments.
         sample_gpu_per_run=0,
         async_sample=True,
@@ -29,12 +30,12 @@ def build_and_train(game="pong", run_ID=0):
         # cpu_per_run=1,
     )
 
-    sampler = AsyncSerialSampler(
+    sampler = AsyncCpuSampler(
         EnvCls=AtariEnv,
         env_kwargs=dict(game=game),
         CollectorCls=DbCpuResetCollector,
         batch_T=5,
-        batch_B=4,
+        batch_B=8,
         max_decorrelation_steps=100,
         eval_env_kwargs=dict(game=game),
         eval_n_envs=2,
@@ -42,7 +43,7 @@ def build_and_train(game="pong", run_ID=0):
         eval_max_trajectories=4,
     )
     algo = DQN(
-        replay_ratio=18,
+        replay_ratio=8,
         min_steps_learn=1e4,
         replay_size=int(1e5)
     )

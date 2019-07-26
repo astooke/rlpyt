@@ -4,6 +4,7 @@ import numpy as np
 import multiprocessing as mp
 import ctypes
 import queue
+import psutil
 
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer, build_step_buffer
@@ -51,6 +52,8 @@ class AsyncCpuSampler(BaseSampler):
 
     def sampler_process_initialize(self, affinity):
         n_worker = len(affinity["workers_cpus"])
+        p = psutil.Process()
+        p.cpu_affinity(affinity["master_cpus"])
         n_envs_list = [self.batch_spec.B // n_worker] * n_worker
         if not self.batch_spec.B % n_worker == 0:
             logger.log("WARNING: unequal number of envs per process, from "
@@ -71,8 +74,8 @@ class AsyncCpuSampler(BaseSampler):
 
         ctrl = AttrDict(
             quit=mp.RawValue(ctypes.c_bool, False),
-            barrier_in=mp.Barrier(n_server + n_worker + 1),
-            barrier_out=mp.Barrier(n_server + n_worker + 1),
+            barrier_in=mp.Barrier(n_worker + 1),
+            barrier_out=mp.Barrier(n_worker + 1),
             do_eval=mp.RawValue(ctypes.c_bool, False),
             itr=mp.RawValue(ctypes.c_long, 0),
             j=mp.RawValue("i", 0),  # Double buffer index.
@@ -80,22 +83,9 @@ class AsyncCpuSampler(BaseSampler):
         traj_infos_queue = mp.Queue()
 
         sync = AttrDict(
-            step_blockers=[mp.Semaphore(0) for _ in range(n_worker)],
-            act_waiters=[mp.Semaphore(0) for _ in range(n_worker)],
             stop_eval=mp.RawValue(ctypes.c_bool, False),
-            j=self.ctrl.j,  # Copy into sync which passes to Collector.
+            j=ctrl.j,  # Copy into sync which passes to Collector.
         )
-        step_buffer_pyt, step_buffer_np = build_step_buffer(self.examples,
-            sum(n_envs_list))
-
-        if self.eval_n_envs_per > 0:
-            eval_n_envs = self.eval_n_envs_per * n_worker
-            eval_step_buffer_pyt, eval_step_buffer_np = build_step_buffer(
-                self.examples, eval_n_envs)
-            self.eval_step_buffer_pyt = eval_step_buffer_pyt
-            self.eval_step_buffer_np = eval_step_buffer_np
-        else:
-            eval_step_buffer_np = None
 
         common_kwargs = dict(
             EnvCls=self.EnvCls,
@@ -105,16 +95,17 @@ class AsyncCpuSampler(BaseSampler):
             CollectorCls=self.CollectorCls,
             TrajInfoCls=self.TrajInfoCls,
             traj_infos_queue=traj_infos_queue,
-            ctrl=self.ctrl,
+            ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
+            torch_threads=affinity.get("worker_torch_threads", None),
             eval_n_envs=self.eval_n_envs_per,
             eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
             eval_env_kwargs=self.eval_env_kwargs,
             eval_max_T=self.eval_max_T,
             global_B=self.batch_spec.B,
             )
-        workers_kwargs = assemble_workers_kwargs(affinity, seed, double_buffer,
-            n_envs_list, sync, eval_step_buffer_np)
+        workers_kwargs = assemble_workers_kwargs(affinity, self.seed,
+            self.double_buffer, n_envs_list, sync)
 
         workers = [mp.Process(target=sampling_process,
             kwargs=dict(common_kwargs=common_kwargs, worker_kwargs=w_kwargs))
@@ -127,6 +118,8 @@ class AsyncCpuSampler(BaseSampler):
         self.mid_batch_reset = self.CollectorCls.mid_batch_reset
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
+
+        self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
 
     def obtain_samples(self, itr, j):
         # sync shared memory?  maybe don't need to if optimizer did?
@@ -144,7 +137,7 @@ class AsyncCpuSampler(BaseSampler):
         return traj_infos
 
     def evaluate_agent(self, itr):
-        self.ctrl.do_eval = True
+        self.ctrl.do_eval.value = True
         self.sync.stop_eval.value = False
         self.ctrl.barrier_in.wait()
         traj_infos = list()

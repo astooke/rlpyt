@@ -61,7 +61,7 @@ def encode_affinity(
         cpu_per_worker=1,  # Use 1 unless environment is multi-threaded.
         async_sample=False,  # True if asynchronous sampling / optimization.
         sample_gpu_per_run=0,  # For asynchronous sampling.
-        optim_sample_share_gpu=False,  # For asynchronous sampling.
+        optim_sample_share_gpu=False,  # Async sampling, overrides sample_gpu.
         hyperthread_offset=None,  # Leave None for auto-detect.
         n_socket=None,  # Leave None for auto-detect.
         run_slot=None,  # Leave None in `run` script, but specified in `train` script.
@@ -315,9 +315,9 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
             master_cpus=master_cpus,
             workers_cpus=workers_cpus,
             master_torch_threads=len(master_cores),
-            workers_torch_threads=cpw,
+            worker_torch_threads=cpw,
             cuda_idx=None,
-        )   
+        )
 
     return AttrDict(optimizer=opt_affinities, sampler=smp_affinities)
 

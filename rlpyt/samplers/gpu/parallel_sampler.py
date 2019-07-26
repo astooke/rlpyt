@@ -158,6 +158,7 @@ class GpuParallelSampler(BaseSampler):
         for t in range(self.batch_spec.T):
             for b in step_blockers:
                 b.acquire()  # Workers written obs and rew, first prev_act.
+                # assert not b.acquire(block=False)  # Debug check.
             if self.mid_batch_reset and np.any(step_np.done):
                 for b_reset in np.where(step_np.done)[0]:
                     step_np.action[b_reset] = 0  # Null prev_action into agent.
@@ -167,10 +168,12 @@ class GpuParallelSampler(BaseSampler):
             step_np.action[:] = action  # Worker applies to env.
             step_np.agent_info[:] = agent_info  # Worker sends to traj_info.
             for w in act_waiters:
+                # assert not w.acquire(block=False)  # Debug check.
                 w.release()  # Signal to worker.
 
         for b in step_blockers:
             b.acquire()
+            # assert not b.acquire(block=False)  # Debug check.
         if "bootstrap_value" in self.samples_np.agent:
             self.samples_np.agent.bootstrap_value[:] = self.agent.value(
                 *agent_inputs)
@@ -198,6 +201,7 @@ class GpuParallelSampler(BaseSampler):
                         break
             for b in step_blockers:
                 b.acquire()
+                # assert not b.acquire(block=False)  # Debug check.
             for b_reset in np.where(step_np.done)[0]:
                 step_np.action[b_reset] = 0  # Null prev_action.
                 step_np.reward[b_reset] = 0  # Null prev_reward.
@@ -208,6 +212,7 @@ class GpuParallelSampler(BaseSampler):
             if self.eval_max_trajectories is not None and t % EVAL_TRAJ_CHECK == 0:
                 self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
             for w in act_waiters:
+                # assert not w.acquire(block=False)  # Debug check.
                 w.release()
             if self.sync.stop_eval.value:
                 logger.log("Evaluation reach max num trajectories "
@@ -218,6 +223,7 @@ class GpuParallelSampler(BaseSampler):
                 f"({self.eval_max_T}).")
         for b in step_blockers:
             b.acquire()  # Workers always do extra release; drain it.
+            # assert not b.acquire(block=False)  # Debug check.
 
         return traj_infos
 
