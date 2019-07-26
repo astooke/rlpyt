@@ -34,7 +34,7 @@ class AsyncGpuSampler(BaseSampler):
         agent.initialize(env.spaces, share_memory=True)  # Actual agent initialization, keep.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=False)  # Would like subprocess=True, but might hang?
+            subprocess=True)  # Would like subprocess=True, but might hang?
         _, samples_np2, _ = build_samples_buffer(agent, env, self.batch_spec,
             bootstrap_value, agent_shared=True, env_shared=True, subprocess=False)
         env.close()
