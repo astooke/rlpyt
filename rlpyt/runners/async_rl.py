@@ -4,7 +4,6 @@ import multiprocessing as mp
 import psutil
 import torch
 from collections import deque
-import queue
 import math
 
 from rlpyt.runners.base import BaseRunner
@@ -13,6 +12,7 @@ from rlpyt.utils.logging import logger
 from rlpyt.utils.collections import AttrDict
 from rlpyt.utils.seed import set_seed, make_seed
 from rlpyt.utils.prog_bar import ProgBarCounter
+from rlpyt.utils.synchronize import drain_queue, find_port
 
 
 THROTTLE_WAIT = 0.05
@@ -44,12 +44,7 @@ class AsyncRlBase(BaseRunner):
         if self._eval:
             while self.ctrl.sampler_itr.value < 1:  # Sampler does eval first.
                 time.sleep(THROTTLE_WAIT)
-            traj_infos = list()
-            while True:
-                try:
-                    traj_infos.append(self.traj_infos_queue.get(block=False))
-                except queue.Empty:
-                    break
+            traj_infos = drain_queue(self.traj_infos_queue)
             self.store_diagnostics(0, 0, traj_infos, ())
             self.log_diagnostics(0, 0, 0)
         log_counter = 0
@@ -68,14 +63,9 @@ class AsyncRlBase(BaseRunner):
                 opt_info = self.algo.optimize_agent(itr,
                     sampler_itr=self.ctrl.sampler_itr.value)
                 self.agent.send_shared_memory()  # To sampler.
-                traj_infos = list()
                 with self.ctrl.sampler_itr.get_lock():
                     # Lock to prevent traj_infos splitting across itr.
-                    while True:
-                        try:
-                            traj_infos.append(self.traj_infos_queue.get(block=False))
-                        except queue.Empty:
-                            break
+                    traj_infos = drain_queue(self.traj_infos_queue)
                     sampler_itr = self.ctrl.sampler_itr.value
                 self.store_diagnostics(itr, sampler_itr, traj_infos, opt_info)
                 if (sampler_itr // self.log_interval_itrs > log_counter):
@@ -474,19 +464,3 @@ def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
         replay_buffer.append_samples(samples_to_buffer(sample_buffer))
         ctrl.sample_copied.release()
     logger.log("Memory copier shutting down.")
-
-
-# Helpers
-
-
-def find_port(offset):
-    # Find a unique open port, to stack multiple multi-GPU runs per machine.
-    assert offset < 100
-    for port in range(29500 + offset, 65000, 100):
-        try:
-            store = torch.distributed.TCPStore("127.0.0.1", port, 1, True)
-            break
-        except RuntimeError:
-            pass  # Port taken.
-    del store  # Before fork (small time gap; could be re-taken, hence offset).
-    return port

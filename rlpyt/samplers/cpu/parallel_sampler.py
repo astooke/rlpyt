@@ -1,6 +1,5 @@
 
 import multiprocessing as mp
-import queue
 import time
 
 
@@ -9,6 +8,7 @@ from rlpyt.samplers.utils import build_samples_buffer, build_par_objs
 from rlpyt.samplers.parallel_worker import sampling_process
 from rlpyt.samplers.cpu.collectors import EvalCollector
 from rlpyt.utils.logging import logger
+from rlpyt.utils.synchronize import drain_queue
 
 
 EVAL_TRAJ_CHECK = 1  # Seconds.
@@ -108,12 +108,7 @@ class CpuParallelSampler(BaseSampler):
         self.ctrl.barrier_in.wait()
         # Workers step environments and sample actions here.
         self.ctrl.barrier_out.wait()
-        traj_infos = list()
-        while True:
-            try:
-                traj_infos.append(self.traj_infos_queue.get(block=False))
-            except queue.Empty:
-                break
+        traj_infos = drain_queue(self.traj_infos_queue)
         return self.samples_pyt, traj_infos
 
     def evaluate_agent(self, itr):
@@ -127,11 +122,7 @@ class CpuParallelSampler(BaseSampler):
         if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
-                while True:
-                    try:
-                        traj_infos.append(self.traj_infos_queue.get(block=False))
-                    except queue.Empty:
-                        break
+                traj_infos.extend(drain_queue(self.traj_infos_queue))
                 if len(traj_infos) >= self.eval_max_trajectories:
                     self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
@@ -142,11 +133,7 @@ class CpuParallelSampler(BaseSampler):
                         f"({self.eval_max_T}).")
                     break  # Workers reached max_T.
         self.ctrl.barrier_out.wait()
-        while True:
-            try:
-                traj_infos.append(self.traj_infos_queue.get(block=False))
-            except queue.Empty:
-                break
+        traj_infos.extend(drain_queue(self.traj_infos_queue))
         self.ctrl.do_eval.value = False
         return traj_infos
 

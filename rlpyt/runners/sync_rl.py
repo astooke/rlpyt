@@ -8,6 +8,7 @@ from rlpyt.runners.minibatch_rl import MinibatchRl, MinibatchRlEval
 from rlpyt.utils.seed import make_seed
 from rlpyt.utils.collections import AttrDict
 from rlpyt.utils.quick_args import save__init__args
+from rlpyt.utils.synchronize import drain_queue, find_port
 
 
 ###############################################################################
@@ -80,11 +81,7 @@ class SyncRl(SyncRlMixin, MinibatchRl):
         return SyncWorker
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
-        while True:
-            try:
-                traj_infos.append(self.traj_infos_queue.get(block=False))
-            except queue.Empty:
-                break
+        traj_infos.extend(drain_queue(self.traj_infos_queue))
         super().store_diagnostics(itr, traj_infos, opt_info)
 
 
@@ -162,19 +159,3 @@ class SyncWorkerEval(SyncWorkerMixin, MinibatchRlEval):
 
     def evaluate_agent(self, *args, **kwargs):
         return None, None
-
-
-# Helpers
-
-
-def find_port(offset):
-    # Find a unique open port, to stack multiple multi-GPU runs per machine.
-    assert offset < 100
-    for port in range(29500 + offset, 65000, 100):
-        try:
-            store = torch.distributed.TCPStore("127.0.0.1", port, 1, True)
-            break
-        except RuntimeError:
-            pass  # Port taken.
-    del store  # Before fork (small time gap; could be re-taken, hence offset).
-    return port

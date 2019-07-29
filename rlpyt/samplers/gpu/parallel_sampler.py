@@ -1,6 +1,5 @@
 
 import multiprocessing as mp
-import queue
 import numpy as np
 
 
@@ -12,6 +11,7 @@ from rlpyt.samplers.gpu.collectors import EvalCollector
 from rlpyt.utils.collections import AttrDict
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.logging import logger
+from rlpyt.utils.synchronize import drain_queue
 
 
 EVAL_TRAJ_CHECK = 20  # Time steps.
@@ -119,12 +119,7 @@ class GpuParallelSampler(BaseSampler):
         self.ctrl.barrier_in.wait()
         self.serve_actions(itr)  # Worker step environments here.
         self.ctrl.barrier_out.wait()
-        traj_infos = list()
-        while True:
-            try:
-                traj_infos.append(self.traj_infos_queue.get(block=False))
-            except queue.Empty:
-                break
+        traj_infos = drain_queue(self.traj_infos_queue)
         return self.samples_pyt, traj_infos
 
     def evaluate_agent(self, itr):
@@ -134,11 +129,7 @@ class GpuParallelSampler(BaseSampler):
         self.ctrl.barrier_in.wait()
         traj_infos = self.serve_actions_evaluation(itr)
         self.ctrl.barrier_out.wait()
-        while True:
-            try:
-                traj_infos.append(self.traj_infos_queue.get(block=False))
-            except queue.Empty:
-                break
+        traj_infos.extend(drain_queue(self.traj_infos_queue))
         self.ctrl.do_eval.value = False
         return traj_infos
 
@@ -194,11 +185,7 @@ class GpuParallelSampler(BaseSampler):
 
         for t in range(self.eval_max_T):
             if t % EVAL_TRAJ_CHECK == 0:  # (While workers stepping.)
-                while True:
-                    try:
-                        traj_infos.append(self.traj_infos_queue.get(block=False))
-                    except queue.Empty:
-                        break
+                traj_infos.extend(drain_queue(self.traj_infos_queue))
             for b in step_blockers:
                 b.acquire()
                 # assert not b.acquire(block=False)  # Debug check.
