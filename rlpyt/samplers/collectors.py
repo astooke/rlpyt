@@ -70,6 +70,7 @@ class SerialEvalCollector(object):
         reward = np.zeros(len(self.envs), dtype="float32")
         obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))
         self.agent.reset()
+        self.agent.eval_mode(itr)
         for t in range(self.max_T):
             act_pyt, agent_info = self.agent.step(obs_pyt, act_pyt, rew_pyt)
             action = numpify_buffer(act_pyt)

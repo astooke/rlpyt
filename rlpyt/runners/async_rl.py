@@ -189,16 +189,16 @@ class AsyncRlBase(BaseRunner):
         self.optimizer_procs = procs
 
     def launch_memcpy(self, sample_buffers, replay_buffer):
-        args_list = list()
+        procs = list()
         for i in range(len(sample_buffers)):  # (2 for double-buffer.)
             ctrl = AttrDict(
                 quit=self.ctrl.quit,
                 sample_ready=self.ctrl.sample_ready[i],
                 sample_copied=self.ctrl.sample_copied[i],
             )
-            args_list.append((sample_buffers[i], self.algo.samples_to_buffer,
-                replay_buffer, ctrl))
-        procs = [mp.Process(target=memory_copier, args=a) for a in args_list]
+            procs.append(mp.Process(target=memory_copier,
+                args=(sample_buffers[i], self.algo.samples_to_buffer,
+                replay_buffer, ctrl)))
         for p in procs:
             p.start()
         self.memcpy_procs = procs
@@ -211,7 +211,7 @@ class AsyncRlBase(BaseRunner):
             ctrl=self.ctrl,
             traj_infos_queue=self.traj_infos_queue,
             n_itr=n_itr,
-            )
+        )
         if self._eval:
             target = run_async_sampler_eval
             kwargs["eval_itrs"] = self.log_interval_itrs
@@ -220,12 +220,15 @@ class AsyncRlBase(BaseRunner):
 
     def shutdown(self):
         self.pbar.stop()
+        logger.log("Master optimizer shutting down, joining sampler process...")
         self.sampler_proc.join()
+        logger.log("Sampler shutdown.  Joining memory copiers...")
         for p in self.memcpy_procs:
             p.join()
+        logger.log("Memory copiers shutdown.  Joining any optimizer processes...")
         for p in getattr(self, "optimizer_procs", []):
             p.join()
-        logger.log("Training complete.")
+        logger.log("All processes shutdown.  Training complete.")
 
     def initialize_logging(self):
         self._opt_infos = {k: list() for k in self.algo.opt_info_fields}
@@ -412,7 +415,7 @@ class AsyncOptWorker(object):
         )
 
     def shutdown(self):
-        pass
+        logger.log(f"Async optimizaiton worker {self.rank} shutting down.")
 
 
 def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
@@ -427,6 +430,7 @@ def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
                 traj_infos_queue.put(traj_info)
             ctrl.sampler_itr.value = itr
         j ^= 1  # Double buffer.
+    logger.log(f"Async sampler reached final itr: {itr}, quitting.")
     ctrl.quit.value = True  # This ends the experiment.
     sampler.shutdown()
     for s in ctrl.sample_ready:
@@ -453,6 +457,7 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
         else:
             ctrl.sampler_itr.value = itr
         j ^= 1  # Double buffer
+    logger.log(f"Async sampler reached final itr: {itr}, quitting.")
     ctrl.quit.value = True  # This ends the experiment.
     sampler.shutdown()
     for s in ctrl.sample_ready:
@@ -466,6 +471,7 @@ def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
             break
         replay_buffer.append_samples(samples_to_buffer(sample_buffer))
         ctrl.sample_copied.release()
+    logger.log("Memory copier shutting down.")
 
 
 # Helpers

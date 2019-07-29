@@ -56,7 +56,7 @@ class AsyncSerialSampler(BaseSampler):
             batch_T=self.batch_spec.T,
             TrajInfoCls=self.TrajInfoCls,
             agent=self.agent,
-            sync=sync
+            sync=sync,
         )
         if self.eval_n_envs > 0:
             eval_envs = [self.EnvCls(**self.eval_env_kwargs)

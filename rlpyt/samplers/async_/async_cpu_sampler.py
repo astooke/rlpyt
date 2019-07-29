@@ -124,7 +124,7 @@ class AsyncCpuSampler(BaseSampler):
     def obtain_samples(self, itr, j):
         # sync shared memory?  maybe don't need to if optimizer did?
         self.ctrl.itr.value = itr
-        self.ctrl.j.value = j  # Tell collectors which buffer to use.
+        self.sync.j.value = j  # Tell collectors which buffer to use.
         self.ctrl.barrier_in.wait()
         # Workers step environments and sample actions here.
         self.ctrl.barrier_out.wait()

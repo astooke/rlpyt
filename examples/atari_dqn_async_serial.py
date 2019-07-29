@@ -37,13 +37,13 @@ def build_and_train(game="pong", run_ID=0):
         batch_B=4,
         max_decorrelation_steps=100,
         eval_env_kwargs=dict(game=game),
-        eval_n_envs=2,
+        eval_n_envs=1,
         eval_max_steps=int(10e3),
-        eval_max_trajectories=4,
+        eval_max_trajectories=2,
     )
     algo = DQN(
         replay_ratio=18,
-        min_steps_learn=1e4,
+        min_steps_learn=5e3,
         replay_size=int(1e5)
     )
     agent = AtariDqnAgent()
@@ -52,7 +52,7 @@ def build_and_train(game="pong", run_ID=0):
         agent=agent,
         sampler=sampler,
         n_steps=2e6,
-        log_interval_steps=1e4,
+        log_interval_steps=5e3,
         affinity=affinity,
     )
     config = dict(game=game)
