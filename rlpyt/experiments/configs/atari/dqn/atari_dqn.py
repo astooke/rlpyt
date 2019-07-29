@@ -112,3 +112,15 @@ config = copy.deepcopy(configs["dqn"])
 config["sampler"]["batch_T"] = 4
 config["sampler"]["batch_B"] = 4
 configs["cpu"] = config
+
+config = copy.deepcopy(configs["dqn"])
+config["sampler"]["batch_T"] = 8
+config["sampler"]["batch_B"] = 2
+config["sampler"]["max_decorrelation_steps"] = 20
+config["sampler"]["eval_max_steps"] = 8e3
+config["sampler"]["eval_max_trajectories"] = 4
+config["runner"]["n_steps"] = 5e4
+config["runner"]["log_interval_steps"] = 1e4
+config["algo"]["min_steps_learn"] = 1e4
+config["algo"]["replay_size"] = 1e4
+configs["debug"] = config

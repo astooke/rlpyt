@@ -137,6 +137,7 @@ class AsyncCpuSampler(BaseSampler):
         return traj_infos
 
     def evaluate_agent(self, itr):
+        self.ctrl.itr.value = itr
         self.ctrl.do_eval.value = True
         self.sync.stop_eval.value = False
         self.ctrl.barrier_in.wait()

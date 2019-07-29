@@ -82,8 +82,8 @@ class BaseAgent(object):
             self.shared_model.load_state_dict(self.model.state_dict())
 
     def send_shared_memory(self):
-        with self._rw_lock.write_lock:
-            if self.shared_model is not self.model:
+        if self.shared_model is not self.model:
+            with self._rw_lock.write_lock:
                 # Workaround the fact that DistributedDataParallel prepends
                 # 'module.' to every key, but the sampler models will not be
                 # wrapped in DistributedDataParallel.
