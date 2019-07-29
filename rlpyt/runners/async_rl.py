@@ -91,6 +91,7 @@ class AsyncRlBase(BaseRunner):
             mid_batch_reset=self.sampler.mid_batch_reset,
             async_=True,
             updates_per_sync=self.updates_per_sync,
+            agent=self.agent,
         )
         self.sampler_batch_size = self.sampler.batch_spec.size
         self.world_size = len(self.affinity.optimizer)
@@ -108,7 +109,7 @@ class AsyncRlBase(BaseRunner):
             ddp=self.world_size > 1,
         )
         self.algo.async_initialize(
-            agent=self.agent,
+            # agent=self.agent,
             sampler_n_itr=n_itr,
             rank=0,
             world_size=self.world_size,

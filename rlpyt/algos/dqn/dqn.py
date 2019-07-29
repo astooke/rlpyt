@@ -60,7 +60,7 @@ class DQN(RlAlgorithm):
         self.update_counter = 0
 
     def initialize_replay_buffer(self, batch_spec, examples, mid_batch_reset,
-            async_=False, updates_per_sync=1):
+            async_=False, updates_per_sync=1, agent=None):
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -90,6 +90,15 @@ class DQN(RlAlgorithm):
         self.mid_batch_reset = mid_batch_reset
         self.sampler_bs = batch_spec.size
         self.updates_per_sync = updates_per_sync
+
+        if agent is None:
+            agent = self.agent
+        else:
+            self.agent = agent
+        self.min_itr_learn = int(self.min_steps_learn // self.sampler_bs)
+        eps_itr_max = max(1, int(self.eps_steps // self.sampler_bs))
+        agent.set_epsilon_itr_min_max(self.min_itr_learn, eps_itr_max)
+
         return self.replay_buffer
 
     def async_initialize(self, agent, sampler_n_itr, rank=0, world_size=1):
@@ -117,9 +126,6 @@ class DQN(RlAlgorithm):
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
-        self.min_itr_learn = self.min_steps_learn // self.sampler_bs
-        eps_itr_max = max(1, self.eps_steps // self.sampler_bs)
-        agent.set_epsilon_itr_min_max(self.min_itr_learn, eps_itr_max)
         if self.prioritized_replay:
             self.pri_beta_itr = max(1, self.pri_beta_steps // self.sampler_bs)
 
