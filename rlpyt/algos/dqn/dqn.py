@@ -122,6 +122,8 @@ class DQN(RlAlgorithm):
             if agent.recurrent:
                 raise TypeError("For recurrent agents use r2d1 algo.")
             self.agent = agent
+        else:
+            agent = self.agent
         self.n_itr = n_itr
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
