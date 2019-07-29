@@ -54,15 +54,14 @@ class AsyncRlBase(BaseRunner):
             self.log_diagnostics(0, 0, 0)
         log_counter = 0
         while True:  # Run until sampler hits n_steps and sets ctrl.quit=True.
-            if self.ctrl.quit.value:
-                if self.ctrl.opt_throttle is not None:
-                    self.ctrl.quit_opt.value = True
-                    self.ctrl.opt_throttle.wait()  # Opt workers see quit_opt.
-                    break
             with logger.prefix(f"opt_itr #{itr} "):
                 while self.ctrl.sampler_itr.value < throttle_itr:
+                    if self.ctrl.quit.value:
+                        break
                     time.sleep(THROTTLE_WAIT)
                     throttle_time += THROTTLE_WAIT
+                if self.ctrl.quit.value:
+                    break
                 if self.ctrl.opt_throttle is not None:
                     self.ctrl.opt_throttle.wait()
                 throttle_itr += delta_throttle_itr
@@ -222,12 +221,15 @@ class AsyncRlBase(BaseRunner):
         self.pbar.stop()
         logger.log("Master optimizer shutting down, joining sampler process...")
         self.sampler_proc.join()
-        logger.log("Sampler shutdown.  Joining memory copiers...")
+        logger.log("Joining memory copiers...")
         for p in self.memcpy_procs:
             p.join()
-        logger.log("Memory copiers shutdown.  Joining any optimizer processes...")
-        for p in getattr(self, "optimizer_procs", []):
-            p.join()
+        if self.ctrl.opt_throttle is not None:
+            logger.log("Joining optimizer processes...")
+            self.ctrl.quit_opt.value = True
+            self.ctrl.opt_throttle.wait()
+            for p in self.optimizer_procs:
+                p.join()
         logger.log("All processes shutdown.  Training complete.")
 
     def initialize_logging(self):
