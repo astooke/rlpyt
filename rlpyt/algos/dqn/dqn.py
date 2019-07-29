@@ -101,7 +101,7 @@ class DQN(RlAlgorithm):
 
         return self.replay_buffer
 
-    def async_initialize(self, agent, sampler_n_itr, rank=0, world_size=1):
+    def async_initialize(self, sampler_n_itr, rank=0, world_size=1, agent=None):
         self.updates_per_optimize = self.updates_per_sync
         self._initialize(agent, sampler_n_itr)
 
@@ -118,9 +118,10 @@ class DQN(RlAlgorithm):
         self.initialize_replay_buffer(batch_spec, examples, mid_batch_reset)
 
     def _initialize(self, agent, n_itr):
-        if agent.recurrent:
-            raise TypeError("For recurrent agents use r2d1 algo.")
-        self.agent = agent
+        if agent is not None:
+            if agent.recurrent:
+                raise TypeError("For recurrent agents use r2d1 algo.")
+            self.agent = agent
         self.n_itr = n_itr
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
