@@ -112,7 +112,7 @@ class AsyncRlBase(BaseRunner):
             cuda_idx=main_affinity.get("cuda_idx", None),
             ddp=self.world_size > 1,
         )
-        self.algo.optim_process_initialize(rank=0)
+        self.algo.optim_initialize(rank=0)
         throttle_itr = 1 + getattr(self.algo,
             "min_steps_learn", 0) // self.sampler_batch_size
         delta_throttle_itr = (self.algo.batch_size * self.world_size *
@@ -398,7 +398,7 @@ class AsyncOptWorker(object):
             cuda_idx=self.affinity.get("cuda_idx", None),
             ddp=True,
         )
-        self.algo.optim_process_initialize(rank=self.rank)
+        self.algo.optim_initialize(rank=self.rank)
 
     def shutdown(self):
         logger.log(f"Async optimization worker {self.rank} shutting down.")
