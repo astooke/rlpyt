@@ -83,7 +83,7 @@ class EpsilonGreedyAgentMixin(object):
                 (self.eps_itr_max - self.eps_itr_min))
             self.eps_sample = prog * self.eps_final + (1 - prog) * self.eps_init
             if itr % (self.eps_itr_max // 10) == 0 or itr == self.eps_itr_max:
-                logger.log(f"Agent at itr {itr}, sample eps {self.eps_sample}".)
+                logger.log(f"Agent at itr {itr}, sample eps {self.eps_sample}")
         self.distribution.set_epsilon(self.eps_sample)
 
     # def sample_mode(self, itr):
