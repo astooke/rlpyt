@@ -127,7 +127,7 @@ class DQN(RlAlgorithm):
         return self.replay_buffer
 
     def _initialize_optim(self):
-        self.optimizer = self.OptimCls(agent.parameters(),
+        self.optimizer = self.OptimCls(self.agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
