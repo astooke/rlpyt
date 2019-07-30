@@ -108,6 +108,7 @@ class AsyncGpuSampler(BaseSampler):
     def evaluate_agent(self, itr):
         self.ctrl.do_eval.value = True
         self.ctrl.stop_eval.value = False
+        assert not drain_queue(self.traj_infos_queue)  # Debug check.
         self.ctrl.barrier_in.wait()
         traj_infos = list()
         if self.eval_max_trajectories is not None:
@@ -165,6 +166,7 @@ class AsyncGpuSampler(BaseSampler):
                 self.serve_actions_evaluation(self.ctrl.itr.value)
             else:
                 self.agent.sample_mode(self.ctrl.itr.value)
+                # Only for bootstrap_value:
                 self.samples_np = self.double_buffer[self.ctrl.j.value]
                 self.serve_actions(self.ctrl.itr.value)
             self.ctrl.barrier_out.wait()
@@ -241,7 +243,7 @@ class AsyncGpuSampler(BaseSampler):
             step_blockers=[mp.Semaphore(0) for _ in range(n_worker)],
             act_waiters=[mp.Semaphore(0) for _ in range(n_worker)],
             stop_eval=mp.RawValue(ctypes.c_bool, False),
-            # stop_eval=self.ctrl.stop_eval,
+            # stop_eval=self.ctrl.stop_eval,  # No, make 2-level signal.
             j=self.ctrl.j,  # Copy into sync which passes to Collector.
         )
         step_buffer_pyt, step_buffer_np = build_step_buffer(self.examples,
@@ -271,7 +273,7 @@ class AsyncGpuSampler(BaseSampler):
             eval_CollectorCls=self.eval_CollectorCls or EvalCollector,
             eval_env_kwargs=self.eval_env_kwargs,
             eval_max_T=self.eval_max_T,
-            )
+        )
         workers_kwargs = assemble_workers_kwargs(affinity, seed, double_buffer,
             n_envs_list, step_buffer_np, sync, self.eval_n_envs_per,
             eval_step_buffer_np)

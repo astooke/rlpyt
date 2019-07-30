@@ -83,13 +83,17 @@ class AsyncSerialSampler(BaseSampler):
         logger.log("Serial sampler initialized.")
 
     def obtain_samples(self, itr, j):
+        # TODO: make a different agent model within this sampler, so can
+        # select when to copy over new model from optimizer, so it doesn't
+        # happen in the middle of a forward pass (wasn't an issue with GPU).
         self.sync.j.value = j  # Tell the collector which buffer.
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
             self.agent_inputs, self.traj_infos, itr)
         self.collector.reset_if_needed(agent_inputs)
         self.agent_inputs = agent_inputs
         self.traj_infos = traj_infos
-        return traj_infos
+        return completed_infos
 
     def evaluate_agent(self, itr):
+        # TODO: separate agent model.
         return self.eval_collector.collect_evaluation(itr)
