@@ -21,7 +21,6 @@ class BaseSampler(object):
             eval_env_kwargs=None,  # Must supply if doing eval.
             eval_max_steps=None,  # int if using evaluation.
             eval_max_trajectories=None,  # Optional earlier cutoff.
-            eval_min_envs_reset=1,
             ):
         eval_max_steps = None if eval_max_steps is None else int(eval_max_steps)
         eval_max_trajectories = (None if eval_max_trajectories is None else

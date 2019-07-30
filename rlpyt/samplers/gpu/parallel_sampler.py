@@ -61,7 +61,6 @@ class GpuParallelSampler(BaseSampler):
                 eval_n_envs)
             self.eval_step_buffer_pyt = eval_step_buffer_pyt
             self.eval_step_buffer_np = eval_step_buffer_np
-            assert self.eval_min_envs_reset <= eval_n_envs
         else:
             eval_n_envs_per = 0
             eval_step_buffer_np = None
