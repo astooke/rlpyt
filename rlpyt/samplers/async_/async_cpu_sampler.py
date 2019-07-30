@@ -145,7 +145,7 @@ class AsyncCpuSampler(BaseSampler):
         self.ctrl.itr.value = itr
         self.ctrl.do_eval.value = True
         self.sync.stop_eval.value = False
-        assert not drain_queue(self.traj_infos_queue)
+        # assert not drain_queue(self.traj_infos_queue)
         self.ctrl.barrier_in.wait()
         traj_infos = list()  # traj_infos_queue previously drained.
         if self.eval_max_trajectories is not None:

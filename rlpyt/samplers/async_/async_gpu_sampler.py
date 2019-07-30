@@ -108,7 +108,7 @@ class AsyncGpuSampler(BaseSampler):
     def evaluate_agent(self, itr):
         self.ctrl.do_eval.value = True
         self.ctrl.stop_eval.value = False
-        assert not drain_queue(self.traj_infos_queue)  # Debug check.
+        # assert not drain_queue(self.traj_infos_queue)  # Debug check.
         self.ctrl.barrier_in.wait()
         traj_infos = list()
         if self.eval_max_trajectories is not None:
@@ -182,7 +182,7 @@ class AsyncGpuSampler(BaseSampler):
         for t in range(self.batch_spec.T):
             for b in step_blockers:
                 b.acquire()  # Workers written obs and rew, first prev_act.
-                assert not b.acquire(block=False)  # Debug check.
+                # assert not b.acquire(block=False)  # Debug check.
             if self.mid_batch_reset and np.any(step_np.done):
                 for b_reset in np.where(step_np.done)[0]:
                     step_np.action[b_reset] = 0  # Null prev_action into agent.
@@ -192,12 +192,12 @@ class AsyncGpuSampler(BaseSampler):
             step_np.action[:] = action  # Worker applies to env.
             step_np.agent_info[:] = agent_info  # Worker sends to traj_info.
             for w in act_waiters:
-                assert not w.acquire(block=False)  # Debug check.
+                # assert not w.acquire(block=False)  # Debug check.
                 w.release()  # Signal to worker.
 
         for b in step_blockers:
             b.acquire()
-            assert not b.acquire(block=False)  # Debug check.
+            # assert not b.acquire(block=False)  # Debug check.
         if "bootstrap_value" in self.samples_np.agent:
             self.samples_np.agent.bootstrap_value[:] = self.agent.value(
                 *agent_inputs)
@@ -228,13 +228,13 @@ class AsyncGpuSampler(BaseSampler):
             if self.ctrl.stop_eval.value:  # From overall master process.
                 self.sync.stop_eval.value = True  # Give to my workers.
             for w in act_waiters:
-                assert not w.acquire(block=False)  # Debug check.
+                # assert not w.acquire(block=False)  # Debug check.
                 w.release()
             if self.sync.stop_eval.value:
                 break
         for b in step_blockers:
             b.acquire()  # Workers always do extra release; drain it.
-            assert not b.acquire(block=False)  # Debug check.
+            # assert not b.acquire(block=False)  # Debug check.
 
     def launch_workers(self, double_buffer, traj_infos_queue, affinity,
             seed, n_envs_list):
