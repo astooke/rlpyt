@@ -59,8 +59,45 @@ class DQN(RlAlgorithm):
         save__init__args(locals())
         self.update_counter = 0
 
-    def initialize_replay_buffer(self, batch_spec, examples, mid_batch_reset,
-            async_=False, updates_per_sync=1, agent=None):
+    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
+            rank=0, world_size=1):
+        """Used in basic or synchronous multi-GPU runners, not async."""
+        self.agent = agent
+        self.n_itr = n_itr
+        self.sampler_bs = sampler_bs = batch_spec.size
+        self.updates_per_optimize = round(self.replay_ratio * batch_spec.size /
+            self.batch_size)
+        logger.log(f"From sampler batch size {batch_spec.size}, training "
+            f"batch size {self.batch_size}, and training ratio "
+            f"{self.replay_ratio}, computed {self.updates_per_optimize} "
+            f"updates per iteration.")
+        self.min_itr_learn = (int(self.min_steps_learn) // sampler_bs)
+        eps_itr_max = max(1, int(self.eps_steps // sampler_bs))
+        agent.step_epsilon_itr_min_max(self.min_itr_learn, eps_itr_max)
+        self.initialize_replay_buffer(examples, batch_spec)
+        self._initialize_optim()
+
+    def master_runner_initialize(self, agent, batch_spec, examples, mid_batch_reset,
+            updates_per_sync, sampler_n_itr, world_size=1):
+        """Used in async runner only."""
+        self.agent = agent
+        self.n_itr = sampler_n_itr
+        self.initialize_replay_buffer(examples, batch_spec, async_=True)
+        self.mid_batch_reset = mid_batch_reset
+        self.sampler_bs = sampler_bs = batch_spec.size
+        self.updates_per_optimize = updates_per_sync
+        self.min_itr_learn = (int(self.min_steps_learn) // sampler_bs)
+        eps_itr_max = max(1, int(self.eps_steps // sampler_bs))
+        # Before any forking so all sub processes have epsilon schedule:
+        agent.step_epsilon_itr_min_max(self.min_itr_learn, eps_itr_max)
+        return self.replay_buffer
+
+    def optim_process_initialize(self, rank=0):
+        """Used in async runner only."""
+        self.rank = rank
+        self._initialize_optim()
+
+    def initialize_replay_buffer(self, examples, batch_spec, async_=False):
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -87,44 +124,9 @@ class DQN(RlAlgorithm):
             ReplayCls = (AsyncUniformReplayFrameBuffer if async_ else
                 UniformReplayFrameBuffer)
         self.replay_buffer = ReplayCls(**replay_kwargs)
-        self.mid_batch_reset = mid_batch_reset
-        self.sampler_bs = batch_spec.size
-        self.updates_per_sync = updates_per_sync
-
-        if agent is None:
-            agent = self.agent
-        else:
-            self.agent = agent
-        self.min_itr_learn = int(self.min_steps_learn // self.sampler_bs)
-        eps_itr_max = max(1, int(self.eps_steps // self.sampler_bs))
-        agent.set_epsilon_itr_min_max(self.min_itr_learn, eps_itr_max)
-
         return self.replay_buffer
 
-    def async_initialize(self, sampler_n_itr, rank=0, world_size=1, agent=None):
-        self.updates_per_optimize = self.updates_per_sync
-        self._initialize(agent, sampler_n_itr)
-
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
-            rank=0, world_size=1):
-        self.sampler_bs = batch_spec.size
-        self.updates_per_optimize = round(self.replay_ratio * batch_spec.size /
-            self.batch_size)
-        logger.log(f"From sampler batch size {batch_spec.size}, training "
-            f"batch size {self.batch_size}, and training ratio "
-            f"{self.replay_ratio}, computed {self.updates_per_optimize} "
-            f"updates per iteration.")
-        self._initialize(agent, n_itr)
-        self.initialize_replay_buffer(batch_spec, examples, mid_batch_reset)
-
-    def _initialize(self, agent, n_itr):
-        if agent is not None:
-            if agent.recurrent:
-                raise TypeError("For recurrent agents use r2d1 algo.")
-            self.agent = agent
-        else:
-            agent = self.agent
-        self.n_itr = n_itr
+    def _initialize_optim(self):
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
@@ -204,11 +206,13 @@ class DQN(RlAlgorithm):
     def update_itr_hyperparams(self, itr):
         # EPS NOW IN AGENT.
         # if itr <= self.eps_itr:  # Epsilon can be vector-valued.
-        #     prog = min(1, max(0, itr - self.min_itr_learn) / self.eps_itr)
+        #     prog = min(1, max(0, itr - self.min_itr_learn) / 
+        #       (self.eps_itr - self.min_itr_learn))
         #     new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
         #     self.agent.set_sample_epsilon_greedy(new_eps)
         if self.prioritized_replay and itr <= self.pri_beta_itr:
-            prog = min(1, max(0, itr - self.min_itr_learn) / self.pri_beta_itr)
+            prog = min(1, max(0, itr - self.min_itr_learn) /
+                (self.pri_beta_itr - self.min_itr_learn))
             new_beta = (prog * self.pri_beta_final +
                 (1 - prog) * self.pri_beta_init)
             self.replay_buffer.set_beta(new_beta)

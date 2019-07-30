@@ -38,7 +38,8 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         self.env_spaces = env_spaces
         self.env_model_kwargs = env_model_kwargs
         self.share_memory = share_memory
-        super().initialize(env_spaces, share_memory, global_B, env_ranks)
+        if env_ranks is not None:
+            self.make_vec_eps(global_B, env_ranks)
 
     def initialize_device(self, cuda_idx=None, ddp=False):
         if cuda_idx is None:

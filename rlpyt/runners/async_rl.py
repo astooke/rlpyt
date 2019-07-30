@@ -85,19 +85,23 @@ class AsyncRlBase(BaseRunner):
             traj_info_kwargs=self.get_traj_info_kwargs(),
             seed=self.seed,
         )
-        replay_buffer = self.algo.initialize_replay_buffer(
-            batch_spec=self.sampler.batch_spec,
-            examples=examples,
-            mid_batch_reset=self.sampler.mid_batch_reset,
-            async_=True,
-            updates_per_sync=self.updates_per_sync,
-            agent=self.agent,
-        )
         self.sampler_batch_size = self.sampler.batch_spec.size
         self.world_size = len(self.affinity.optimizer)
         n_itr = self.get_n_itr()  # Number of sampler iterations.
-        self.traj_infos_queue = mp.Queue()
+        replay_buffer = self.algo.master_runner_initialize(
+            agent=self.agent,
+            batch_spec=self.sampler.batch_spec,
+            examples=examples,
+            mid_batch_reset=self.sampler.mid_batch_reset,
+            updates_per_sync=self.updates_per_sync,
+            sampler_n_itr=n_itr,
+            world_size=self.world_size,
+        )
         self.launch_workers(n_itr, double_buffer, replay_buffer)
+        throttle_itr, delta_throttle_itr = self.optim_startup()
+        return throttle_itr, delta_throttle_itr
+
+    def optim_startup(self):
         main_affinity = self.affinity.optimizer[0]
         p = psutil.Process()
         p.cpu_affinity(main_affinity["cpus"])
@@ -108,12 +112,7 @@ class AsyncRlBase(BaseRunner):
             cuda_idx=main_affinity.get("cuda_idx", None),
             ddp=self.world_size > 1,
         )
-        self.algo.async_initialize(
-            # agent=self.agent,
-            sampler_n_itr=n_itr,
-            rank=0,
-            world_size=self.world_size,
-        )
+        self.algo.optim_process_initialize(rank=0)
         throttle_itr = 1 + getattr(self.algo,
             "min_steps_learn", 0) // self.sampler_batch_size
         delta_throttle_itr = (self.algo.batch_size * self.world_size *
@@ -123,6 +122,7 @@ class AsyncRlBase(BaseRunner):
         return throttle_itr, delta_throttle_itr
 
     def launch_workers(self, n_itr, double_buffer, replay_buffer):
+        self.traj_infos_queue = mp.Queue()
         self.ctrl = self.build_ctrl(self.world_size)
         self.launch_sampler(n_itr)
         self.launch_memcpy(double_buffer, replay_buffer)
@@ -148,7 +148,7 @@ class AsyncRlBase(BaseRunner):
             sampler_itr=mp.Value('l', lock=True),
             opt_throttle=opt_throttle,
             eval_time=mp.Value('d', lock=True),
-            )
+        )
 
     def launch_optimizer_workers(self, n_itr):
         if self.world_size == 1:
@@ -166,7 +166,7 @@ class AsyncRlBase(BaseRunner):
             seed=self.seed + 100,
             ctrl=self.ctrl,
             port=port,
-            ) for rank in range(1, len(affinities))]
+        ) for rank in range(1, len(affinities))]
         procs = [mp.Process(target=r.optimize, args=()) for r in runners]
         for p in procs:
             p.start()
@@ -387,7 +387,6 @@ class AsyncOptWorker(object):
             world_size=self.world_size,
             init_method=f"tcp://127.0.0.1:{self.port}",
         )
-        print("INSIDE OPT WORKER STARTUP")
         p = psutil.Process()
         p.cpu_affinity(self.affinity["cpus"])
         logger.log(f"Optimizer rank {self.rank} CPU affinity: {p.cpu_affinity()}.")
@@ -400,15 +399,10 @@ class AsyncOptWorker(object):
             cuda_idx=self.affinity.get("cuda_idx", None),
             ddp=True,
         )
-        self.algo.async_initialize(
-            agent=self.agent,
-            sampler_n_itr=self.n_itr,
-            rank=self.rank,
-            world_size=self.world_size,
-        )
+        self.algo.optim_process_initialize(rank=self.rank)
 
     def shutdown(self):
-        logger.log(f"Async optimizaiton worker {self.rank} shutting down.")
+        logger.log(f"Async optimization worker {self.rank} shutting down.")
 
 
 def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):

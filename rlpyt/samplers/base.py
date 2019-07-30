@@ -66,9 +66,9 @@ class BaseCollector(object):
         raise NotImplementedError
 
     def start_agent(self):
-        if getattr(self, "agent", None) is not None:  # Not in GPU sampler.
+        if getattr(self, "agent", None) is not None:  # Not in GPU samplers.
             self.agent.collector_initialize(
-                global_B=self.global_B,
+                global_B=self.global_B,  # Args used e.g. for vector epsilon greedy.
                 env_ranks=self.env_ranks,
             )
             self.agent.reset()

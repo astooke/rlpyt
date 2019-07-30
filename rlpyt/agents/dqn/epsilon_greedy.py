@@ -5,6 +5,7 @@
 import torch
 
 from rlpyt.utils.quick_args import save__init__args
+from rlpyt.utils.logging import logger
 # from rlpyt.utils.buffer import np_mp_array
 
 
@@ -24,14 +25,11 @@ class EpsilonGreedyAgentMixin(object):
         super().__init__(*args, **kwargs)
         save__init__args(locals())
 
-    def initialize(self, env_space, share_memory=False, global_B=1,
-            env_ranks=None):
-        self._make_eps_init_final(global_B, env_ranks)
-
     def collector_initialize(self, global_B=1, env_ranks=None):
-        self._make_eps_init_final(global_B, env_ranks)
+        if env_ranks is not None:
+            self.make_vec_eps(global_B, env_ranks)
 
-    def _make_eps_init_final(self, global_B, env_ranks):
+    def make_vec_eps(self, global_B, env_ranks):
         if env_ranks is None:
             print("OOPS HAD NONE ENV_RANKS")
             return
@@ -47,6 +45,8 @@ class EpsilonGreedyAgentMixin(object):
 
     def set_epsilon_itr_min_max(self, eps_itr_min, eps_itr_max):
         # Beginning and end of linear ramp down of epsilon.
+        logger.log(f"Agent setting min/max epsilon itrs: {eps_itr_min}, "
+            f"{eps_itr_max}")
         self.eps_itr_min = eps_itr_min
         self.eps_itr_max = eps_itr_max
 
@@ -79,10 +79,12 @@ class EpsilonGreedyAgentMixin(object):
     def sample_mode(self, itr):
         super().sample_mode(itr)
         if itr <= self.eps_itr_max:
-            prog = min(1, max(0, itr - self.eps_itr_min) / self.eps_itr_max)
+            prog = min(1, max(0, itr - self.eps_itr_min) /
+                (self.eps_itr_max - self.eps_itr_min))
             self.eps_sample = prog * self.eps_final + (1 - prog) * self.eps_init
+            if itr % (self.eps_itr_max // 10) == 0 or itr == self.eps_itr_max:
+                logger.log(f"Agent at itr {itr}, sample eps {self.eps_sample}".)
         self.distribution.set_epsilon(self.eps_sample)
-
 
     # def sample_mode(self, itr):
     #     super().sample_mode(itr)
@@ -93,6 +95,8 @@ class EpsilonGreedyAgentMixin(object):
 
     def eval_mode(self, itr):
         super().eval_mode(itr)
+        logger.log(f"Agent at itr {itr}, eval eps "
+            f"{self.eps_eval if itr > 0 else 1.}")
         self.distribution.set_epsilon(self.eps_eval if itr > 0 else 1.)
 
     # def eval_mode(self, itr):
