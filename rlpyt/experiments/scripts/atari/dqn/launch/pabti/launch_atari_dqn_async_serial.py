@@ -25,7 +25,7 @@ variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
 
-default_config_key = "serial"
+default_config_key = "cpu"  # "serial"
 
 run_experiments(
     script=script,

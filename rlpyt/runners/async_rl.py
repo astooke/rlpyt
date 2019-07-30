@@ -429,6 +429,7 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
     j = 0
     for itr in range(n_itr):
         ctrl.sample_copied[j].acquire()
+        assert not ctrl.sample_copied[j].acquire(block=False)  # Debug check.
         sampler.obtain_samples(itr, j)
         ctrl.sample_ready[j].release()
         if itr % eval_itrs == 0:
@@ -453,6 +454,7 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
 def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
     while True:
         ctrl.sample_ready.acquire()
+        assert not ctrl.sample_ready.acquire(block=False)  # Debug check.
         if ctrl.quit.value:
             break
         replay_buffer.append_samples(samples_to_buffer(sample_buffer))
