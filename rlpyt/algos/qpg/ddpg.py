@@ -5,7 +5,8 @@ from collections import namedtuple
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
-from rlpyt.replays.non_sequence.uniform import UniformReplayBuffer
+from rlpyt.replays.non_sequence.uniform import (UniformReplayBuffer,
+    AsyncUniformReplayBuffer)
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import valid_mean
 from rlpyt.algos.utils import valid_from_done
@@ -46,31 +47,47 @@ class DDPG(RlAlgorithm):
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
             rank=0, world_size=1):
-        if agent.recurrent:
-            raise NotImplementedError
+        """Used in basic or synchronous multi-GPU runners, not async."""
         self.agent = agent
         self.n_itr = n_itr
         self.mid_batch_reset = mid_batch_reset
-        self.mu_optimizer = self.OptimCls(agent.mu_parameters(),
+        self.sampler_bs = sampler_bs = batch_spec.size
+        self.updates_per_optimize = max(1, round(self.replay_ratio * sampler_bs /
+            self.batch_size))
+        logger.log(f"From sampler batch size {sample_bs}, training "
+            f"batch size {self.batch_size}, and training ratio "
+            f"{self.replay_ratio}, computed {self.updates_per_optimize} "
+            f"updates per iteration.")
+        self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
+        agent.give_min_itr_learn(self.min_itr_learn)
+        self.initialize_replay_buffer(examples, batch_spec)
+        self.optim_initialize(rank)
+
+    def master_runner_initialize(self, agent, batch_spec, examples, mid_batch_reset,
+            updates_per_sync, sampler_n_itr, world_size=1):
+        """Used in async runner only."""
+        self.agent = agent
+        self.n_itr = sampler_n_itr
+        self.initialize_replay_buffer(examples, batch_spec, async_=True)
+        self.mid_batch_reset = mid_batch_reset
+        self.sampler_bs = sampler_bs = batch_spec.size
+        self.updates_per_optimize = updates_per_sync
+        self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
+        agent.give_min_itr_learn(self.min_itr_learn)
+        return self.replay_buffer
+
+    def optim_initialize(self, rank=0):
+        """Called by async runner."""
+        self.rank = rank
+        self.mu_optimizer = self.OptimCls(self.agent.mu_parameters(),
             lr=self.mu_learning_rate, **self.optim_kwargs)
-        self.q_optimizer = self.OptimCls(agent.q_parameters(),
+        self.q_optimizer = self.OptimCls(self.agent.q_parameters(),
             lr=self.q_learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
             self.q_optimizer.load_state_dict(self.initial_optim_state_dict["q"])
             self.mu_optimizer.load_state_dict(self.initial_optim_state_dict["mu"])
 
-        sample_bs = batch_spec.size
-        train_bs = self.batch_size
-        assert (self.replay_ratio * sample_bs) % train_bs == 0
-        self.updates_per_optimize = int((self.replay_ratio * sample_bs) //
-            train_bs)
-        logger.log(f"From sampler batch size {sample_bs}, training "
-            f"batch size {train_bs}, and training ratio "
-            f"{self.replay_ratio}, computed {self.updates_per_optimize} "
-            f"updates per iteration.")
-        self.min_itr_learn = self.min_steps_learn // sample_bs
-        self.agent.give_min_itr_learn(self.min_itr_learn)
-
+    def initialize_replay_buffer(self, examples, batch_spec, async_=False):
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -83,16 +100,12 @@ class DDPG(RlAlgorithm):
             B=batch_spec.B,
             n_step_return=self.n_step_return
         )
-        self.replay_buffer = UniformReplayBuffer(**replay_kwargs)
+        ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
+        self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, itr, samples=None):
         if samples is not None:
-            samples_to_buffer = SamplesToBuffer(
-                observation=samples.env.observation,
-                action=samples.agent.action,
-                reward=samples.env.reward,
-                done=samples.env.done,
-            )
+            samples_to_buffer = self.samples_to_buffer(samples)
             self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
@@ -124,6 +137,14 @@ class DDPG(RlAlgorithm):
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target(self.target_update_tau)
         return opt_info
+
+    def samples_to_buffer(self, samples):
+        return SamplesToBuffer(
+            observation=samples.env.observation,
+            action=samples.agent.action,
+            reward=samples.env.reward,
+            done=samples.env.done,
+        )
 
     def mu_loss(self, samples, valid):
         mu_losses = self.agent.q_at_mu(*samples.agent_inputs)

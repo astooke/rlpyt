@@ -2,7 +2,7 @@
 import torch
 from collections import namedtuple
 
-from rlpyt.algos.base import RlAlgorithm
+from rlpyt.algos.dqn.dqn import DQN, SamplesToBuffer
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
@@ -14,13 +14,11 @@ from rlpyt.algos.utils import valid_from_done
 from rlpyt.utils.buffer import buffer_to, buffer_method
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr", "priority"])
-SamplesToBuffer = namedarraytuple("SamplesToBuffer",
-    ["observation", "action", "reward", "done"])
 SamplesToBufferRnn = namedarraytuple("SamplesToBufferRnn",
     SamplesToBuffer._fields + ("prev_rnn_state",))
 
 
-class R2D1(RlAlgorithm):
+class R2D1(DQN):
     """Recurrent-replay DQN with options for: Double-DQN, Dueling Architecture,
     n-step returns, prioritized_replay."""
 
@@ -37,7 +35,7 @@ class R2D1(RlAlgorithm):
             delta_clip=None,  # Typically use squared-error loss (Steven).
             replay_size=int(1e6),
             replay_ratio=1,
-            target_update_interval=2500,  # Might shrink this?
+            target_update_interval=2500,  # (Steven says 2500 but maybe faster.)
             n_step_return=5,
             learning_rate=1e-4,
             OptimCls=torch.optim.Adam,
@@ -67,42 +65,7 @@ class R2D1(RlAlgorithm):
         self.update_counter = 0
         self.batch_size = (self.batch_T + self.warmup_T) * self.batch_B
 
-    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
-            rank=0, world_size=1):
-        if not agent.recurrent:
-            raise TypeError("For nonrecurrent agents use dqn (or fake recurrent).")
-        self.agent = agent
-        if (self.eps_final_min is not None and
-                self.eps_final_min != self.eps_final):  # vector-valued epsilon
-            self.eps_init = self.eps_init * torch.ones(batch_spec.B)
-            self.eps_final = torch.logspace(
-                torch.log10(torch.tensor(self.eps_final_min)),
-                torch.log10(torch.tensor(self.eps_final)),
-                batch_spec.B)
-        agent.set_sample_epsilon_greedy(self.eps_init)
-        agent.give_eval_epsilon_greedy(self.eps_eval)
-        self.n_itr = n_itr
-        self.mid_batch_reset = mid_batch_reset
-        self.optimizer = self.OptimCls(agent.parameters(),
-            lr=self.learning_rate, **self.optim_kwargs)
-        if self.initial_optim_state_dict is not None:
-            self.optimizer.load_state_dict(self.initial_optim_state_dict)
-
-        sample_bs = batch_spec.size
-        train_bs = (self.batch_T + self.warmup_T) * self.batch_B
-        # assert (self.replay_ratio * sample_bs) % train_bs == 0
-        self.updates_per_optimize = max(1,
-            round(self.replay_ratio * sample_bs / train_bs))
-        logger.log(f"From sampler batch size {sample_bs}, training "
-            f"batch size {train_bs}, and training ratio "
-            f"{self.replay_ratio}, rounded to {self.updates_per_optimize} "
-            f"updates per iteration.")
-
-        self.eps_itr = max(1, self.eps_steps // sample_bs)
-        self.min_itr_learn = self.min_steps_learn // sample_bs
-        if self.prioritized_replay:
-            self.pri_beta_itr = max(1, self.pri_beta_steps // sample_bs)
-
+    def initialize_replay_buffer(self, examples, batch_spec, async_=False):
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -132,13 +95,15 @@ class R2D1(RlAlgorithm):
         else:
             ReplayCls = UniformSequenceReplayFrameBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
+        return self.replay_buffer
 
-    def optimize_agent(self, itr, samples=None):
+    def optimize_agent(self, itr, samples=None, sampler_itr=None):
         # TODO: estimate priorities for samples entering the replay buffer.
         # Steven says: workers did this approximately by using the online
         # network only for td-errors (not the target network).
         # This could be tough since add samples before the priorities are ready
         # (next batch), and in async case workers must do it.
+        itr = itr if sampler_itr is None else sampler_itr  # Async uses sampler_itr
         if samples is not None:
             samples_to_buffer = SamplesToBuffer(
                 observation=samples.env.observation,
@@ -172,6 +137,13 @@ class R2D1(RlAlgorithm):
                 self.agent.update_target()
         self.update_itr_hyperparams(itr)
         return opt_info
+
+    def samples_to_buffer(self, samples):
+        samples_to_buffer = super().samples_to_buffer(samples)
+        if self.store_rnn_state_interval > 0:
+            samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
+                prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
+        return samples_to_buffer
 
     def loss(self, samples):
         """Samples have leading Time and Batch dimentions [T,B,..]. Move all
@@ -241,6 +213,7 @@ class R2D1(RlAlgorithm):
         delta = y - q
         losses = 0.5 * delta ** 2
         abs_delta = abs(delta)
+        # NOTE: by default, with R2D1, use squared-error loss, delta_clip=None.
         if self.delta_clip is not None:  # Huber loss.
             b = self.delta_clip * (abs_delta - self.delta_clip / 2)
             losses = torch.where(abs_delta <= self.delta_clip, losses, b)
@@ -266,15 +239,3 @@ class R2D1(RlAlgorithm):
         return torch.sign(z) * (((torch.sqrt(1 + 4 * self.value_scale_eps *
             (abs(z) + 1 + self.value_scale_eps)) - 1) /
             (2 * self.value_scale_eps)) ** 2 - 1)
-
-    def update_itr_hyperparams(self, itr):
-        # NOW IN AGENT.
-        # if itr <= self.eps_itr:  # Epsilon can be vector-valued.
-        #     prog = min(1, itr / self.eps_itr)
-        #     new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
-        #     self.agent.set_sample_epsilon_greedy(new_eps)
-        if self.prioritized_replay and itr <= self.pri_beta_itr:
-            prog = min(1, itr / self.pri_beta_itr)
-            new_beta = (prog * self.pri_beta_final +
-                (1 - prog) * self.pri_beta_init)
-            self.replay_buffer.set_beta(new_beta)

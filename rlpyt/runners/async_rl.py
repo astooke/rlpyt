@@ -345,7 +345,6 @@ class AsyncRlEval(AsyncRlBase):
         logger.record_tabular('CumEvalTime', self.ctrl.eval_time.value)
         super().log_diagnostics(itr, sampler_itr, throttle_time)
         self._traj_infos = list()  # Clear after each eval.
-        self.pbar = ProgBarCounter(self.log_interval_itrs)
 
 
 ###############################################################################

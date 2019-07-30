@@ -46,7 +46,7 @@ class GpuParallelSampler(BaseSampler):
             global_B=global_B, env_ranks=env_ranks)
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=False)  # Would like subprocess=True, but might hang?
+            subprocess=True)  # Would like subprocess=True, but might hang?
         env.close()
         del env
         step_buffer_pyt, step_buffer_np = build_step_buffer(examples, self.batch_spec.B)

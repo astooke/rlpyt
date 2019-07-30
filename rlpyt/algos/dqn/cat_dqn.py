@@ -22,6 +22,10 @@ class CategoricalDQN(DQN):
         super().initialize(*args, **kwargs)
         self.agent.give_V_min_max(self.V_min, self.V_max)
 
+    def master_runner_initialize(self, *args, **kwargs):
+        super().master_runner_initialize(*args, **kwargs)
+        self.agent.give_V_min_max(self.V_min, self.V_max)
+
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
         delta_z = (self.V_max - self.V_min) / (self.agent.n_atoms - 1)

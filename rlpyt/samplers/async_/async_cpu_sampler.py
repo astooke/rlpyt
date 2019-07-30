@@ -33,9 +33,9 @@ class AsyncCpuSampler(BaseSampler):
         agent.initialize(env.spaces, share_memory=True)  # Actual agent initialization, keep.
         _, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=False)  # Would like subprocess=True, but might hang?
+            subprocess=True)  # Would like subprocess=True, but might hang?
         _, samples_np2, _ = build_samples_buffer(agent, env, self.batch_spec,
-            bootstrap_value, agent_shared=True, env_shared=True, subprocess=False)
+            bootstrap_value, agent_shared=True, env_shared=True, subprocess=True)
         env.close()
         del env
         if traj_info_kwargs:

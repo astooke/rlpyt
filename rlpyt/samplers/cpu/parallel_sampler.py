@@ -44,7 +44,7 @@ class CpuParallelSampler(BaseSampler):
             global_B=global_B, env_ranks=env_ranks)  # Maybe overridden in worker.
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
             self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=True)  # TODO: subprocess=True fix!!
+            subprocess=True)
         env.close()
         del env
 

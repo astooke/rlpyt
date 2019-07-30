@@ -26,3 +26,7 @@ class AsyncReplayBufferMixin(object):
             self.t = self.async_t.value
             self._buffer_full = self._async_buffer_full.value
             return super().sample_batch(*args, **kwargs)
+
+    def update_batch_priorities(self, *args, **kwargs):
+        with self.rw_lock.write_lock:
+            return super().update_batch_priorities(*args, **kwargs)
