@@ -16,6 +16,7 @@ class AsyncReplayBufferMixin(object):
 
     def append_samples(self, *args, **kwargs):
         with self.rw_lock.write_lock:
+            self.t = self.async_t.value
             ret = super().append_samples(*args, **kwargs)
             self.async_t.value = self.t
             self._async_buffer_full.value = self._buffer_full
