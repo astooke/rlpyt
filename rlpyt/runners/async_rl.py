@@ -266,7 +266,7 @@ class AsyncRlBase(BaseRunner):
             new_samples / time_elapsed)
         cum_steps = sampler_itr * self.sampler.batch_size  # No * world_size.
         replay_ratio = (new_updates * self.algo.batch_size * self.world_size /
-            new_samples)
+            max(1, new_samples))
         cum_replay_ratio = (self.algo.update_counter * self.algo.batch_size *
             self.world_size / max(1, cum_steps))
 
