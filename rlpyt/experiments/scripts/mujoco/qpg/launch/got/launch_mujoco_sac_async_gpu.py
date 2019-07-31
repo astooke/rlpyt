@@ -3,19 +3,20 @@ from rlpyt.utils.launching.affinity import encode_affinity
 from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
-script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_async_serial.py"
+script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_sac_async_gpu.py"
 affinity_code = encode_affinity(
     n_cpu_core=16,
     n_gpu=4,
     # contexts_per_gpu=2,
     async_sample=True,
+    sample_gpu_per_run=1,
     # hyperthread_offset=2,
     # n_socket=1,
     # cpu_per_run=1,
 )
 runs_per_setting = 2
-default_config_key = "async_serial"
-experiment_title = "ddpg_mujoco_async"
+default_config_key = "async_gpu"
+experiment_title = "sac_mujoco_async"
 variant_levels = list()
 
 env_ids = ["Hopper-v3", "HalfCheetah-v3"]  # , "Swimmer-v3"]

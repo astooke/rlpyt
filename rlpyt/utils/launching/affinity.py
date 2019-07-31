@@ -52,7 +52,7 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
 
 
 def encode_affinity(
-        n_cpu_core=1,  # Total number to use on machine.
+        n_cpu_core=1,  # Total number to use on machine (not virtual).
         n_gpu=0,  # Total number to use on machine.
         cpu_reserved=0,  # Number CPU to reserve per GPU.
         contexts_per_gpu=1,  # e.g. 2 will put two experiments per GPU.

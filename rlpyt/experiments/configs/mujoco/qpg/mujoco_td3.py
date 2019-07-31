@@ -15,11 +15,11 @@ config = dict(
         target_update_tau=0.005,
         target_update_interval=2,
         policy_update_interval=2,
-        mu_learning_rate=1e-3,
+        learning_rate=1e-3,
         q_learning_rate=1e-3,
     ),
     env=dict(id="Hopper-v3"),
-    eval_env=dict(id="Hopper-v3"),
+    # eval_env=dict(id="Hopper-v3"),  # Train script uses "env".
     model=dict(),
     optim=dict(),
     runner=dict(
@@ -37,3 +37,11 @@ config = dict(
 )
 
 configs["td3_1M_serial"] = config
+
+config = copy.deepcopy(config)
+
+config = copy.deepcopy(config)
+config["sampler"]["batch_T"] = 5
+config["sampler"]["batch_B"] = 4
+config["algo"]["updates_per_sync"] = 1
+configs["async_cpu"] = config

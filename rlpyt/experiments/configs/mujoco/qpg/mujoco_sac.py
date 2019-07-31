@@ -5,9 +5,9 @@ configs = dict()
 
 config = dict(
     agent=dict(
+        model_kwargs=None,
         q_model_kwargs=None,
         v_model_kwargs=None,
-        pi_model_kwargs=None,
     ),
     algo=dict(
         discount=0.99,
@@ -21,7 +21,7 @@ config = dict(
         reward_scale=5
     ),
     env=dict(id="Hopper-v3"),
-    eval_env=dict(id="Hopper-v3"),
+    # eval_env=dict(id="Hopper-v3"),  # Train script uses "env".
     model=dict(),
     optim=dict(),
     runner=dict(
@@ -39,3 +39,9 @@ config = dict(
 )
 
 configs["sac_1M_serial"] = config
+
+config = copy.deepcopy(config)
+config["sampler"]["batch_T"] = 5
+config["sampler"]["batch_B"] = 4
+config["algo"]["updates_per_sync"] = 1
+configs["async_gpu"] = config

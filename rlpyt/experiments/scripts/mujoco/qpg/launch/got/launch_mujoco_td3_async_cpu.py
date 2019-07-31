@@ -3,7 +3,7 @@ from rlpyt.utils.launching.affinity import encode_affinity
 from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
-script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_async_serial.py"
+script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_td3_async_cpu.py"
 affinity_code = encode_affinity(
     n_cpu_core=16,
     n_gpu=4,
@@ -14,8 +14,8 @@ affinity_code = encode_affinity(
     # cpu_per_run=1,
 )
 runs_per_setting = 2
-default_config_key = "async_serial"
-experiment_title = "ddpg_mujoco_async"
+default_config_key = "async_cpu"
+experiment_title = "td3_mujoco_async"
 variant_levels = list()
 
 env_ids = ["Hopper-v3", "HalfCheetah-v3"]  # , "Swimmer-v3"]
