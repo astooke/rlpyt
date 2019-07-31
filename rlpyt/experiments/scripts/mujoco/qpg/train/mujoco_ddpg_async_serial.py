@@ -26,6 +26,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     sampler = AsyncSerialSampler(
         EnvCls=gym_make,
         env_kwargs=config["env"],
+        eval_env_kwargs=config["env"],
         CollectorCls=DbCpuResetCollector,
         **config["sampler"]
     )
