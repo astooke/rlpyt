@@ -64,10 +64,11 @@ class AsyncRlBase(BaseRunner):
                 self.agent.send_shared_memory()  # To sampler.
                 with self.ctrl.sampler_itr.get_lock():
                     # Lock to prevent traj_infos splitting across itr.
-                    traj_infos = drain_queue(self.traj_infos_queue)
+                    traj_infos = drain_queue(self.traj_infos_queue,
+                        n_None=1 if self._eval else 0)
                     sampler_itr = self.ctrl.sampler_itr.value
                 self.store_diagnostics(itr, sampler_itr, traj_infos, opt_info)
-                if (sampler_itr // self.log_interval_itrs > log_counter):
+                if ((sampler_itr - 1) // self.log_interval_itrs > log_counter):
                     self.log_diagnostics(itr, sampler_itr, throttle_time)
                     log_counter += 1
                     throttle_time = 0.
@@ -443,6 +444,7 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
             with ctrl.sampler_itr.get_lock():
                 for traj_info in traj_infos:
                     traj_infos_queue.put(traj_info)
+                traj_infos_queue.put(None)  # Master will get until None sentinel.
                 ctrl.sampler_itr.value = itr
         else:
             ctrl.sampler_itr.value = itr

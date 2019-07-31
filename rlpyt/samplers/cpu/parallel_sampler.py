@@ -27,13 +27,13 @@ class CpuParallelSampler(BaseSampler):
             world_size=1,
             ):
         B = self.batch_spec.B
-        n_parallel = len(affinity["workers_cpus"])
-        n_envs_list = [B // n_parallel] * n_parallel
-        if not B % n_parallel == 0:
+        self.n_worker = n_worker = len(affinity["workers_cpus"])
+        n_envs_list = [B // n_worker] * n_worker
+        if not B % n_worker == 0:
             logger.log("WARNING: unequal number of envs per process, from "
-                f"batch_B {self.batch_spec.B} and n_parallel {n_parallel} "
+                f"batch_B {self.batch_spec.B} and n_worker {n_worker} "
                 "(possibly suboptimal speed).")
-            for b in range(B % n_parallel):
+            for b in range(B % n_worker):
                 n_envs_list[b] += 1
 
         # Construct an example of each kind of data that needs to be stored.
@@ -48,15 +48,15 @@ class CpuParallelSampler(BaseSampler):
         env.close()
         del env
 
-        ctrl, traj_infos_queue, sync = build_par_objs(n_parallel)
+        ctrl, traj_infos_queue, eval_traj_infos_queue, sync = build_par_objs(n_worker)
         if traj_info_kwargs:
             for k, v in traj_info_kwargs.items():
                 setattr(self.TrajInfoCls, "_" + k, v)  # Avoid passing at init.
 
         if self.eval_n_envs > 0:
-            # assert self.eval_n_envs % n_parallel == 0
-            eval_n_envs_per = max(1, self.eval_n_envs // n_parallel)
-            eval_n_envs = eval_n_envs_per * n_parallel
+            # assert self.eval_n_envs % n_worker == 0
+            eval_n_envs_per = max(1, self.eval_n_envs // n_worker)
+            eval_n_envs = eval_n_envs_per * n_worker
             logger.log(f"Total parallel evaluation envs: {eval_n_envs}")
             self.eval_max_T = eval_max_T = self.eval_max_steps // eval_n_envs
         else:
@@ -71,6 +71,7 @@ class CpuParallelSampler(BaseSampler):
             CollectorCls=self.CollectorCls,
             TrajInfoCls=self.TrajInfoCls,
             traj_infos_queue=traj_infos_queue,
+            eval_traj_infos_queue=eval_traj_infos_queue,
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=affinity.get("worker_torch_threads", None),
@@ -93,6 +94,7 @@ class CpuParallelSampler(BaseSampler):
         self.workers = workers
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
+        self.eval_traj_infos_queue = eval_traj_infos_queue
         self.sync = sync
         self.samples_pyt = samples_pyt
         self.samples_np = samples_np
@@ -122,7 +124,7 @@ class CpuParallelSampler(BaseSampler):
         if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
-                traj_infos.extend(drain_queue(self.traj_infos_queue))
+                traj_infos.extend(drain_queue(self.eval_traj_infos_queue))
                 if len(traj_infos) >= self.eval_max_trajectories:
                     self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
@@ -133,7 +135,8 @@ class CpuParallelSampler(BaseSampler):
                         f"({self.eval_max_T}).")
                     break  # Workers reached max_T.
         self.ctrl.barrier_out.wait()
-        traj_infos.extend(drain_queue(self.traj_infos_queue))
+        traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
+            n_None=self.n_worker)  # Block until all finish submitting.
         self.ctrl.do_eval.value = False
         return traj_infos
 

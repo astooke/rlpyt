@@ -76,6 +76,7 @@ def build_par_objs(n, groups=1):
         itr=mp.RawValue(ctypes.c_long, 0),
     )
     traj_infos_queue = mp.Queue()
+    eval_traj_infos_queue = mp.Queue()
 
     step_blockers = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
     act_waiters = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
@@ -87,7 +88,7 @@ def build_par_objs(n, groups=1):
         act_waiters=act_waiters,
         stop_eval=mp.RawValue(ctypes.c_bool, False),
     )
-    return ctrl, traj_infos_queue, sync
+    return ctrl, traj_infos_queue, eval_traj_infos_queue, sync
 
 
 def get_example_outputs(agent, env, examples, subprocess=False):

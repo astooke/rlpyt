@@ -161,3 +161,4 @@ class EvalCollector(BaseEvalCollector):
                 reward[b] = r
             if self.sync.stop_eval.value:
                 break
+        self.traj_infos_queue.put(None)  # End sentinel.

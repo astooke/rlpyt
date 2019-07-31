@@ -54,7 +54,7 @@ class AsyncGpuSampler(BaseSampler):
     def sampler_process_initialize(self, affinity):
         torch.set_num_threads(1)  # Possibly needed to avoid MKL hang.
         self.world_size = n_server = len(affinity)
-        n_worker = sum(len(aff["workers_cpus"]) for aff in affinity)
+        self.n_worker = n_worker = sum(len(aff["workers_cpus"]) for aff in affinity)
         n_envs_list = [self.batch_spec.B // n_worker] * n_worker
         if not self.batch_spec.B % n_worker == 0:
             logger.log("WARNING: unequal number of envs per process, from "
@@ -83,9 +83,11 @@ class AsyncGpuSampler(BaseSampler):
             db_idx=mp.RawValue("i", 0),  # Double buffer index.
         )
         traj_infos_queue = mp.Queue()
+        eval_traj_infos_queue = mp.Queue()
 
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
+        self.eval_traj_infos_queue = eval_traj_infos_queue
         servers_kwargs = assemble_servers_kwargs(self.double_buffer, affinity,
             n_envs_list, self.seed)
         servers = [mp.Process(target=self.action_server_process,
@@ -114,7 +116,7 @@ class AsyncGpuSampler(BaseSampler):
         if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
-                traj_infos.extend(drain_queue(self.traj_infos_queue))
+                traj_infos.extend(drain_queue(self.eval_traj_infos_queue))
                 if len(traj_infos) >= self.eval_max_trajectories:
                     self.ctrl.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
@@ -125,7 +127,8 @@ class AsyncGpuSampler(BaseSampler):
                         f"({self.eval_max_T}).")
                     break  # Workers reached max_T.
         self.ctrl.barrier_out.wait()
-        traj_infos.extend(drain_queue(self.traj_infos_queue))
+        traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
+            n_None=self.n_worker)  # Block until they all finish submitting.
         self.ctrl.do_eval.value = False
         return traj_infos
 
@@ -149,8 +152,8 @@ class AsyncGpuSampler(BaseSampler):
         p.cpu_affinity(affinity["master_cpus"])
         # torch.set_num_threads(affinity["master_torch_threads"])
         torch.set_num_threads(1)  # Possibly needed to avoid MKL hang.
-        self.launch_workers(double_buffer_slice, self.traj_infos_queue, affinity,
-            seed, n_envs_list)
+        self.launch_workers(double_buffer_slice, self.traj_infos_queue, 
+            self.eval_traj_infos_queue, affinity, seed, n_envs_list)
         self.agent.to_device(cuda_idx=affinity["cuda_idx"])
         self.agent.collector_initialize(global_B=self.batch_spec.B,  # Not updated.
             env_ranks=env_ranks)  # For vector eps-greedy.
@@ -236,8 +239,8 @@ class AsyncGpuSampler(BaseSampler):
             b.acquire()  # Workers always do extra release; drain it.
             # assert not b.acquire(block=False)  # Debug check.
 
-    def launch_workers(self, double_buffer, traj_infos_queue, affinity,
-            seed, n_envs_list):
+    def launch_workers(self, double_buffer, traj_infos_queue,
+            eval_traj_infos_queue, affinity, seed, n_envs_list):
         n_worker = len(affinity["workers_cpus"])
         sync = AttrDict(
             step_blockers=[mp.Semaphore(0) for _ in range(n_worker)],
@@ -266,6 +269,7 @@ class AsyncGpuSampler(BaseSampler):
             CollectorCls=self.CollectorCls,
             TrajInfoCls=self.TrajInfoCls,
             traj_infos_queue=traj_infos_queue,
+            eval_traj_infos_queue=eval_traj_infos_queue,
             ctrl=self.ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=affinity.get("worker_torch_threads", None),

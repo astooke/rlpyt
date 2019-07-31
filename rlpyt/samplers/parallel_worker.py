@@ -58,7 +58,7 @@ def sampling_process(common_kwargs, worker_kwargs):
             rank=w.rank,
             envs=eval_envs,
             TrajInfoCls=c.TrajInfoCls,
-            traj_infos_queue=c.traj_infos_queue,
+            traj_infos_queue=c.eval_traj_infos_queue,
             max_T=c.eval_max_T,
             agent=c.get("agent", None),
             sync=w.get("sync", None),

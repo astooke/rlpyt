@@ -29,13 +29,13 @@ class GpuParallelSampler(BaseSampler):
             rank=0,
             world_size=1):
         B = self.batch_spec.B
-        n_parallel = len(affinity["workers_cpus"])
-        n_envs_list = [B // n_parallel] * n_parallel
-        if not B % n_parallel == 0:
+        self.n_worker = n_worker = len(affinity["workers_cpus"])
+        n_envs_list = [B // n_worker] * n_worker
+        if not B % n_worker == 0:
             logger.log("WARNING: unequal number of envs per process, from "
-                f"batch_B {self.batch_spec.B} and n_parallel {n_parallel} "
+                f"batch_B {self.batch_spec.B} and n_worker {n_worker} "
                 "(possible suboptimal speed).")
-            for b in range(B % n_parallel):
+            for b in range(B % n_worker):
                 n_envs_list[b] += 1
 
         # Construct an example of each kind of data that needs to be stored.
@@ -52,9 +52,9 @@ class GpuParallelSampler(BaseSampler):
         step_buffer_pyt, step_buffer_np = build_step_buffer(examples, self.batch_spec.B)
 
         if self.eval_n_envs > 0:
-            # assert self.eval_n_envs % n_parallel == 0
-            eval_n_envs_per = max(1, self.eval_n_envs // n_parallel)
-            eval_n_envs = eval_n_envs_per * n_parallel
+            # assert self.eval_n_envs % n_worker == 0
+            eval_n_envs_per = max(1, self.eval_n_envs // n_worker)
+            eval_n_envs = eval_n_envs_per * n_worker
             logger.log(f"Total parallel evaluation envs: {eval_n_envs}.")
             self.eval_max_T = eval_max_T = int(self.eval_max_steps // eval_n_envs)
             eval_step_buffer_pyt, eval_step_buffer_np = build_step_buffer(examples,
@@ -66,7 +66,7 @@ class GpuParallelSampler(BaseSampler):
             eval_step_buffer_np = None
             eval_max_T = None
 
-        ctrl, traj_infos_queue, sync = build_par_objs(n_parallel)
+        ctrl, traj_infos_queue, eval_traj_infos_queue, sync = build_par_objs(n_worker)
         if traj_info_kwargs:
             for k, v in traj_info_kwargs.items():
                 setattr(self.TrajInfoCls, "_" + k, v)  # Avoid passing at init.
@@ -79,6 +79,7 @@ class GpuParallelSampler(BaseSampler):
             CollectorCls=self.CollectorCls,
             TrajInfoCls=self.TrajInfoCls,
             traj_infos_queue=traj_infos_queue,
+            eval_traj_infos_queue=eval_traj_infos_queue,
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             # Workers shouldn't run torch anyway.
@@ -102,6 +103,7 @@ class GpuParallelSampler(BaseSampler):
         self.workers = workers
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
+        self.eval_traj_infos_queue = eval_traj_infos_queue
         self.samples_pyt = samples_pyt
         self.samples_np = samples_np
         self.step_buffer_pyt = step_buffer_pyt
@@ -128,7 +130,8 @@ class GpuParallelSampler(BaseSampler):
         self.ctrl.barrier_in.wait()
         traj_infos = self.serve_actions_evaluation(itr)
         self.ctrl.barrier_out.wait()
-        traj_infos.extend(drain_queue(self.traj_infos_queue))
+        traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
+            n_None=self.n_worker)  # Block until all finish submitting.
         self.ctrl.do_eval.value = False
         return traj_infos
 
@@ -184,7 +187,7 @@ class GpuParallelSampler(BaseSampler):
 
         for t in range(self.eval_max_T):
             if t % EVAL_TRAJ_CHECK == 0:  # (While workers stepping.)
-                traj_infos.extend(drain_queue(self.traj_infos_queue))
+                traj_infos.extend(drain_queue(self.eval_traj_infos_queue))
             for b in step_blockers:
                 b.acquire()
                 # assert not b.acquire(block=False)  # Debug check.

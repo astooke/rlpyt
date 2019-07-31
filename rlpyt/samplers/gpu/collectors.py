@@ -147,3 +147,4 @@ class EvalCollector(BaseEvalCollector):
                 step.reward[b] = r
                 step.done[b] = d
             step_blocker.release()
+        self.traj_infos_queue.put(None)  # End sentinel.
