@@ -52,7 +52,7 @@ class SAC(RlAlgorithm):
         if optim_kwargs is None:
             optim_kwargs = dict()
         assert action_prior in ["uniform", "gaussian"]
-        _batch_size = batch_size
+        self._batch_size = batch_size
         del batch_size  # Property.
         save__init__args(locals())
 

@@ -70,8 +70,8 @@ class MinibatchRlBase(BaseRunner):
             batch_spec=self.sampler.batch_spec,
             mid_batch_reset=self.sampler.mid_batch_reset,
             examples=examples,
-            rank=rank,
             world_size=world_size,
+            rank=rank,
         )
         self.initialize_logging()
         return n_itr

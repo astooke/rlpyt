@@ -57,7 +57,7 @@ class DQN(RlAlgorithm):
             optim_kwargs = dict(eps=0.01 / batch_size)
         if default_priority is None:
             default_priority = delta_clip
-        _batch_size = batch_size
+        self._batch_size = batch_size
         del batch_size  # Property.
         save__init__args(locals())
         self.update_counter = 0

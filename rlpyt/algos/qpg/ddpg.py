@@ -43,7 +43,7 @@ class DDPG(RlAlgorithm):
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
-        _batch_size = batch_size
+        self._batch_size = batch_size
         del batch_size  # Property.
         save__init__args(locals())
 
