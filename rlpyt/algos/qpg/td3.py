@@ -22,6 +22,14 @@ class TD3(DDPG):
         save__init__args(locals())
         super().__init__(**kwargs)
 
+    def initialize(self, *args, **kwargs):
+        super().initialize(*args, **kwargs)
+        self.agent.give_min_itr_learn(self.min_itr_learn)
+
+    def async_initialize(self, *args, **kwargs):
+        super().async_initialize(*args, **kwargs)
+        self.agent.give_min_itr_learn(self.min_itr_learn)
+
     def q_loss(self, samples, valid):
         q1, q2 = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
