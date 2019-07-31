@@ -73,7 +73,7 @@ class Td3Agent(DdpgAgent):
 
     def update_target(self, tau=1):
         super().update_target(tau)
-        update_state_dict(self.target_q2_model, self.q2_model, tau)
+        update_state_dict(self.target_q2_model, self.q2_model.state_dict(), tau)
 
     def q_parameters(self):
         yield from self.q_model.parameters()

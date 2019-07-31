@@ -140,7 +140,7 @@ class SacAgent(BaseAgent):
         return AgentStep(action=action, agent_info=agent_info)
 
     def update_target(self, tau=1):
-        update_state_dict(self.target_v_model, self.v_model, tau)
+        update_state_dict(self.target_v_model, self.v_model.state_dict(), tau)
 
     @property
     def models(self):

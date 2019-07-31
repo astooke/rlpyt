@@ -109,8 +109,8 @@ class DdpgAgent(BaseAgent):
         return AgentStep(action=action, agent_info=agent_info)
 
     def update_target(self, tau=1):
-        update_state_dict(self.target_model, self.model, tau)
-        update_state_dict(self.target_q_model, self.q_model, tau)
+        update_state_dict(self.target_model, self.model.state_dict(), tau)
+        update_state_dict(self.target_q_model, self.q_model.state_dict(), tau)
 
     def q_parameters(self):
         return self.q_model.parameters()
