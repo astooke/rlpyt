@@ -136,7 +136,7 @@ class AsyncGpuSampler(BaseSampler):
             s.join()
 
     ###########################################################################
-    # Methods in forked action server process.
+    # Methods in forked action server process(es).
     ###########################################################################
 
     def action_server_process(self, rank, env_ranks, double_buffer_slice,
@@ -151,7 +151,7 @@ class AsyncGpuSampler(BaseSampler):
         torch.set_num_threads(1)  # Possibly needed to avoid MKL hang.
         self.launch_workers(double_buffer_slice, self.traj_infos_queue, affinity,
             seed, n_envs_list)
-        self.agent.initialize_device(cuda_idx=affinity["cuda_idx"], ddp=False)
+        self.agent.to_device(cuda_idx=affinity["cuda_idx"])
         self.agent.collector_initialize(global_B=self.batch_spec.B,  # Not updated.
             env_ranks=env_ranks)  # For vector eps-greedy.
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.

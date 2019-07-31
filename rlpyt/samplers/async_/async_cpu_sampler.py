@@ -72,6 +72,10 @@ class AsyncCpuSampler(BaseSampler):
             self.eval_n_envs_per = 0
             self.eval_max_T = 0
 
+        # Make a different shared_model among this process and workers,
+        # so can lock when copying the optimizer shared model over.
+        self.agent.async_cpu(share_memory=True)
+
         ctrl = AttrDict(
             quit=mp.RawValue(ctypes.c_bool, False),
             barrier_in=mp.Barrier(n_worker + 1),
@@ -122,16 +126,7 @@ class AsyncCpuSampler(BaseSampler):
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
 
     def obtain_samples(self, itr, j):
-        # sync shared memory?  maybe don't need to if optimizer did
-        # TODO: make another shared model within this sampler, so that
-        # sampler decides when to copy from shared model in optimizer
-        # (and can do so with a lock) into one shared model for all cpu
-        # workers.  (Right now, possible for optimizer to overwrite/
-        # scramble values in the middle of computing forward passes; but
-        # that should afflict the serial sampler as well?  but not the 
-        # GPU sampler?? so it's not the bug right now.)
-        # TODO: also make a flag for when parameters are new, so can 
-        # skip copying if they haven't changed.
+        self.agent.recv_shared_memory()
         self.ctrl.itr.value = itr
         self.sync.j.value = j  # Tell collectors which buffer to use.
         self.ctrl.barrier_in.wait()
@@ -141,7 +136,7 @@ class AsyncCpuSampler(BaseSampler):
         return traj_infos
 
     def evaluate_agent(self, itr):
-        # TODO: separate agent model.
+        self.agent.recv_shared_memory()
         self.ctrl.itr.value = itr
         self.ctrl.do_eval.value = True
         self.sync.stop_eval.value = False

@@ -69,8 +69,8 @@ class AsyncSerialSampler(BaseSampler):
                 max_T=self.eval_max_steps // self.eval_n_envs,
                 max_trajectories=self.eval_max_trajectories,
             )
-        self.agent.initialize_device(cuda_idx=affinity.get("cuda_idx", None),
-            ddp=False)
+        self.agent.to_device(cuda_idx=affinity.get("cuda_idx", None))
+        self.agent.async_cpu(share_memory=False)
 
         agent_inputs, traj_infos = collector.start_envs(
             self.max_decorrelation_steps)
@@ -83,9 +83,7 @@ class AsyncSerialSampler(BaseSampler):
         logger.log("Serial sampler initialized.")
 
     def obtain_samples(self, itr, j):
-        # TODO: make a different agent model within this sampler, so can
-        # select when to copy over new model from optimizer, so it doesn't
-        # happen in the middle of a forward pass (wasn't an issue with GPU).
+        self.agent.recv_shared_memory()
         self.sync.j.value = j  # Tell the collector which buffer.
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
             self.agent_inputs, self.traj_infos, itr)
@@ -95,5 +93,5 @@ class AsyncSerialSampler(BaseSampler):
         return completed_infos
 
     def evaluate_agent(self, itr):
-        # TODO: separate agent model.
+        self.agent.recv_shared_memory()
         return self.eval_collector.collect_evaluation(itr)

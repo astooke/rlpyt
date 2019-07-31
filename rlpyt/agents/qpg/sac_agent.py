@@ -26,45 +26,39 @@ class SacAgent(BaseAgent):
 
     def __init__(
             self,
+            ModelCls=PiMlpModel,  # Pi model.
             QModelCls=QofMuMlpModel,
             VModelCls=VMlpModel,
-            PiModelCls=PiMlpModel,
+            model_kwargs=None,  # Pi model.
             q_model_kwargs=None,
             v_model_kwargs=None,
-            pi_model_kwargs=None,
+            initial_model_state_dict=None,  # Pi model.
             initial_q1_model_state_dict=None,
             initial_q2_model_state_dict=None,
             initial_v_model_state_dict=None,
-            initial_pi_model_state_dict=None,
             action_squash=1,  # Max magnitude (or None).
             pretrain_std=5.,  # High value to make near uniform sampling.
             ):
+        if model_kwargs is None:
+            model_kwargs = dict(hidden_sizes=[256, 256])
         if q_model_kwargs is None:
             q_model_kwargs = dict(hidden_sizes=[256, 256])
         if v_model_kwargs is None:
             v_model_kwargs = dict(hidden_sizes=[256, 256])
-        if pi_model_kwargs is None:
-            pi_model_kwargs = dict(hidden_sizes=[256, 256])
         save__init__args(locals())
         self.min_itr_learn = 0  # Get from algo.
 
     def initialize(self, env_spaces, share_memory=False):
-        env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
-        self.q1_model = self.QModelCls(**env_model_kwargs, **self.q_model_kwargs)
-        self.q2_model = self.QModelCls(**env_model_kwargs, **self.q_model_kwargs)
-        self.v_model = self.VModelCls(**env_model_kwargs, **self.v_model_kwargs)
-        self.pi_model = self.PiModelCls(**env_model_kwargs, **self.pi_model_kwargs)
-        if share_memory:
-            self.pi_model.share_memory()  # Only one needed for sampling.
-            self.shared_pi_model = self.pi_model
+        super().initialize(env_spaces, share_memory)
+        self.q1_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
+        self.q2_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
+        self.v_model = self.VModelCls(**self.env_model_kwargs, **self.v_model_kwargs)
         if self.initial_q1_model_state_dict is not None:
             self.q1_model.load_state_dict(self.initial_q1_model_state_dict)
         if self.initial_q2_model_state_dict is not None:
             self.q2_model.load_state_dict(self.initial_q2_model_state_dict)
         if self.initial_v_model_state_dict is not None:
             self.v_model.load_state_dict(self.initial_v_model_state_dict)
-        if self.initial_pi_model_state_dict is not None:
-            self.pi_model.load_state_dict(self.initial_pi_model_state_dict)
         self.target_v_model = self.VModelCls(**env_model_kwargs,
             **self.v_model_kwargs)
         self.target_v_model.load_state_dict(self.v_model.state_dict())
@@ -75,41 +69,20 @@ class SacAgent(BaseAgent):
             min_std=np.exp(MIN_LOG_STD),
             max_std=np.exp(MAX_LOG_STD),
         )
-        self.env_spaces = env_spaces
-        self.env_model_kwargs = env_model_kwargs
 
-    def initialize_device(self, cuda_idx=None, ddp=False):
-        if cuda_idx is None:
-            if ddp:
-                self.q1_model = DDPC(self.q1_model)
-                self.q2_model = DDPC(self.q2_model)
-                self.v_model = DDPC(self.v_model)
-                self.pi_model = DDPC(self.pi_model)
-                logger.log("Initialized DistributedDataParallelCPU agent model.")
-            return  # CPU
-        if self.shared_pi_model is not None:
-            self.pi_model = self.PiModelCls(**self.env_model_kwargs,
-                **self.pi_model_kwargs)
-            self.pi_model.load_state_dict(self.shared_pi_model.state_dict())
-        self.device = torch.device("cuda", index=cuda_idx)
+    def to_device(self, cuda_idx=None):
+        super().to_device(cuda_idx)
         self.q1_model.to(self.device)
         self.q2_model.to(self.device)
         self.v_model.to(self.device)
-        self.pi_model.to(self.device)
-        if ddp:
-            self.q1_model = DDP(self.q1_model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
-            self.q2_model = DDP(self.q2_model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
-            self.v_model = DDP(self.v_model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
-            self.pi_model = DDP(self.pi_model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
-            logger.log("Initialized DistributedDataParallel agent model "
-                f"on device: {self.device}.")
-        else:
-            logger.log(f"Initialized agent models on device: {self.device}.")
         self.target_v_model.to(self.device)
+
+    def data_parallel(self):
+        super().data_parallel
+        DDP_WRAP = DDPC if self.device.type == "cpu" else DDP
+        self.q1_model = DDP_WRAP(self.q1_model)
+        self.q2_model = DDP_WRAP(self.q2_model)
+        self.v_model = DDP_WRAP(self.v_model)
 
     def give_min_itr_learn(self, min_itr_learn):
         self.min_itr_learn = min_itr_learn  # From algo.
@@ -178,15 +151,6 @@ class SacAgent(BaseAgent):
     def parameters_by_model(self):
         return (model.parameters() for model in self.models)
 
-    def sync_shared_memory(self):
-        if self.shared_pi_model is not self.pi_model:
-            self.shared_pi_model.load_state_dict(self.pi_model.state_dict())
-
-    def recv_shared_memory(self):
-        if self.shared_pi_model is not self.pi_model:
-            with self._rw_lock:
-                self.pi_model.load_state_dict(self.shared_pi_model.state_dict())
-
     def train_mode(self, itr):
         for model in self.models:
             model.train()
@@ -207,9 +171,9 @@ class SacAgent(BaseAgent):
 
     def state_dict(self):
         return dict(
+            model=self.model.state_dict(),  # Pi model.
             q1_model=self.q1_model.state_dict(),
             q2_model=self.q2_model.state_dict(),
             v_model=self.v_model.state_dict(),
-            pi_model=self.pi_model.state_dict(),
-            v_target=self.target_v_model.state_dict(),
+            target_v_model=self.target_v_model.state_dict(),
         )

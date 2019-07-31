@@ -2,15 +2,15 @@
 import numpy as np
 import torch
 
-from rlpyt.agents.base import AgentStep, RecurrentAgentMixin
-from rlpyt.agents.pg.base import BasePgAgent, AgentInfo, AgentInfoRnn
+from rlpyt.agents.base import AgentStep, RecurrentAgentMixin, BaseAgent
+from rlpyt.agents.pg.base import AgentInfo, AgentInfoRnn
 from rlpyt.distributions.gaussian import Gaussian, DistInfoStd
 from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
 
 # MIN_STD = 1e-6
 
 
-class GaussianPgAgent(BasePgAgent):
+class GaussianPgAgent(BaseAgent):
 
     def __call__(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
@@ -48,7 +48,7 @@ class GaussianPgAgent(BasePgAgent):
         return value.to("cpu")
 
 
-class RecurrentGaussianPgAgent(RecurrentAgentMixin, BasePgAgent):
+class RecurrentGaussianPgAgent(RecurrentAgentMixin, BaseAgent):
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
         # Assume init_rnn_state already shaped: [N,B,H]

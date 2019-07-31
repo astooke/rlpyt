@@ -39,17 +39,17 @@ class Td3Agent(DdpgAgent):
             clip=env_spaces.action.high[0],  # Assume symmetric low=-high.
         )
 
-    def initialize_device(self, cuda_idx=None, ddp=False):
-        super().initialize_device(cuda_idx, ddp)
-        if cuda_idx is None:
-            if ddp:
-                self.q2_model = DDPC(self.q2_model)
-            return
+    def to_device(self, cuda_idx=None):
+        super.to_device(cuda_idx)
         self.q2_model.to(self.device)
-        if ddp:
-            self.q2_model = DDP(self.q2_model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
         self.target_q2_model.to(self.device)
+
+    def data_parallel(self):
+        super().data_parallel()
+        if self.device.type == "cpu":
+            self.q2_model = DDPC(self.q2_model)
+        else:
+            self.q2_model = DDP(self.q2_model)
 
     def give_min_itr_learn(self, min_itr_learn):
         self.min_itr_learn = min_itr_learn  # From algo.

@@ -64,12 +64,9 @@ class SyncRlMixin(object):
     def build_par_objs(self, world_size):
         barrier = mp.Barrier(world_size)
         traj_infos_queue = mp.Queue()
-        mgr = mp.Manager()
-        mgr_dict = mgr.dict()  # For any other comms.
         par = AttrDict(
             barrier=barrier,
             traj_infos_queue=traj_infos_queue,
-            dict=mgr_dict,
         )
         return par
 
@@ -81,7 +78,7 @@ class SyncRl(SyncRlMixin, MinibatchRl):
         return SyncWorker
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
-        traj_infos.extend(drain_queue(self.traj_infos_queue))
+        traj_infos.extend(drain_queue(self.par.traj_infos_queue))
         super().store_diagnostics(itr, traj_infos, opt_info)
 
 

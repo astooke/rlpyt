@@ -113,7 +113,7 @@ class GpuParallelSampler(BaseSampler):
         return examples  # e.g. In case useful to build replay buffer
 
     def obtain_samples(self, itr):
-        # self.samples_np[:] = 0  # Reset all batch sample values (optional?).
+        # self.samples_np[:] = 0  # Reset all batch sample values (optional).
         self.agent.sample_mode(itr)
         self.ctrl.barrier_in.wait()
         self.serve_actions(itr)  # Worker step environments here.

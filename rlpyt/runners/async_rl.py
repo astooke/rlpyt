@@ -108,10 +108,9 @@ class AsyncRlBase(BaseRunner):
         logger.log(f"Optimizer master CPU affinity: {p.cpu_affinity()}.")
         torch.set_num_threads(main_affinity["torch_threads"])
         logger.log(f"Optimizer master Torch threads: {torch.get_num_threads()}.")
-        self.agent.initialize_device(
-            cuda_idx=main_affinity.get("cuda_idx", None),
-            ddp=self.world_size > 1,
-        )
+        self.agent.to_device(main_affinity.get("cuda_idx", None))
+        if self.world_size > 1:
+            self.agent.data_parallel()
         self.algo.optim_initialize(rank=0)
         throttle_itr = 1 + getattr(self.algo,
             "min_steps_learn", 0) // self.sampler_batch_size
@@ -394,10 +393,8 @@ class AsyncOptWorker(object):
         logger.log(f"Optimizer rank {self.rank} CUDA index: "
             f"{self.affinity.get('cuda_idx', None)}.")
         set_seed(self.seed)
-        self.agent.initialize_device(
-            cuda_idx=self.affinity.get("cuda_idx", None),
-            ddp=True,
-        )
+        self.agent.to_device(cuda_idx=self.affinity.get("cuda_idx", None))
+        self.agent.data_parallel()
         self.algo.optim_initialize(rank=self.rank)
 
     def shutdown(self):

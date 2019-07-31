@@ -47,7 +47,6 @@ config = dict(
         eval_n_envs=4,
         eval_max_steps=int(161e3),
         eval_max_trajectories=100,
-        # eval_min_envs_reset=2,
     ),
 )
 

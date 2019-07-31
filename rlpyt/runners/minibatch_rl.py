@@ -59,10 +59,9 @@ class MinibatchRlBase(BaseRunner):
         )
         self.itr_batch_size = self.sampler.batch_spec.size * world_size
         n_itr = self.get_n_itr()
-        self.agent.initialize_device(
-            cuda_idx=self.affinity.get("cuda_idx", None),
-            ddp=world_size > 1,  # Multi-GPU training (and maybe sampling).
-        )
+        self.agent.to_device(self.affinity.get("cuda_idx", None))
+        if world_size > 1:
+            self.agent.data_parallel()
         self.algo.initialize(
             agent=self.agent,
             n_itr=n_itr,

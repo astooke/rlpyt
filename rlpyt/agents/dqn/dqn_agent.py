@@ -25,45 +25,17 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
-        env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
-        self.model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
-        if share_memory:
-            self.model.share_memory()
-            self.shared_model = self.model
-        if self.initial_model_state_dict is not None:
-            self.model.load_state_dict(self.initial_model_state_dict)
-        self.target_model = self.ModelCls(**env_model_kwargs, **self.model_kwargs)
+        super().initialize(env_spaces, share_memory)
+        self.target_model = self.ModelCls(**self.env_model_kwargs,
+            **self.model_kwargs)
         self.target_model.load_state_dict(self.model.state_dict())
         self.distribution = EpsilonGreedy(dim=env_spaces.action.n)
-        self.env_spaces = env_spaces
-        self.env_model_kwargs = env_model_kwargs
-        self.share_memory = share_memory
         if env_ranks is not None:
             self.make_vec_eps(global_B, env_ranks)
 
-    def initialize_device(self, cuda_idx=None, ddp=False):
-        if cuda_idx is None:
-            if ddp:
-                self.model = DDPC(self.model)
-                logger.log("Initialized DistributedDataParallelCPU agent model.")
-            return  # CPU
-        if self.shared_model is not None:
-            self.model = self.ModelCls(**self.env_model_kwargs,
-                **self.model_kwargs)
-            self.model.load_state_dict(self.shared_model.state_dict())
-        self.device = torch.device("cuda", index=cuda_idx)
-        self.model.to(self.device)
-        if ddp:
-            self.model = DDP(self.model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
-            logger.log("Initialized DistributedDataParallel agent model "
-                f"on device: {self.device}.")
-        else:
-            logger.log(f"Initialized agent model on device: {self.device}.")
+    def to_device(self, cuda_idx=None):
+        super().to_device(cuda_idx)
         self.target_model.to(self.device)
-
-    def make_env_to_model_kwargs(self, env_spaces):
-        raise NotImplementedError
 
     def state_dict(self):
         return dict(model=self.model.state_dict(),

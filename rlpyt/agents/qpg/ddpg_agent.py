@@ -22,38 +22,30 @@ class DdpgAgent(BaseAgent):
 
     def __init__(
             self,
-            MuModelCls=MuMlpModel,
+            ModelCls=MuMlpModel,  # Mu model.
             QModelCls=QofMuMlpModel,
-            mu_model_kwargs=None,
+            model_kwargs=None,  # Mu model.
             q_model_kwargs=None,
-            initial_mu_model_state_dict=None,
+            initial_model_state_dict=None,  # Mu model.
             initial_q_model_state_dict=None,
             action_std=0.1,
             action_noise_clip=None,
             ):
-        if mu_model_kwargs is None:
-            mu_model_kwargs = dict(hidden_sizes=[400, 300])
+        if model_kwargs is None:
+            model_kwargs = dict(hidden_sizes=[400, 300])
         if q_model_kwargs is None:
             q_model_kwargs = dict(hidden_sizes=[400, 300])
         save__init__args(locals())
         self.min_itr_learn = 0  # Used in TD3
 
     def initialize(self, env_spaces, share_memory=False):
-        env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
-        self.mu_model = self.MuModelCls(**env_model_kwargs, **self.mu_model_kwargs)
-        self.q_model = self.QModelCls(**env_model_kwargs, **self.q_model_kwargs)
-        if share_memory:
-            self.mu_model.share_memory()
-            # self.q_model.share_memory()  # Not needed for sampling.
-            self.shared_mu_model = self.mu_model
-            # self.shared_q_model = self.q_model
-        if self.initial_mu_model_state_dict is not None:
-            self.mu_model.load_state_dict(self.initial_mu_model_state_dict)
+        super().initialize(env_spaces, share_memory)
+        self.q_model = self.QModelCls(**self.env_model_kwargs,
+            **self.q_model_kwargs)
         if self.initial_q_model_state_dict is not None:
             self.q_model.load_state_dict(self.initial_q_model_state_dict)
-        self.target_mu_model = self.MuModelCls(**env_model_kwargs,
-            **self.mu_model_kwargs)
-        self.target_mu_model.load_state_dict(self.mu_model.state_dict())
+        self.target_model = self.ModelCls(**self.env_model_kwargs,
+            **self.model_kwargs)
         self.target_q_model = self.QModelCls(**env_model_kwargs,
             **self.q_model_kwargs)
         self.target_q_model.load_state_dict(self.q_model.state_dict())
@@ -64,34 +56,19 @@ class DdpgAgent(BaseAgent):
             noise_clip=self.action_noise_clip,
             clip=env_spaces.action.high[0],  # Assume symmetric low=-high.
         )
-        self.env_spaces = env_spaces
-        self.env_model_kwargs = env_model_kwargs
 
-    def initialize_device(self, cuda_idx=None, ddp=False):
-        if cuda_idx is None:
-            if ddp:
-                self.mu_model = DDPC(self.mu_model)
-                self.q_model = DDPC(self.q_model)
-                logger.log("Initialized DistributedDataParallelCPU agent model.")
-            return  # CPU
-        if self.shared_mu_model is not None:
-            self.mu_model = self.MuModelCls(**self.env_model_kwargs,
-                **self.mu_model_kwargs)
-            self.mu_model.load_state_dict(self.shared_mu_model.state_dict())
-        self.device = torch.device("cuda", index=cuda_idx)
-        self.mu_model.to(self.device)
+    def to_device(self, cuda_idx=None):
+        super().to_device(cuda_idx)  # Takes care of self.model.
+        self.target_model.to(self.device)
         self.q_model.to(self.device)
-        if ddp:
-            self.mu_model = DDP(self.mu_model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
-            self.q_model = DDP(self.q_model, device_ids=[cuda_idx],
-                output_device=cuda_idx)
-            logger.log("Initialized DistributedDataParallel agent model "
-                f"on device: {self.device}.")
-        else:
-            logger.log(f"Initialized agent models on device: {self.device}.")
-        self.target_mu_model.to(self.device)
         self.target_q_model.to(self.device)
+
+    def data_parallel(self):
+        super().data_parallel()  # Takes care of self.model.
+        if self.device.type == "cpu":
+            self.q_model = DDPC(self.q_model)
+        else:
+            self.q_model = DDP(self.q_model)
 
     def make_env_to_model_kwargs(self, env_spaces):
         assert len(env_spaces.action.shape) == 1
@@ -136,15 +113,6 @@ class DdpgAgent(BaseAgent):
     def update_target(self, tau=1):
         update_state_dict(self.target_mu_model, self.mu_model, tau)
         update_state_dict(self.target_q_model, self.q_model, tau)
-
-    def sync_shared_memory(self):
-        if self.shared_mu_model is not self.mu_model:
-            self.shared_mu_model.load_state_dict(self.mu_model.state_dict())
-
-    def recv_shared_memory(self):
-        with self._rw_lock:
-            if self.mu_model is not self.shared_mu_model:
-                self.mu_model.load_state_dict(self.shared_mu_model)
 
     def q_parameters(self):
         return self.q_model.parameters()
