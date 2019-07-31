@@ -90,14 +90,14 @@ class DdpgAgent(BaseAgent):
     def q_at_mu(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
-        mu = self.mu_model(*model_inputs)
+        mu = self.model(*model_inputs)
         q = self.q_model(*model_inputs, mu)
         return q.cpu()
 
     def target_q_at_mu(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
-        target_mu = self.target_mu_model(*model_inputs)
+        target_mu = self.target_model(*model_inputs)
         target_q_at_mu = self.target_q_model(*model_inputs, target_mu)
         return target_q_at_mu.cpu()
 
@@ -105,43 +105,40 @@ class DdpgAgent(BaseAgent):
     def step(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
-        mu = self.mu_model(*model_inputs)
+        mu = self.model(*model_inputs)
         action = self.distribution.sample(DistInfo(mean=mu))
         agent_info = AgentInfo(mu=mu)
         action, agent_info = buffer_to((action, agent_info), device="cpu")
         return AgentStep(action=action, agent_info=agent_info)
 
     def update_target(self, tau=1):
-        update_state_dict(self.target_mu_model, self.mu_model, tau)
+        update_state_dict(self.target_model, self.model, tau)
         update_state_dict(self.target_q_model, self.q_model, tau)
 
     def q_parameters(self):
         return self.q_model.parameters()
 
     def mu_parameters(self):
-        return self.mu_model.parameters()
+        return self.model.parameters()
 
     def train_mode(self, itr):
+        super().train_mode(itr)
         self.q_model.train()
-        self.mu_model.train()
-        self._mode = "train"
 
     def sample_mode(self, itr):
+        super().sample_mode(itr)
         self.q_model.eval()
-        self.mu_model.eval()
         self.distribution.set_std(self.action_std)
-        self._mode = "sample"
 
     def eval_mode(self, itr):
+        super().eval_mode(itr)
         self.q_model.eval()
-        self.mu_model.eval()
-        self.distribution.set_std(0.)  # Deterministic
-        self._mode = "eval"
+        self.distribution.set_std(0.)  # Deterministic.
 
     def state_dict(self):
         return dict(
+            model=self.model.state_dict(),
             q_model=self.q_model.state_dict(),
-            mu_model=self.mu_model.state_dict(),
-            q_target=self.target_q_model.state_dict(),
-            mu_target=self.target_mu_model.state_dict(),
+            target_model=self.target_model.state_dict(),
+            target_q_model=self.target_q_model.state_dict(),
         )

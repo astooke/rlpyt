@@ -111,7 +111,7 @@ class SacAgent(BaseAgent):
     def pi(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
-        mean, log_std = self.pi_model(*model_inputs)
+        mean, log_std = self.model(*model_inputs)
         dist_info = DistInfoStd(mean=mean, log_std=log_std)
         action, log_pi = self.distribution.sample_loglikelihood(dist_info)
         # action = self.distribution.sample(dist_info)
@@ -129,7 +129,7 @@ class SacAgent(BaseAgent):
     def step(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
-        mean, log_std = self.pi_model(*model_inputs)
+        mean, log_std = self.model(*model_inputs)
         dist_info = DistInfoStd(mean=mean, log_std=log_std)
         action = self.distribution.sample(dist_info)
         agent_info = AgentInfo(dist_info=dist_info)
@@ -143,7 +143,7 @@ class SacAgent(BaseAgent):
 
     @property
     def models(self):
-        return self.q1_model, self.q2_model, self.v_model, self.pi_model
+        return self.model, self.q1_model, self.q2_model, self.v_model
 
     def parameters(self):
         for model in self.models:
@@ -153,22 +153,29 @@ class SacAgent(BaseAgent):
         return (model.parameters() for model in self.models)
 
     def train_mode(self, itr):
-        for model in self.models:
-            model.train()
-        self._mode = "train"
+        super().train_mode(itr)
+        self.q1_model.train()
+        self.q2_model.train()
+        self.v_model.train()
 
     def sample_mode(self, itr):
-        for model in self.models:
-            model.eval()
+        super().sample_mode(itr)
+        self.q1_model.eval()
+        self.q2_model.eval()
+        self.v_model.eval()
+        if itr == 0:
+            logger.log(f"Agent at itr {itr}, sample std: {self.pretrain_std}")
+        if itr == self.min_itr_learn:
+            logger.log(f"Agent at itr {itr}, sample std: learned.")
         std = None if itr >= self.min_itr_learn else self.pretrain_std
         self.distribution.set_std(std)  # If None: std from policy dist_info.
-        self._mode = "sample"
 
     def eval_mode(self, itr):
-        for model in self.models:
-            model.eval()
+        super().eval_mode(itr)
+        self.q1_model.eval()
+        self.q2_model.eval()
+        self.v_model.eval()
         self.distribution.set_std(0.)  # Deterministic (dist_info std ignored).
-        self._mode = "eval"
 
     def state_dict(self):
         return dict(

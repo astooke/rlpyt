@@ -65,7 +65,7 @@ class Td3Agent(DdpgAgent):
     def target_q_at_mu(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
-        target_mu = self.target_mu_model(*model_inputs)
+        target_mu = self.target_model(*model_inputs)
         target_action = self.target_distribution.sample(DistInfo(mean=target_mu))
         target_q1_at_mu = self.target_q_model(*model_inputs, target_action)
         target_q2_at_mu = self.target_q2_model(*model_inputs, target_action)
@@ -91,6 +91,8 @@ class Td3Agent(DdpgAgent):
         super().sample_mode(itr)
         self.q2_model.eval()
         std = self.action_std if itr >= self.min_itr_learn else self.pretrain_std
+        if itr == 0 or itr == self.min_itr_learn:
+            logger.log(f"Agent at itr {itr}, sample std: {std}.")
         self.distribution.set_std(std)
 
     def eval_mode(self, itr):
