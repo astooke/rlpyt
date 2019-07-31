@@ -7,6 +7,7 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.synchronize import RWLock
 from rlpyt.utils.logging import logger
+from rlpyt.model.utils import strip_ddp_state_dict
 
 AgentInputs = namedarraytuple("AgentInputs",
     ["observation", "prev_action", "prev_reward"])
@@ -35,6 +36,8 @@ class BaseAgent(object):
         raise NotImplementedError
 
     def initialize(self, env_spaces, share_memory=False, **kwargs):
+        """In this default setup, self.model is treated as the model needed
+        for action selection, so it is the only one shared with workers."""
         self.env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
         self.model = self.ModelCls(**self.env_model_kwargs,
             **self.model_kwargs)
@@ -82,7 +85,7 @@ class BaseAgent(object):
             **self.model_kwargs)
         self.model.load_state_dict(self.shared_model.state_dict())
         if share_memory:  # Not needed in async_serial.
-            self.model.share_memory()  # For CPU workers.
+            self.model.share_memory()  # For CPU workers in async_cpu.
         logger.log("Initialized async CPU agent model.")
 
     def collector_initialize(self, global_B=1, env_ranks=None):
@@ -126,33 +129,26 @@ class BaseAgent(object):
         self._mode = "eval"
 
     def sync_shared_memory(self):
-        """Call in sampler master, after share_memory=True to initialize()."""
+        """Call in sampler master (non-async), after initialize(share_memory=True)."""
         if self.shared_model is not self.model:  # (self.model gets trained)
+            # TODO: shouldn't this also need the DDP workaround for 'model.'?
             self.shared_model.load_state_dict(self.model.state_dict())
 
     def send_shared_memory(self):
+        """Used in async mode."""
         if self.shared_model is not self.model:
             with self._rw_lock.write_lock:
-                # Workaround the fact that DistributedDataParallel prepends
-                # 'module.' to every key, but the sampler models will not be
-                # wrapped in DistributedDataParallel.
-                # (Solution from PyTorch forums.)
-                model_state_dict = self.model.state_dict()
-                new_state_dict = type(model_state_dict)()
-                for k, v in model_state_dict.items():
-                    if k[:7] == "module.":
-                        new_state_dict[k[7:]] = v
-                    else:
-                        new_state_dict[k] = v
-                self.shared_model.load_state_dict(new_state_dict)
+                self.shared_model.load_state_dict(
+                    strip_ddp_state_dict(self.model.state_dict()))
                 self._send_count.value += 1
 
     def recv_shared_memory(self):
+        """Used in async mode."""
         if self.shared_model is not self.model:
             with self._rw_lock:
                 if self._recv_count < self._send_count.value:
                     self.model.load_state_dict(self.shared_model.state_dict())
-                    self._recv_count += 1
+                    self._recv_count = self._send_count.value
 
 
 AgentInputsRnn = namedarraytuple("AgentInputsRnn",  # Training only.

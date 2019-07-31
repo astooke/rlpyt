@@ -3,7 +3,7 @@ import numpy as np
 from gym.spaces.dict import Dict as GymDict
 from collections import namedtuple
 
-from rlpyt.utils.collection import is_namedtuple_class, is_namedtuple
+from rlpyt.utils.collections import is_namedtuple_class, is_namedtuple
 from rlpyt.spaces.composite import Composite
 
 

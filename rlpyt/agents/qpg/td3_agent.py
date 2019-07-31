@@ -23,8 +23,9 @@ class Td3Agent(DdpgAgent):
         save__init__args(locals())
         self.min_itr_learn = 0  # Get from algo.
 
-    def initialize(self, env_spaces, share_memory=False):
-        super().initialize(env_spaces, share_memory)
+    def initialize(self, env_spaces, share_memory=False,
+            global_B=1, env_ranks=None):
+        super().initialize(env_spaces, share_memory, global_B, env_ranks)
         self.q2_model = self.QModelCls(**self.env_model_kwargs,
             **self.q_model_kwargs)
         if self.initial_q2_model_state_dict is not None:

@@ -18,8 +18,9 @@ class GaussianPgAgent(BaseAgent):
         mu, log_std, value = self.model(*model_inputs)
         return buffer_to((DistInfoStd(mean=mu, log_std=log_std), value), device="cpu")
 
-    def initialize(self, env_spaces, share_memory=False):
-        super().initialize(env_spaces, share_memory)
+    def initialize(self, env_spaces, share_memory=False,
+            global_B=1, env_ranks=None):
+        super().initialize(env_spaces, share_memory, global_B, env_ranks)
         assert len(env_spaces.action.shape) == 1
         assert len(np.unique(env_spaces.action.high)) == 1
         assert np.all(env_spaces.action.low == -env_spaces.action.high)

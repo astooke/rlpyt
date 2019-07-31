@@ -9,6 +9,7 @@ from rlpyt.distributions.epsilon_greedy import EpsilonGreedy
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.logging import logger
 from rlpyt.utils.collections import namedarraytuple
+from rlpyt.models.utils import strip_ddp_state_dict
 
 
 AgentInfo = namedarraytuple("AgentInfo", "q")
@@ -25,7 +26,7 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
-        super().initialize(env_spaces, share_memory)
+        super().initialize(env_spaces, share_memory, global_B, env_ranks)
         self.target_model = self.ModelCls(**self.env_model_kwargs,
             **self.model_kwargs)
         self.target_model.load_state_dict(self.model.state_dict())
@@ -61,15 +62,5 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         return target_q.cpu()
 
     def update_target(self):
-        # Workaround the fact that DistributedDataParallel prepends 'module.' to
-        # every key, but the target model will not be wrapped in
-        # DistributedDataParallel.
-        # (Solution from PyTorch forums.)
-        model_state_dict = self.model.state_dict()
-        new_state_dict = type(model_state_dict)()
-        for k, v in model_state_dict.items():
-            if k[:7] == "module.":
-                new_state_dict[k[7:]] = v
-            else:
-                new_state_dict[k] = v
-        self.target_model.load_state_dict(new_state_dict)
+        self.target_model.load_state_dict(
+            strip_ddp_state_dict(self.model.state_dict()))

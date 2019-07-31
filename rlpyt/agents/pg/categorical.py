@@ -16,8 +16,9 @@ class CategoricalPgAgent(BaseAgent):
         pi, value = self.model(*model_inputs)
         return buffer_to((DistInfo(prob=pi), value), device="cpu")
 
-    def initialize(self, env_spaces, share_memory=False):
-        super().initialize(env_spaces, share_memory)
+    def initialize(self, env_spaces, share_memory=False,
+            global_B=1, env_ranks=None):
+        super().initialize(env_spaces, share_memory, global_B, env_ranks)
         self.distribution = Categorical(dim=env_spaces.action.n)
 
     @torch.no_grad()

@@ -5,7 +5,7 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_async_serial.py"
 affinity_code = encode_affinity(
-    n_cpu_core=20,
+    n_cpu_core=16,
     n_gpu=4,
     contexts_per_gpu=2,
     # hyperthread_offset=2,

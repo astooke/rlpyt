@@ -48,7 +48,8 @@ class SacAgent(BaseAgent):
         save__init__args(locals())
         self.min_itr_learn = 0  # Get from algo.
 
-    def initialize(self, env_spaces, share_memory=False):
+    def initialize(self, env_spaces, share_memory=False,
+            global_B=1, env_ranks=None):
         super().initialize(env_spaces, share_memory)
         self.q1_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
         self.q2_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
