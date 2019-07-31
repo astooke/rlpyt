@@ -132,7 +132,12 @@ def get_n_socket():
 
 def get_hyperthread_offset():
     import psutil  # (If returns 0, will not try to use hyperthreads.)
-    return psutil.cpu_count() - psutil.cpu_count(logical=False)
+    # UNRELIABLE:
+    # hto = psutil.cpu_count() - psutil.cpu_count(logical=False)
+    vcpu = psutil.cpu_count()
+    if vcpu != psutil.cpu_count(logical=False) and vcpu % 2 == 0:
+        return vcpu // 2
+    return 0
 
 
 def get_n_run_slots(affinity_code):
@@ -233,6 +238,7 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
     cpu_per_skt = max(cpu, hto) // skt
     opt_affinities = list()
     smp_affinities = list()
+    all_cpus = tuple()
     if total_gpr <= gpu_per_skt:
         run_per_skt = n_run_slots // skt
         assert n_run_slots % skt == 0  # Relax later?
@@ -273,6 +279,7 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
         opt_affinity = dict(cpus=opt_cpus, cuda_idx=opt_gpu,
             torch_threads=len(opt_cores))
         opt_affinities.append(opt_affinity)
+        all_cpus += opt_cpus
     wrkr_per_smp = smp_cpr // cpw
     smp_cpr = wrkr_per_smp * cpw
     smp_cpg = smp_cpr // max(1, sgr)
@@ -296,6 +303,7 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
             cuda_idx=smp_gpu,
         )
         smp_affinities.append(smp_affinity)
+        all_cpus += master_cpus
     if not smp_affinities:  # sgr==0; CPU sampler.
         if total_gpr <= gpu_per_skt:
             low_smp_core = (my_skt * cpu_per_skt + run_in_skt * cpr +
@@ -318,8 +326,14 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
             worker_torch_threads=cpw,
             cuda_idx=None,
         )
+        all_cpus += master_cpus
+    affinity = AttrDict(
+        all_cpus=all_cpus,  # For exp launcher to use taskset.
+        optimizer=opt_affinities,
+        sampler=smp_affinities,
+    )
 
-    return AttrDict(optimizer=opt_affinities, sampler=smp_affinities)
+    return affinity
 
 
 # def offset_for_socket(hto, cpu, skt, slt, n_run_slots):
