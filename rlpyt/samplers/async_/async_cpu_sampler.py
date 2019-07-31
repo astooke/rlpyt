@@ -4,6 +4,7 @@ import numpy as np
 import multiprocessing as mp
 import ctypes
 import psutil
+import torch
 
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer, build_step_buffer
@@ -74,6 +75,7 @@ class AsyncCpuSampler(BaseSampler):
 
         # Make a different shared_model among this process and workers,
         # so can lock when copying the optimizer shared model over.
+        torch.set_num_threads(1)  # Needed to avoid hang on some systems.
         self.agent.async_cpu(share_memory=True)
 
         ctrl = AttrDict(
