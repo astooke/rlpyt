@@ -36,7 +36,7 @@ class DdpgAgent(BaseAgent):
         if q_model_kwargs is None:
             q_model_kwargs = dict(hidden_sizes=[400, 300])
         save__init__args(locals())
-        self.min_itr_learn = 0  # Used in TD3
+        super().__init__()  # For async setup.
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
@@ -77,9 +77,6 @@ class DdpgAgent(BaseAgent):
             observation_shape=env_spaces.observation.shape,
             action_size=env_spaces.action.shape[0],
         )
-
-    def give_min_itr_learn(self, min_itr_learn):
-        self.min_itr_learn = min_itr_learn  # Used in TD3
 
     def q(self, observation, prev_action, prev_reward, action):
         model_inputs = buffer_to((observation, prev_action, prev_reward,

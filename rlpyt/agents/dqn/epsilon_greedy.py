@@ -15,8 +15,8 @@ class EpsilonGreedyAgentMixin(object):
             self,
             eps_init=1,
             eps_final=0.01,
-            eps_final_min=None,
-            eps_itr_min=50,
+            eps_final_min=None,  # Give < eps_final for vector epsilon.
+            eps_itr_min=50,  # Algo may overwrite.
             eps_itr_max=1000,
             eps_eval=0.001,
             *args,

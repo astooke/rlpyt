@@ -46,6 +46,7 @@ class SacAgent(BaseAgent):
         if v_model_kwargs is None:
             v_model_kwargs = dict(hidden_sizes=[256, 256])
         save__init__args(locals())
+        super().__init__()  # For async setup.
         self.min_itr_learn = 0  # Get from algo.
 
     def initialize(self, env_spaces, share_memory=False,

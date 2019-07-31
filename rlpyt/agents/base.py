@@ -23,9 +23,10 @@ class BaseAgent(object):
     recurrent = False
     _mode = None
 
-    def __init__(self, ModelCls, model_kwargs=None, initial_model_state_dict=None):
-        model_kwargs = dict() if model_kwargs is None else model_kwargs
+    def __init__(self, ModelCls=None, model_kwargs=None, initial_model_state_dict=None):
         save__init__args(locals())
+        if self.model_kwargs is None:
+            self.model_kwargs = dict()
         # The rest for async operations:
         self._rw_lock = RWLock()
         self._send_count = mp.RawValue("l", 0)
