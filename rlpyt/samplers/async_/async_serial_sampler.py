@@ -16,7 +16,7 @@ class AsyncSerialSampler(BaseSampler):
     # Master runner methods.
     ###########################################################################
 
-    def master_runner_initialize(self, agent, bootstrap_value=False,
+    def async_initialize(self, agent, bootstrap_value=False,
             traj_info_kwargs=None, seed=None):
         self.seed = make_seed() if seed is None else seed
         env = self.EnvCls(**self.env_kwargs)
@@ -48,7 +48,7 @@ class AsyncSerialSampler(BaseSampler):
         torch.set_num_threads(1)  # FIXME: temporary to prevent MKL hang.
         B = self.batch_spec.B
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
-        sync = AttrDict(j=AttrDict(value=0))  # Mimic the mp.RawValue format.
+        sync = AttrDict(db_idx=AttrDict(value=0))  # Mimic the mp.RawValue format.
         collector = self.CollectorCls(
             rank=0,
             envs=envs,
@@ -84,7 +84,7 @@ class AsyncSerialSampler(BaseSampler):
 
     def obtain_samples(self, itr, j):
         self.agent.recv_shared_memory()
-        self.sync.j.value = j  # Tell the collector which buffer.
+        self.sync.db_idx.value = j  # Tell the collector which buffer.
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
             self.agent_inputs, self.traj_infos, itr)
         self.collector.reset_if_needed(agent_inputs)

@@ -25,7 +25,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
     """
 
     def __init__(self, example, size, B, discount=1, n_step_return=1,
-            shared_memory=False):
+            share_memory=False):
         self.T = T = math.ceil(size / B)
         self.B = B
         self.size = T * B
@@ -33,12 +33,12 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
         self.n_step_return = n_step_return
         self.t = 0  # Cursor (in T dimension).
         self.samples = buffer_from_example(example, (T, B),
-            shared_memory=shared_memory)
+            share_memory=share_memory)
         if n_step_return > 1:
             self.samples_return_ = buffer_from_example(example.reward, (T, B),
-                shared_memory=shared_memory)
+                share_memory=share_memory)
             self.samples_done_n = buffer_from_example(example.done, (T, B),
-                shared_memory=shared_memory)
+                share_memory=share_memory)
         else:
             self.samples_return_ = self.samples.reward
             self.samples_done_n = self.samples.done

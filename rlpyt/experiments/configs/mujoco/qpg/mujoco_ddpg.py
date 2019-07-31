@@ -5,7 +5,7 @@ configs = dict()
 
 config = dict(
     agent=dict(
-        mu_model_kwargs=None,
+        model_kwargs=None,
         q_model_kwargs=None,
     ),
     algo=dict(
@@ -15,7 +15,7 @@ config = dict(
         target_update_tau=0.01,
         target_update_interval=1,
         policy_update_interval=1,
-        mu_learning_rate=1e-3,
+        learning_rate=1e-3,
         q_learning_rate=1e-3,
     ),
     env=dict(id="Hopper-v3"),
@@ -36,3 +36,8 @@ config = dict(
 )
 
 configs["ddpg_from_td3_1M_serial"] = config
+
+config = copy.deepcopy(config)
+config["sampler"]["batch_T"] = 5
+config["algo"]["updates_per_sync"] = 1
+configs["async_serial"] = config

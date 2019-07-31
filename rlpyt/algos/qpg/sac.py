@@ -47,6 +47,7 @@ class SAC(RlAlgorithm):
             clip_grad_norm=1e6,
             policy_output_regularization=0.001,
             n_step_return=1,
+            updates_per_sync=1,  # For async mode only.
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -55,7 +56,7 @@ class SAC(RlAlgorithm):
         self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
-            rank=0, world_size=1):
+            world_size=1, rank=0):
         """Used in basic or synchronous multi-GPU runners, not async."""
         self.agent = agent
         self.n_itr = n_itr
@@ -72,15 +73,15 @@ class SAC(RlAlgorithm):
         self.initialize_replay_buffer(examples, batch_spec)
         self.optim_initialize(rank)
 
-    def master_runner_initialize(self, agent, batch_spec, examples, mid_batch_reset,
-            updates_per_sync, sampler_n_itr, world_size=1):
+    def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset,
+            examples, world_size=1):
         """Used in async runner only."""
         self.agent = agent
         self.n_itr = sampler_n_itr
         self.initialize_replay_buffer(examples, batch_spec, async_=True)
         self.mid_batch_reset = mid_batch_reset
         self.sampler_bs = sampler_bs = batch_spec.size
-        self.updates_per_optimize = updates_per_sync
+        self.updates_per_optimize = self.updates_per_sync
         self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
         agent.give_min_itr_learn(self.min_itr_learn)
         return self.replay_buffer
@@ -108,6 +109,7 @@ class SAC(RlAlgorithm):
             size=self.replay_size,
             B=batch_spec.B,
             n_step_return=self.n_step_return,
+            share_memory=async_,
         )
         ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)

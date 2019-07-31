@@ -6,7 +6,17 @@ class RlAlgorithm(object):
     bootstrap_value = False
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
-            rank=0, world_size=1):
+            world_size=1, rank=0):
+        raise NotImplementedError
+
+    def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset,
+            examples, world_size=1):
+        """Called instead of initialize() in async runner.
+        Should return async replay_buffer using shared memory."""
+        raise NotImplementedError
+
+    def optim_initialize(self, rank=0):
+        """Called in async runner, and possibly self.initialize()."""
         raise NotImplementedError
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):

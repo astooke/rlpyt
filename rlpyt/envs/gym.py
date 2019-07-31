@@ -79,6 +79,8 @@ def info_to_nt(value, name="info"):
 # env_kwarg into the `make` function, which should be used as the EnvCls.
 def sometimes_info(*args, **kwargs):
     # e.g. Feed the env_id.
+    # Return a dictionary (possibly nested) of keys: default_values
+    # for this env.
     return {}
 
 
@@ -88,13 +90,10 @@ class EnvInfoWrapper(Wrapper):
         super().__init__(env)
         self._sometimes_info = sometimes_info(**sometimes_info_kwargs)
 
-    def info(self, info):
-        # Try to make info dict same key structure at every step.
-        return infill_info(info, self._sometimes_info)
-
     def step(self, action):
         o, r, d, info = super().step(action)
-        return o, r, d, self.info(info)
+        # Try to make info dict same key structure at every step.
+        return o, r, d, infill_info(info, self._sometimes_info)
 
 
 def infill_info(info, sometimes_info):
@@ -112,4 +111,3 @@ def make(*args, sometimes_info_kwargs=None, **kwargs):
     else:
         return GymEnvWrapper(EnvInfoWrapper(
             gym.make(*args, **kwargs), sometimes_info_kwargs))
-

@@ -9,7 +9,7 @@ experiments than fit on the machine, and they will run in order over time.
 To understand rules and settings for affinities, try using 
 code = affinity.encode_affinity(..)
 slot_code = affinity.prepend_run_slot(code, slot)
-affinity = affinity.get_affinity(slot_code)
+affinity = affinity.affinity_from_code(slot_code)
 with many different inputs to encode, and see what comes out.
 
 The results will be logged with a folder structure according to the

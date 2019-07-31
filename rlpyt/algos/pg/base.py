@@ -17,7 +17,7 @@ class PolicyGradientAlgo(RlAlgorithm):
     opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
     def initialize(self, agent, n_itr, batch_spec=None, mid_batch_reset=False,
-            examples=None, rank=0, world_size=1):
+            examples=None, world_size=1, rank=0):
         """Params batch_spec and examples unused."""
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)

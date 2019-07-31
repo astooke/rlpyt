@@ -15,8 +15,8 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 class PrioritizedReplay(object):
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
-            shared_memory=False, **kwargs):
-        super().__init__(shared_memory=shared_memory, **kwargs)
+            share_memory=False, **kwargs):
+        super().__init__(share_memory=share_memory, **kwargs)
         save__init__args(locals())
         self.init_priority_tree()
 
@@ -28,7 +28,7 @@ class PrioritizedReplay(object):
             off_backward=self.off_backward,
             off_forward=self.off_forward,
             default_value=self.default_priority ** self.alpha,
-            shared_memory=self.shared_memory,
+            share_memory=self.share_memory,
         )
 
     def set_beta(self, beta):

@@ -26,7 +26,7 @@ class AsyncGpuSampler(BaseSampler):
     # Master runner methods.
     ###########################################################################
 
-    def master_runner_initialize(self, agent, bootstrap_value=False,
+    def async_initialize(self, agent, bootstrap_value=False,
             traj_info_kwargs=None, seed=None):
         self.seed = make_seed() if seed is None else seed
         # Construct an example of each kind of data that needs to be stored.
@@ -80,7 +80,7 @@ class AsyncGpuSampler(BaseSampler):
             do_eval=mp.RawValue(ctypes.c_bool, False),
             stop_eval=mp.Value(ctypes.c_bool, False),
             itr=mp.RawValue(ctypes.c_long, 0),
-            j=mp.RawValue("i", 0),  # Double buffer index.
+            db_idx=mp.RawValue("i", 0),  # Double buffer index.
         )
         traj_infos_queue = mp.Queue()
 
@@ -98,7 +98,7 @@ class AsyncGpuSampler(BaseSampler):
 
     def obtain_samples(self, itr, j):
         self.ctrl.itr.value = itr
-        self.ctrl.j.value = j  # Tell collectors which buffer to use.
+        self.ctrl.db_idx.value = j  # Tell collectors which buffer to use.
         self.ctrl.barrier_in.wait()
         # Sampling in sub-processes here.
         self.ctrl.barrier_out.wait()
@@ -167,7 +167,7 @@ class AsyncGpuSampler(BaseSampler):
             else:
                 self.agent.sample_mode(self.ctrl.itr.value)
                 # Only for bootstrap_value:
-                self.samples_np = self.double_buffer[self.ctrl.j.value]
+                self.samples_np = self.double_buffer[self.ctrl.db_idx.value]
                 self.serve_actions(self.ctrl.itr.value)
             self.ctrl.barrier_out.wait()
         self.shutdown_workers()
@@ -244,7 +244,7 @@ class AsyncGpuSampler(BaseSampler):
             act_waiters=[mp.Semaphore(0) for _ in range(n_worker)],
             stop_eval=mp.RawValue(ctypes.c_bool, False),
             # stop_eval=self.ctrl.stop_eval,  # No, make 2-level signal.
-            j=self.ctrl.j,  # Copy into sync which passes to Collector.
+            db_idx=self.ctrl.db_idx,  # Copy into sync which passes to Collector.
         )
         step_buffer_pyt, step_buffer_np = build_step_buffer(self.examples,
             sum(n_envs_list))
@@ -328,7 +328,7 @@ def assemble_workers_kwargs(affinity, seed, double_buffer, n_envs_list,
             step_blocker=sync.step_blockers[rank],
             act_waiter=sync.act_waiters[rank],
             stop_eval=sync.stop_eval,
-            j=sync.j,
+            db_idx=sync.db_idx,
         )
         worker_kwargs = dict(
             rank=rank,

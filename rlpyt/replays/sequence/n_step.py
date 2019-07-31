@@ -17,7 +17,7 @@ SamplesToBuffer = None
 class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
 
     def __init__(self, example, size, B, rnn_state_interval, batch_T=None,
-            shared_memory=False, **kwargs):
+            share_memory=False, **kwargs):
         self.rnn_state_interval = rnn_state_interval
         self.batch_T = batch_T  # Maybe required fixed depending on replay type.
         if rnn_state_interval <= 1:  # Store no rnn state or every rnn state.
@@ -33,9 +33,9 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
                 math.ceil(size / B) / rnn_state_interval)
             self.samples_prev_rnn_state = buffer_from_example(example.prev_rnn_state,
                 (size // (B * rnn_state_interval), B),
-                shared_memory=shared_memory)
+                share_memory=share_memory)
         super().__init__(example=buffer_example, size=size, B=B,
-            shared_memory=shared_memory, **kwargs)
+            share_memory=share_memory, **kwargs)
         if rnn_state_interval > 1:
             assert self.T % rnn_state_interval == 0
         self.rnn_T = self.T // rnn_state_interval

@@ -51,6 +51,7 @@ class DQN(RlAlgorithm):
             pri_beta_steps=int(50e6),
             default_priority=None,
             ReplayBufferCls=None,  # Leave None to select by above options.
+            updates_per_sync=1,  # For async mode only.
             ):
         if optim_kwargs is None:
             optim_kwargs = dict(eps=0.01 / batch_size)
@@ -60,7 +61,7 @@ class DQN(RlAlgorithm):
         self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
-            rank=0, world_size=1):
+            world_size=1, rank=0):
         """Used in basic or synchronous multi-GPU runners, not async."""
         self.agent = agent
         self.n_itr = n_itr
@@ -77,15 +78,15 @@ class DQN(RlAlgorithm):
         self.initialize_replay_buffer(examples, batch_spec)
         self.optim_initialize(rank)
 
-    def master_runner_initialize(self, agent, batch_spec, examples, mid_batch_reset,
-            updates_per_sync, sampler_n_itr, world_size=1):
+    def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset,
+            examples, world_size=1):
         """Used in async runner only."""
         self.agent = agent
         self.n_itr = sampler_n_itr
         self.initialize_replay_buffer(examples, batch_spec, async_=True)
         self.mid_batch_reset = mid_batch_reset
         self.sampler_bs = sampler_bs = batch_spec.size
-        self.updates_per_optimize = updates_per_sync
+        self.updates_per_optimize = self.updates_per_sync
         self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
         eps_itr_max = max(1, int(self.eps_steps // sampler_bs))
         # Before any forking so all sub processes have epsilon schedule:
@@ -115,7 +116,7 @@ class DQN(RlAlgorithm):
             B=batch_spec.B,
             discount=self.discount,
             n_step_return=self.n_step_return,
-            shared_memory=async_,
+            share_memory=async_,
         )
         if self.prioritized_replay:
             replay_kwargs.update(dict(

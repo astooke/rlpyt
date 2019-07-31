@@ -36,9 +36,8 @@ class PPO(PolicyGradientAlgo):
             optim_kwargs = dict()
         save__init__args(locals())
 
-    def initialize(self, agent, n_itr, batch_spec=None, mid_batch_reset=False,
-            examples=None):
-        super().initialize(agent, n_itr, batch_spec, mid_batch_reset, examples)
+    def initialize(self, *args, **kwargs):
+        super().initialize(*args, **kwargs)
         if self.linear_lr_schedule:
             self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
                 optimizer=self.optimizer,

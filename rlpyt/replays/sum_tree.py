@@ -18,7 +18,7 @@ class SumTree(object):
     """
 
     def __init__(self, T, B, off_backward, off_forward,
-            default_value=1, shared_memory=False):
+            default_value=1, share_memory=False):
         self.T = T
         self.B = B
         self.size = T * B
@@ -26,7 +26,7 @@ class SumTree(object):
         self.off_forward = off_forward
         self.default_value = default_value
         self.tree_levels = int(np.ceil(np.log2(self.size + 1)) + 1)
-        if shared_memory:
+        if share_memory:
             self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)
             self.tree.fill(0)  # Just in case.
         else:

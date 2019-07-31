@@ -15,7 +15,7 @@ so batch sizes grow with the number of parallel runners (might change this).
 Try different affinity inputs to see where the jobs run on the machine.
 
 """
-from rlpyt.utils.launching.affinity import encode_affinity, prepend_run_slot, get_affinity
+from rlpyt.utils.launching.affinity import encode_affinity, prepend_run_slot, affinity_from_code
 from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
 from rlpyt.samplers.gpu.collectors import WaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
@@ -38,7 +38,7 @@ def build_and_train(game="pong", run_ID=0):
         # cpu_per_run=1,
     )
     slot_affinity_code = prepend_run_slot(run_slot=0, affinity_code=affinity_code)
-    affinity = get_affinity(slot_affinity_code)
+    affinity = affinity_from_code(slot_affinity_code)
     breakpoint()
 
     sampler = GpuParallelSampler(

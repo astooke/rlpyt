@@ -26,7 +26,7 @@ class AsyncCpuSampler(BaseSampler):
     # Master runner methods.
     ###########################################################################
 
-    def master_runner_initialize(self, agent, bootstrap_value=False,
+    def async_initialize(self, agent, bootstrap_value=False,
             traj_info_kwargs=None, seed=None):
         self.seed = make_seed() if seed is None else seed
         # Construct an example of each kind of data that needs to be stored.
@@ -76,6 +76,7 @@ class AsyncCpuSampler(BaseSampler):
         # Make a different shared_model among this process and workers,
         # so can lock when copying the optimizer shared model over.
         torch.set_num_threads(1)  # Needed to avoid hang on some systems.
+        # (Encountered hang when loading state dict inside the following:)
         self.agent.async_cpu(share_memory=True)
 
         ctrl = AttrDict(
@@ -84,13 +85,13 @@ class AsyncCpuSampler(BaseSampler):
             barrier_out=mp.Barrier(n_worker + 1),
             do_eval=mp.RawValue(ctypes.c_bool, False),
             itr=mp.RawValue(ctypes.c_long, 0),
-            j=mp.RawValue("i", 0),  # Double buffer index.
+            db_idx=mp.RawValue("i", 0),  # Double buffer index.
         )
         traj_infos_queue = mp.Queue()
 
         sync = AttrDict(
             stop_eval=mp.RawValue(ctypes.c_bool, False),
-            j=ctrl.j,  # Copy into sync which passes to Collector.
+            db_idx=ctrl.db_idx,  # Copy into sync which passes to Collector.
         )
 
         common_kwargs = dict(
@@ -130,7 +131,7 @@ class AsyncCpuSampler(BaseSampler):
     def obtain_samples(self, itr, j):
         self.agent.recv_shared_memory()
         self.ctrl.itr.value = itr
-        self.sync.j.value = j  # Tell collectors which buffer to use.
+        self.sync.db_idx.value = j  # Tell collectors which buffer to use.
         self.ctrl.barrier_in.wait()
         # Workers step environments and sample actions here.
         self.ctrl.barrier_out.wait()

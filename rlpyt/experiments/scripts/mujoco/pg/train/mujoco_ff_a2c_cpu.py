@@ -1,7 +1,7 @@
 
 import sys
 
-from rlpyt.utils.launching.affinity import get_affinity
+from rlpyt.utils.launching.affinity import affinity_from_code
 from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
 from rlpyt.samplers.cpu.collectors import ResetCollector
 from rlpyt.envs.gym import make as gym_make
@@ -15,7 +15,7 @@ from rlpyt.experiments.configs.mujoco.pg.mujoco_a2c import configs
 
 
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
-    affinity = get_affinity(slot_affinity_code)
+    affinity = affinity_from_code(slot_affinity_code)
     config = configs[config_key]
     variant = load_variant(log_dir)
     config = update_config(config, variant)

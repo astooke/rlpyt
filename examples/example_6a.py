@@ -17,7 +17,7 @@ use of 'valid' mask.
 """
 import sys
 
-from rlpyt.utils.launching.affinity import get_affinity
+from rlpyt.utils.launching.affinity import affinity_from_code
 from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
 from rlpyt.samplers.gpu.collectors import WaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
@@ -36,7 +36,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID):
         sampler=dict(batch_B=16),
     )
 
-    affinity = get_affinity(slot_affinity_code)
+    affinity = affinity_from_code(slot_affinity_code)
     variant = load_variant(log_dir)
     global config
     config = update_config(config, variant)

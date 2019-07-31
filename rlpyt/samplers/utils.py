@@ -59,9 +59,9 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
 
 
 def build_step_buffer(examples, B):
-    bufs = tuple(buffer_from_example(examples[k], B, shared_memory=True)
+    bufs = tuple(buffer_from_example(examples[k], B, share_memory=True)
         for k in ["observation", "action", "reward", "done", "agent_info"])
-    need_reset = buffer_from_example(examples["done"], B, shared_memory=True)
+    need_reset = buffer_from_example(examples["done"], B, share_memory=True)
     step_buffer_np = StepBuffer(*bufs, need_reset)
     step_buffer_pyt = torchify_buffer(step_buffer_np)
     return step_buffer_pyt, step_buffer_np

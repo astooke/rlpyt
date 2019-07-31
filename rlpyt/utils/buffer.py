@@ -8,20 +8,20 @@ from rlpyt.utils.collections import namedarraytuple_like
 # from rlpyt.utils.misc import put
 
 
-def buffer_from_example(example, leading_dims, shared_memory=False):
+def buffer_from_example(example, leading_dims, share_memory=False):
     try:
         buffer_type = namedarraytuple_like(example)
     except TypeError:  # example was not a namedtuple or namedarraytuple
-        return build_array(example, leading_dims, shared_memory)
-    return buffer_type(*(buffer_from_example(v, leading_dims, shared_memory)
+        return build_array(example, leading_dims, share_memory)
+    return buffer_type(*(buffer_from_example(v, leading_dims, share_memory)
         for v in example))
 
 
-def build_array(example, leading_dims, shared_memory=False):
+def build_array(example, leading_dims, share_memory=False):
     a = np.asarray(example)
     if a.dtype == "object":
         raise TypeError("Buffer example value cannot cast as np.dtype==object.")
-    constructor = np_mp_array if shared_memory else np.zeros
+    constructor = np_mp_array if share_memory else np.zeros
     if not isinstance(leading_dims, (list, tuple)):
         leading_dims = (leading_dims,)
     return constructor(shape=leading_dims + a.shape, dtype=a.dtype)

@@ -13,7 +13,7 @@ class DoubleBufferCollectorMixin(object):
         self.samples_np = self.double_buffer[0]
 
     def collect_batch(self, *args, **kwargs):
-        self.samples_np = self.double_buffer[self.sync.j.value]
+        self.samples_np = self.double_buffer[self.sync.db_idx.value]
         return super().collect_batch(*args, **kwargs)
 
 

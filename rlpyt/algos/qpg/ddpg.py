@@ -31,7 +31,7 @@ class DDPG(RlAlgorithm):
             target_update_tau=0.01,
             target_update_interval=1,
             policy_update_interval=1,
-            mu_learning_rate=1e-4,
+            learning_rate=1e-4,
             q_learning_rate=1e-3,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
@@ -39,6 +39,7 @@ class DDPG(RlAlgorithm):
             clip_grad_norm=1e6,
             q_target_clip=1e6,
             n_step_return=1,
+            updates_per_sync=1,  # For async mode only.
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -46,7 +47,7 @@ class DDPG(RlAlgorithm):
         self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
-            rank=0, world_size=1):
+            world_size=1, rank=0):
         """Used in basic or synchronous multi-GPU runners, not async."""
         self.agent = agent
         self.n_itr = n_itr
@@ -63,15 +64,15 @@ class DDPG(RlAlgorithm):
         self.initialize_replay_buffer(examples, batch_spec)
         self.optim_initialize(rank)
 
-    def master_runner_initialize(self, agent, batch_spec, examples, mid_batch_reset,
-            updates_per_sync, sampler_n_itr, world_size=1):
+    def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset,
+            examples, world_size=1):
         """Used in async runner only."""
         self.agent = agent
         self.n_itr = sampler_n_itr
         self.initialize_replay_buffer(examples, batch_spec, async_=True)
         self.mid_batch_reset = mid_batch_reset
         self.sampler_bs = sampler_bs = batch_spec.size
-        self.updates_per_optimize = updates_per_sync
+        self.updates_per_optimize = self.updates_per_sync
         self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
         agent.give_min_itr_learn(self.min_itr_learn)
         return self.replay_buffer
@@ -80,7 +81,7 @@ class DDPG(RlAlgorithm):
         """Called by async runner."""
         self.rank = rank
         self.mu_optimizer = self.OptimCls(self.agent.mu_parameters(),
-            lr=self.mu_learning_rate, **self.optim_kwargs)
+            lr=self.learning_rate, **self.optim_kwargs)
         self.q_optimizer = self.OptimCls(self.agent.q_parameters(),
             lr=self.q_learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
@@ -98,7 +99,8 @@ class DDPG(RlAlgorithm):
             example=example_to_buffer,
             size=self.replay_size,
             B=batch_spec.B,
-            n_step_return=self.n_step_return
+            n_step_return=self.n_step_return,
+            share_memory=async_,
         )
         ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)

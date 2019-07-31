@@ -29,7 +29,6 @@ class AsyncRlBase(BaseRunner):
             sampler,
             n_steps,
             affinity,
-            updates_per_sync=1,
             seed=None,
             log_interval_steps=1e5,
             ):
@@ -79,7 +78,7 @@ class AsyncRlBase(BaseRunner):
         if self.seed is None:
             self.seed = make_seed()
         set_seed(self.seed)
-        double_buffer, examples = self.sampler.master_runner_initialize(
+        double_buffer, examples = self.sampler.async_initialize(
             agent=self.agent,
             bootstrap_value=getattr(self.algo, "bootstrap_value", False),
             traj_info_kwargs=self.get_traj_info_kwargs(),
@@ -88,13 +87,12 @@ class AsyncRlBase(BaseRunner):
         self.sampler_batch_size = self.sampler.batch_spec.size
         self.world_size = len(self.affinity.optimizer)
         n_itr = self.get_n_itr()  # Number of sampler iterations.
-        replay_buffer = self.algo.master_runner_initialize(
+        replay_buffer = self.algo.async_initialize(
             agent=self.agent,
-            batch_spec=self.sampler.batch_spec,
-            examples=examples,
-            mid_batch_reset=self.sampler.mid_batch_reset,
-            updates_per_sync=self.updates_per_sync,
             sampler_n_itr=n_itr,
+            batch_spec=self.sampler.batch_spec,
+            mid_batch_reset=self.sampler.mid_batch_reset,
+            examples=examples,
             world_size=self.world_size,
         )
         self.launch_workers(n_itr, double_buffer, replay_buffer)

@@ -74,7 +74,7 @@ class BaseAgent(object):
 
     def async_cpu(self, share_memory=True):
         """Shared model among sampler processes separate from shared model
-        in optimizer process, so sampler can copy over under lock."""
+        in optimizer process, so sampler can copy under lock."""
         if self.device.type != "cpu":
             return
         assert self.shared_model is not None

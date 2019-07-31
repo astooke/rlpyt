@@ -8,8 +8,8 @@ from rlpyt.utils.synchronize import RWLock
 class AsyncReplayBufferMixin(object):
 
     def __init__(self, *args, **kwargs):
-        kwargs.pop("shared_memory")
-        super().__init__(*args, shared_memory=True, **kwargs)
+        kwargs.pop("share_memory")
+        super().__init__(*args, share_memory=True, **kwargs)
         self.async_t = mp.RawValue("l")  # Type c_long.
         self.rw_lock = RWLock()
         self._async_buffer_full = mp.RawValue(ctypes.c_bool, False)

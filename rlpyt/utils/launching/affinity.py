@@ -103,7 +103,7 @@ def prepend_run_slot(run_slot, affinity_code):
     return f"{run_slot}{RUN_SLOT}_" + affinity_code
 
 
-def get_affinity(run_slot_affinity_code):
+def affinity_from_code(run_slot_affinity_code):
     """Use in individual experiment script; pass output to Runner."""
     run_slot, aff_code = remove_run_slot(run_slot_affinity_code)
     aff_params = decode_affinity(aff_code)
@@ -118,7 +118,7 @@ def get_affinity(run_slot_affinity_code):
 
 def make_affinity(run_slot=0, **kwargs):
     """Input same kwargs as encode_affinity, returns the AttrDict form."""
-    return get_affinity(encode_affinity(run_slot=run_slot, **kwargs))
+    return affinity_from_code(encode_affinity(run_slot=run_slot, **kwargs))
 
 
 # Helpers
@@ -136,6 +136,7 @@ def get_hyperthread_offset():
     # hto = psutil.cpu_count() - psutil.cpu_count(logical=False)
     vcpu = psutil.cpu_count()
     if vcpu != psutil.cpu_count(logical=False) and vcpu % 2 == 0:
+        # Best guess?
         return vcpu // 2
     return 0
 

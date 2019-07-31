@@ -2,16 +2,19 @@
 import sys
 
 from rlpyt.utils.launching.affinity import affinity_from_code
-from rlpyt.samplers.serial_sampler import SerialSampler
-from rlpyt.samplers.cpu.collectors import ResetCollector
+# from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
+from rlpyt.samplers.async_.async_serial_sampler import AsyncSerialSampler
+# from rlpyt.samplers.cpu.collectors import ResetCollector
+from rlpyt.samplers.async_.collectors import DbCpuResetCollector
 from rlpyt.envs.gym import make as gym_make
-from rlpyt.algos.qpg.td3 import TD3
-from rlpyt.agents.qpg.td3_agent import Td3Agent
-from rlpyt.runners.minibatch_rl_eval import MinibatchRlEval
+from rlpyt.algos.qpg.ddpg import DDPG
+from rlpyt.agents.qpg.ddpg_agent import DdpgAgent
+# from rlpyt.runners.minibatch_rl import MinibatchRlEval
+from rlpyt.runners.async_rl import AsyncRlEval
 from rlpyt.utils.logging.context import logger_context
 from rlpyt.utils.launching.variant import load_variant, update_config
 
-from rlpyt.experiments.configs.mujoco.qpg.mujoco_td3 import configs
+from rlpyt.experiments.configs.mujoco.qpg.mujoco_ddpg import configs
 
 
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
@@ -19,25 +22,23 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     config = configs[config_key]
     variant = load_variant(log_dir)
     config = update_config(config, variant)
-    config["eval_env"]["id"] = config["env"]["id"]
 
-    sampler = SerialSampler(
+    sampler = AsyncSerialSampler(
         EnvCls=gym_make,
         env_kwargs=config["env"],
-        CollectorCls=ResetCollector,
-        eval_env_kwargs=config["eval_env"],
+        CollectorCls=DbCpuResetCollector,
         **config["sampler"]
     )
-    algo = TD3(optim_kwargs=config["optim"], **config["algo"])
-    agent = Td3Agent(**config["agent"])
-    runner = MinibatchRlEval(
+    algo = DDPG(optim_kwargs=config["optim"], **config["algo"])
+    agent = DdpgAgent(**config["agent"])
+    runner = AsyncRlEval(
         algo=algo,
         agent=agent,
         sampler=sampler,
         affinity=affinity,
         **config["runner"]
     )
-    name = "td3_" + config["env"]["id"]
+    name = config["env"]["id"]
     with logger_context(log_dir, run_ID, name, config):
         runner.train()
 

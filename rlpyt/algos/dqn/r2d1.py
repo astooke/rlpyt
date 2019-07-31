@@ -7,8 +7,9 @@ from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.replays.sequence.frame import UniformSequenceReplayFrameBuffer
-from rlpyt.replays.sequence.frame import PrioritizedSequenceReplayFrameBuffer
+from rlpyt.replays.sequence.frame import (UniformSequenceReplayFrameBuffer,
+    PrioritizedSequenceReplayFrameBuffer, AsyncUniformSequenceReplayFrameBuffer,
+    AsyncPrioritizedSequenceReplayFrameBuffer)
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
 from rlpyt.algos.utils import valid_from_done
 from rlpyt.utils.buffer import buffer_to, buffer_method
@@ -31,7 +32,7 @@ class R2D1(DQN):
             batch_B=64,
             warmup_T=40,
             store_rnn_state_interval=40,  # 0 for none, 1 for all.
-            min_steps_learn=int(5e4),
+            min_steps_learn=int(1e5),
             delta_clip=None,  # Typically use squared-error loss (Steven).
             replay_size=int(1e6),
             replay_ratio=1,
@@ -42,11 +43,11 @@ class R2D1(DQN):
             optim_kwargs=None,
             initial_optim_state_dict=None,
             clip_grad_norm=80.,  # 80 (Steven).
-            eps_init=1,
-            eps_final=0.1,
-            eps_final_min=0.0005,
-            eps_steps=int(1e6),
-            eps_eval=0.001,
+            # eps_init=1,  # NOW IN AGENT.
+            # eps_final=0.1,
+            # eps_final_min=0.0005,
+            # eps_eval=0.001,
+            eps_steps=int(1e6),  # STILL IN ALGO; conver to itr, give to agent.
             double_dqn=True,
             prioritized_replay=True,
             pri_alpha=0.6,
@@ -56,6 +57,7 @@ class R2D1(DQN):
             pri_eta=0.9,
             default_priority=None,
             value_scale_eps=1e-3,  # 1e-3 (Steven).
+            updates_per_sync=1,  # For async mode only.
             ):
         if optim_kwargs is None:
             optim_kwargs = dict(eps=1e-3)  # Assumes Adam.
@@ -83,7 +85,9 @@ class R2D1(DQN):
             discount=self.discount,
             n_step_return=self.n_step_return,
             rnn_state_interval=self.store_rnn_state_interval,
-            batch_T=self.batch_T + self.warmup_T,  # Fixed for prioritized replay.
+            # batch_T fixed for prioritized, (relax if rnn_state_interval=1 or 0).
+            batch_T=self.batch_T + self.warmup_T,  
+            share_memory=async,
         )
         if self.prioritized_replay:
             replay_kwargs.update(dict(
@@ -91,9 +95,11 @@ class R2D1(DQN):
                 beta=self.pri_beta_init,
                 default_priority=self.default_priority,
             ))
-            ReplayCls = PrioritizedSequenceReplayFrameBuffer
+            ReplayCls = (AsyncPrioritizedSequenceReplayFrameBuffer if async_
+                else PrioritizedSequenceReplayFrameBuffer)
         else:
-            ReplayCls = UniformSequenceReplayFrameBuffer
+            ReplayCls = (AsyncUniformSequenceReplayFrameBuffer if async_
+                else UniformSequenceReplayFrameBuffer)
         self.replay_buffer = ReplayCls(**replay_kwargs)
         return self.replay_buffer
 
