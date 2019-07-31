@@ -7,7 +7,7 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.synchronize import RWLock
 from rlpyt.utils.logging import logger
-from rlpyt.model.utils import strip_ddp_state_dict
+from rlpyt.models.utils import strip_ddp_state_dict
 
 AgentInputs = namedarraytuple("AgentInputs",
     ["observation", "prev_action", "prev_reward"])
