@@ -43,7 +43,7 @@ class AsyncRlBase(BaseRunner):
         if self._eval:
             while self.ctrl.sampler_itr.value < 1:  # Sampler does eval first.
                 time.sleep(THROTTLE_WAIT)
-            traj_infos = drain_queue(self.traj_infos_queue)
+            traj_infos = drain_queue(self.traj_infos_queue, n_None=1)
             self.store_diagnostics(0, 0, traj_infos, ())
             self.log_diagnostics(0, 0, 0)
         log_counter = 0
@@ -62,13 +62,14 @@ class AsyncRlBase(BaseRunner):
                 opt_info = self.algo.optimize_agent(itr,
                     sampler_itr=self.ctrl.sampler_itr.value)
                 self.agent.send_shared_memory()  # To sampler.
-                with self.ctrl.sampler_itr.get_lock():
-                    # Lock to prevent traj_infos splitting across itr.
-                    traj_infos = drain_queue(self.traj_infos_queue,
-                        n_None=1 if self._eval else 0)
-                    sampler_itr = self.ctrl.sampler_itr.value
+                sampler_itr = self.ctrl.sampler_itr.value
+                traj_infos = (list() if self._eval else
+                    drain_queue(self.traj_infos_queue))
                 self.store_diagnostics(itr, sampler_itr, traj_infos, opt_info)
-                if ((sampler_itr - 1) // self.log_interval_itrs > log_counter):
+                if (sampler_itr // self.log_interval_itrs > log_counter):
+                    if self._eval:
+                        traj_infos = drain_queue(self.traj_infos_queue, n_None=1)
+                        self.store_diagnostics(itr, sampler_itr, traj_infos, ())
                     self.log_diagnostics(itr, sampler_itr, throttle_time)
                     log_counter += 1
                     throttle_time = 0.
