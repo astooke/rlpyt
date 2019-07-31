@@ -419,7 +419,7 @@ def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
                 traj_infos_queue.put(traj_info)
             ctrl.sampler_itr.value = itr
         j ^= 1  # Double buffer.
-    logger.log(f"Async sampler reached final itr: {itr}, quitting.")
+    logger.log(f"Async sampler reached final itr: {itr + 1}, quitting.")
     ctrl.quit.value = True  # This ends the experiment.
     sampler.shutdown()
     for s in ctrl.sample_ready:
@@ -447,7 +447,7 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
         else:
             ctrl.sampler_itr.value = itr
         j ^= 1  # Double buffer
-    logger.log(f"Async sampler reached final itr: {itr}, quitting.")
+    logger.log(f"Async sampler reached final itr: {itr + 1}, quitting.")
     ctrl.quit.value = True  # This ends the experiment.
     sampler.shutdown()
     for s in ctrl.sample_ready:

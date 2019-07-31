@@ -90,5 +90,10 @@ class SerialEvalCollector(object):
                 reward[b] = r
             if (self.max_trajectories is not None and
                     len(completed_traj_infos) >= self.max_trajectories):
+                logger.log("Evaluation reached max num trajectories: "
+                    f"({self.max_trajectories}).")
                 break
+        if t == self.max_T - 1:
+            logger.log("Evaluation reached max num time steps "
+                f"({self.max_T})".)
         return completed_traj_infos
