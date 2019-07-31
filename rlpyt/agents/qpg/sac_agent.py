@@ -60,7 +60,7 @@ class SacAgent(BaseAgent):
             self.q2_model.load_state_dict(self.initial_q2_model_state_dict)
         if self.initial_v_model_state_dict is not None:
             self.v_model.load_state_dict(self.initial_v_model_state_dict)
-        self.target_v_model = self.VModelCls(**env_model_kwargs,
+        self.target_v_model = self.VModelCls(**self.env_model_kwargs,
             **self.v_model_kwargs)
         self.target_v_model.load_state_dict(self.v_model.state_dict())
         assert len(env_spaces.action.shape) == 1

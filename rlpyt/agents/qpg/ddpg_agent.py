@@ -47,7 +47,7 @@ class DdpgAgent(BaseAgent):
             self.q_model.load_state_dict(self.initial_q_model_state_dict)
         self.target_model = self.ModelCls(**self.env_model_kwargs,
             **self.model_kwargs)
-        self.target_q_model = self.QModelCls(**env_model_kwargs,
+        self.target_q_model = self.QModelCls(**self.env_model_kwargs,
             **self.q_model_kwargs)
         self.target_q_model.load_state_dict(self.q_model.state_dict())
         assert len(env_spaces.action.shape) == 1
