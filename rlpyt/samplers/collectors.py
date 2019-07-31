@@ -95,5 +95,5 @@ class SerialEvalCollector(object):
                 break
         if t == self.max_T - 1:
             logger.log("Evaluation reached max num time steps "
-                f"({self.max_T})".)
+                f"({self.max_T}).")
         return completed_traj_infos
