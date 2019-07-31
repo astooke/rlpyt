@@ -40,7 +40,7 @@ class BaseAgent(object):
             **self.model_kwargs)
         if share_memory:
             self.model.share_memory()
-            self.shared_model = model
+            self.shared_model = self.model
         if self.initial_model_state_dict is not None:
             self.model.load_state_dict(self.initial_model_state_dict)
         self.env_spaces = env_spaces
