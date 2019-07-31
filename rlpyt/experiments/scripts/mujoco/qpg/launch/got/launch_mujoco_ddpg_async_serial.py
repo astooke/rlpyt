@@ -18,7 +18,7 @@ default_config_key = "async_serial"
 experiment_title = "ddpg_mujoco"
 variant_levels = list()
 
-env_ids = ["Hopper-v2"]  # , "Swimmer-v3"]
+env_ids = ["Hopper-v3", "HalfCheetah-v3"]  # , "Swimmer-v3"]
 values = list(zip(env_ids))
 dir_names = ["env_{}".format(*v) for v in values]
 keys = [("env", "id")]

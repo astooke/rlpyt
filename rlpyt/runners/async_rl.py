@@ -224,13 +224,15 @@ class AsyncRlBase(BaseRunner):
         self._opt_infos = {k: list() for k in self.algo.opt_info_fields}
         self._start_time = self._last_time = time.time()
         self._last_itr = 0
+        self._last_sampler_itr = 0
+        self._last_update_counter = 0
 
     def get_itr_snapshot(self, itr, sampler_itr):
         return dict(
             itr=itr,
             sampler_itr=sampler_itr,
             cum_steps=sampler_itr * self.sampler_batch_size,
-            cum_updates=itr * self.algo.updates_per_optimize,
+            cum_updates=self.algo.update_counter,
             agent_state_dict=self.agent.state_dict(),
             optimizer_state_dict=self.algo.optim_state_dict(),
         )
@@ -256,19 +258,23 @@ class AsyncRlBase(BaseRunner):
         self.save_itr_snapshot(itr, sampler_itr)
         new_time = time.time()
         time_elapsed = new_time - self._last_time
-        samples_per_second = (float('nan') if itr == 0 else
-            self.log_interval_itrs * self.sampler_batch_size / time_elapsed)
+        new_updates = self.algo.update_counter - self._last_update_counter
+        new_samples = self.sampler.batch_size * (sampler_itr - self._last_sampler_itr)
         updates_per_second = (float('nan') if itr == 0 else
-            self.algo.updates_per_optimize * (itr - self._last_itr) / time_elapsed)
-        replay_ratio = updates_per_second * self.algo.batch_size / samples_per_second
-        cum_steps = sampler_itr * self.sampler_batch_size
-        cum_updates = itr * self.algo.updates_per_optimize
-        cum_replay_ratio = cum_updates * self.algo.batch_size / max(1, cum_steps)
+            new_updates / time_elapsed)
+        samples_per_second = (float('nan') if itr == 0 else
+            new_samples / time_elapsed)
+        cum_steps = sampler_itr * self.sampler.batch_size  # No * world_size.
+        replay_ratio = (new_updates * self.algo.batch_size * self.world_size /
+            new_samples)
+        cum_replay_ratio = (self.algo.update_counter * self.algo.batch_size *
+            self.world_size / max(1, cum_steps))
+
         logger.record_tabular('Iteration', itr)
         logger.record_tabular('SamplerIteration', sampler_itr)
         logger.record_tabular('CumTime (s)', new_time - self._start_time)
         logger.record_tabular('CumSteps', cum_steps)
-        logger.record_tabular('CumUpdates', cum_updates)
+        logger.record_tabular('CumUpdates', self.algo.update_counter)
         logger.record_tabular('ReplayRatio', replay_ratio)
         logger.record_tabular('CumReplayRatio', cum_replay_ratio)
         logger.record_tabular('SamplesPerSecond', samples_per_second)
@@ -279,6 +285,8 @@ class AsyncRlBase(BaseRunner):
         self._log_infos()
         self._last_time = new_time
         self._last_itr = itr
+        self._last_sampler_itr = sampler_itr
+        self._last_update_counter = self.algo.update_counter
         logger.dump_tabular(with_prefix=False)
         logger.log(f"Optimizing over {self.log_interval_itrs} sampler "
             "iterations.")

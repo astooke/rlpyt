@@ -16,7 +16,7 @@ class PolicyGradientAlgo(RlAlgorithm):
     bootstrap_value = True
     opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
-    def initialize(self, agent, n_itr, batch_spec=None, mid_batch_reset=False,
+    def initialize(self, agent, n_itr, batch_spec, mid_batch_reset=False,
             examples=None, world_size=1, rank=0):
         """Params batch_spec and examples unused."""
         self.optimizer = self.OptimCls(agent.parameters(),
@@ -25,6 +25,7 @@ class PolicyGradientAlgo(RlAlgorithm):
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
         self.agent = agent
         self.n_itr = n_itr
+        self.batch_spec = batch_spec
         self.mid_batch_reset = mid_batch_reset
 
     def process_returns(self, samples):

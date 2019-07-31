@@ -64,8 +64,7 @@ class R2D1(DQN):
         if default_priority is None:
             default_priority = delta_clip or 1.
         save__init__args(locals())
-        self.update_counter = 0
-        self.batch_size = (self.batch_T + self.warmup_T) * self.batch_B
+        self._batch_size = (self.batch_T + self.warmup_T) * self.batch_B
 
     def initialize_replay_buffer(self, examples, batch_spec, async_=False):
         example_to_buffer = SamplesToBuffer(
@@ -86,7 +85,7 @@ class R2D1(DQN):
             n_step_return=self.n_step_return,
             rnn_state_interval=self.store_rnn_state_interval,
             # batch_T fixed for prioritized, (relax if rnn_state_interval=1 or 0).
-            batch_T=self.batch_T + self.warmup_T,  
+            batch_T=self.batch_T + self.warmup_T,
             share_memory=async,
         )
         if self.prioritized_replay:
@@ -125,7 +124,6 @@ class R2D1(DQN):
         if itr < self.min_itr_learn:
             return opt_info
         for _ in range(self.updates_per_optimize):
-            self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_B)
             self.optimizer.zero_grad()
             loss, td_abs_errors, priorities = self.loss(samples_from_replay)
@@ -139,6 +137,7 @@ class R2D1(DQN):
             opt_info.gradNorm.append(grad_norm)
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())
             opt_info.priority.extend(priorities)
+            self.update_counter += 1
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target()
         self.update_itr_hyperparams(itr)

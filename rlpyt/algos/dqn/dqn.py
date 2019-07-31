@@ -57,6 +57,8 @@ class DQN(RlAlgorithm):
             optim_kwargs = dict(eps=0.01 / batch_size)
         if default_priority is None:
             default_priority = delta_clip
+        _batch_size = batch_size
+        del batch_size  # Property.
         save__init__args(locals())
         self.update_counter = 0
 
@@ -140,7 +142,6 @@ class DQN(RlAlgorithm):
         if itr < self.min_itr_learn:
             return opt_info
         for _ in range(self.updates_per_optimize):
-            self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             self.optimizer.zero_grad()
             loss, td_abs_errors = self.loss(samples_from_replay)
@@ -153,6 +154,7 @@ class DQN(RlAlgorithm):
             opt_info.loss.append(loss.item())
             opt_info.gradNorm.append(grad_norm)
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())  # Downsample.
+            self.update_counter += 1
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target()
         self.update_itr_hyperparams(itr)

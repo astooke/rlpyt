@@ -43,8 +43,9 @@ class DDPG(RlAlgorithm):
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
+        _batch_size = batch_size
+        del batch_size  # Property.
         save__init__args(locals())
-        self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
             world_size=1, rank=0):
@@ -112,7 +113,6 @@ class DDPG(RlAlgorithm):
         if itr < self.min_itr_learn:
             return opt_info
         for _ in range(self.updates_per_optimize):
-            self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             if self.mid_batch_reset and not self.agent.recurrent:
                 valid = None  # OR: torch.ones_like(samples.done, dtype=torch.float)
@@ -126,6 +126,7 @@ class DDPG(RlAlgorithm):
             self.q_optimizer.step()
             opt_info.qLoss.append(q_loss.item())
             opt_info.qGradNorm.append(q_grad_norm)
+            self.update_counter += 1
             if self.update_counter % self.policy_update_interval == 0:
                 self.mu_optimizer.zero_grad()
                 mu_loss = self.mu_loss(samples_from_replay, valid)

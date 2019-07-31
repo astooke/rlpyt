@@ -84,6 +84,7 @@ class BaseAgent(object):
         assert self.shared_model is not None
         self.model = self.ModelCls(**self.env_model_kwargs,
             **self.model_kwargs)
+        # TODO: might need strip_ddp_state_dict.
         self.model.load_state_dict(self.shared_model.state_dict())
         if share_memory:  # Not needed in async_serial.
             self.model.share_memory()  # For CPU workers in async_cpu.
@@ -132,7 +133,7 @@ class BaseAgent(object):
     def sync_shared_memory(self):
         """Call in sampler master (non-async), after initialize(share_memory=True)."""
         if self.shared_model is not self.model:  # (self.model gets trained)
-            # TODO: shouldn't this also need the DDP workaround for 'model.'?
+            # TODO: might need strip_ddp_state_dict.
             self.shared_model.load_state_dict(self.model.state_dict())
 
     def send_shared_memory(self):

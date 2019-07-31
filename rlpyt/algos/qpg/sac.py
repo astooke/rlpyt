@@ -52,8 +52,9 @@ class SAC(RlAlgorithm):
         if optim_kwargs is None:
             optim_kwargs = dict()
         assert action_prior in ["uniform", "gaussian"]
+        _batch_size = batch_size
+        del batch_size  # Property.
         save__init__args(locals())
-        self.update_counter = 0
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
             world_size=1, rank=0):
@@ -122,7 +123,6 @@ class SAC(RlAlgorithm):
         if itr < self.min_itr_learn:
             return opt_info
         for _ in range(self.updates_per_optimize):
-            self.update_counter += 1
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             self.optimizer.zero_grad()
             losses, values = self.loss(samples_from_replay)
@@ -132,6 +132,7 @@ class SAC(RlAlgorithm):
                 for ps in self.agent.parameters_by_model()]
             self.optimizer.step()
             self.append_opt_info_(opt_info, losses, grad_norms, values)
+            self.update_counter += 1
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target(self.target_update_tau)
         return opt_info

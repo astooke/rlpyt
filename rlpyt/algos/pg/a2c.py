@@ -28,6 +28,10 @@ class A2C(PolicyGradientAlgo):
             optim_kwargs = dict()
         save__init__args(locals())
 
+    def initialize(self, *args, **kwargs):
+        super().initialize(*args, **kwargs)
+        self._batch_size = self.batch_spec.size  # For logging.
+
     def optimize_agent(self, itr, samples):
         self.optimizer.zero_grad()
         loss, entropy, perplexity = self.loss(samples)
@@ -41,6 +45,7 @@ class A2C(PolicyGradientAlgo):
             entropy=entropy.item(),
             perplexity=perplexity.item(),
         )
+        self.update_counter += 1
         return opt_info
 
     def loss(self, samples):

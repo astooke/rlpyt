@@ -41,6 +41,10 @@ class BaseSampler(object):
     def shutdown(self):
         pass
 
+    @property
+    def batch_size(self):
+        return self.batch_spec.size  # For logging at least.
+
 
 class BaseCollector(object):
     """Class that steps through environments, possibly in worker process."""

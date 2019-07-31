@@ -38,6 +38,7 @@ class PPO(PolicyGradientAlgo):
 
     def initialize(self, *args, **kwargs):
         super().initialize(*args, **kwargs)
+        self._batch_size = self.batch_spec.size // self.minibatches  # For logging.
         if self.linear_lr_schedule:
             self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
                 optimizer=self.optimizer,
@@ -87,6 +88,7 @@ class PPO(PolicyGradientAlgo):
                 opt_info.gradNorm.append(grad_norm)
                 opt_info.entropy.append(entropy.item())
                 opt_info.perplexity.append(perplexity.item())
+                self.update_counter += 1
         if self.linear_lr_schedule:
             self.lr_scheduler.step()
             self.ratio_clip = self._ratio_clip * (self.n_itr - itr) / self.n_itr
