@@ -36,7 +36,7 @@ class AtariR2d1Model(torch.nn.Module):
             strides=strides or [4, 2, 1],
             paddings=paddings or [0, 1, 1],
             use_maxpool=use_maxpool,
-            output_size=fc_size,  # ReLU applied here (Steven).
+            hidden_sizes=fc_size,  # ReLU applied here (Steven).
         )
         self.lstm = torch.nn.LSTM(self.conv.output_size + output_size + 1, lstm_size)
         if dueling:
