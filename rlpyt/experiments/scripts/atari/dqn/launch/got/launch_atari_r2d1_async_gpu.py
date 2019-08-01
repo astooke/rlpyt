@@ -8,7 +8,6 @@ affinity_code = encode_affinity(
     n_cpu_core=20,
     n_gpu=4,
     async_sample=True,
-    sample_gpu_per_run=0,
     gpu_per_run=2,
     sample_gpu_per_run=2,
     # hyperthread_offset=24,
