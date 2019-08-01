@@ -52,15 +52,23 @@ class AsyncGpuSampler(BaseSampler):
     ###########################################################################
 
     def sampler_process_initialize(self, affinity):
+        B = self.batch_spec.B
+        n_worker = sum(len(aff["workers_cpus"]) for aff in affinity)
+        if B < n_worker:
+            logger.log(f"WARNING: requested fewer envs ({B}) than available worker "
+                f"processes ({n_worker}). Using fewer workers (but maybe better to "
+                "increase sampler's `batch_B`.")
+            n_worker = B
+        self.n_worker = n_worker
+
         torch.set_num_threads(1)  # Possibly needed to avoid MKL hang.
         self.world_size = n_server = len(affinity)
-        self.n_worker = n_worker = sum(len(aff["workers_cpus"]) for aff in affinity)
-        n_envs_list = [self.batch_spec.B // n_worker] * n_worker
-        if not self.batch_spec.B % n_worker == 0:
+        n_envs_list = [B // n_worker] * n_worker
+        if not B % n_worker == 0:
             logger.log("WARNING: unequal number of envs per process, from "
-                f"batch_B {self.batch_spec.B} and n_parallel {n_worker} "
+                f"batch_B {B} and n_parallel {n_worker} "
                 "(possible suboptimal speed).")
-            for b in range(self.batch_spec.B % n_worker):
+            for b in range(B % n_worker):
                 n_envs_list[b] += 1
 
         if self.eval_n_envs > 0:

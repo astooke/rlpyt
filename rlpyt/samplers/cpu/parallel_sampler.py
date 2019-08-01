@@ -27,7 +27,13 @@ class CpuParallelSampler(BaseSampler):
             world_size=1,
             ):
         B = self.batch_spec.B
-        self.n_worker = n_worker = len(affinity["workers_cpus"])
+        n_worker = len(affinity["workers_cpus"])
+        if B < n_worker:
+            logger.log(f"WARNING: requested fewer envs ({B}) than available worker "
+                f"processes ({n_worker}). Using fewer workers (but maybe better to "
+                "increase sampler's `batch_B`.")
+            n_worker = B
+        self.n_worker = n_worker
         n_envs_list = [B // n_worker] * n_worker
         if not B % n_worker == 0:
             logger.log("WARNING: unequal number of envs per process, from "
