@@ -7,6 +7,7 @@ from rlpyt.utils.buffer import buffer_to
 from rlpyt.distributions.gaussian import Gaussian, DistInfo
 from rlpyt.models.utils import update_state_dict
 from rlpyt.utils.quick_args import save__init__args
+from rlpyt.utils.logging import logger
 
 
 class Td3Agent(DdpgAgent):
