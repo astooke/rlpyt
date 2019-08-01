@@ -26,7 +26,8 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
-        super().initialize(env_spaces, share_memory, global_B, env_ranks)
+        super().initialize(env_spaces, share_memory,
+            global_B=global_B, env_ranks=env_ranks)
         self.target_model = self.ModelCls(**self.env_model_kwargs,
             **self.model_kwargs)
         self.target_model.load_state_dict(self.model.state_dict())
