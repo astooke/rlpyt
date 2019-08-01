@@ -116,7 +116,8 @@ class AsyncGpuSampler(BaseSampler):
         if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
-                traj_infos.extend(drain_queue(self.eval_traj_infos_queue))
+                traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
+                    guard_sentinel=True)
                 if len(traj_infos) >= self.eval_max_trajectories:
                     self.ctrl.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "

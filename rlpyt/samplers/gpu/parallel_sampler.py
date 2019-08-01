@@ -187,7 +187,8 @@ class GpuParallelSampler(BaseSampler):
 
         for t in range(self.eval_max_T):
             if t % EVAL_TRAJ_CHECK == 0:  # (While workers stepping.)
-                traj_infos.extend(drain_queue(self.eval_traj_infos_queue))
+                traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
+                    guard_sentinel=True)
             for b in step_blockers:
                 b.acquire()
                 # assert not b.acquire(block=False)  # Debug check.

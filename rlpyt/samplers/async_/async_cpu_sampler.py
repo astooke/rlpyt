@@ -88,6 +88,7 @@ class AsyncCpuSampler(BaseSampler):
             db_idx=mp.RawValue("i", 0),  # Double buffer index.
         )
         traj_infos_queue = mp.Queue()
+        eval_traj_infos_queue = mp.Queue()
 
         sync = AttrDict(
             stop_eval=mp.RawValue(ctypes.c_bool, False),
@@ -102,6 +103,7 @@ class AsyncCpuSampler(BaseSampler):
             CollectorCls=self.CollectorCls,
             TrajInfoCls=self.TrajInfoCls,
             traj_infos_queue=traj_infos_queue,
+            eval_traj_infos_queue=eval_traj_infos_queue,
             ctrl=ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
             torch_threads=affinity.get("worker_torch_threads", None),
@@ -149,7 +151,7 @@ class AsyncCpuSampler(BaseSampler):
         if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
-                traj_infos.extend(drain_queue(self.traj_infos_queue))
+                traj_infos.extend(drain_queue(self.eval_traj_infos_queue))
                 if len(traj_infos) >= self.eval_max_trajectories:
                     self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "
@@ -160,7 +162,8 @@ class AsyncCpuSampler(BaseSampler):
                         f"({self.eval_max_T}).")
                     break  # Workers reached max_T.
         self.ctrl.barrier_out.wait()
-        traj_infos.extend(drain_queue(self.traj_infos_queue))
+        traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
+            n_None=self.n_worker)
         self.ctrl.do_eval.value = False
         return traj_infos
 
