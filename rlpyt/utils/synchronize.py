@@ -51,15 +51,14 @@ def drain_queue(queue_obj, n_None=0, guard_sentinel=False):
     while True:  # Non-blocking, beware of delay between put() and get().
         try:
             obj = queue_obj.get(block=False)
-            if guard_sentinel:
-                if obj is None:
-                    # Restore sentinel, intend to do blocking drain later.
-                    queue_obj.put(None)
-                    return contents
-            elif obj is not None:  # Ignore sentinel.
-                contents.append(obj)
         except queue.Empty:
             return contents
+        if guard_sentinel and obj is None:
+            # Restore sentinel, intend to do blocking drain later.
+            queue_obj.put(None)
+            return contents
+        elif obj is not None:  # Ignore sentinel.
+            contents.append(obj)
 
 
 def find_port(offset):
