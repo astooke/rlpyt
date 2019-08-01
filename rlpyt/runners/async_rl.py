@@ -459,6 +459,13 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
 
 
 def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
+    # Needed on some systems to avoid mysterious hang.
+    # (Experienced hang on Ubuntu Server 16.04 machines (but not Desktop) when
+    # appending samples to make replay buffer full, but only for batch_B > 84
+    # (dqn + r2d1 atari), regardless of replay size or batch_T.  Would seem to
+    # progress through all code in replay.append_samples() but simply would
+    # not return from it.)
+    torch.set_num_threads(1)
     while True:
         ctrl.sample_ready.acquire()
         # assert not ctrl.sample_ready.acquire(block=False)  # Debug check.
