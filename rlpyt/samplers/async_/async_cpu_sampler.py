@@ -127,6 +127,7 @@ class AsyncCpuSampler(BaseSampler):
         self.mid_batch_reset = self.CollectorCls.mid_batch_reset
         self.ctrl = ctrl
         self.traj_infos_queue = traj_infos_queue
+        self.eval_traj_infos_queue = eval_traj_infos_queue
 
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
 
