@@ -17,6 +17,8 @@ from rlpyt.utils.buffer import buffer_to, buffer_method
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr", "priority"])
 SamplesToBufferRnn = namedarraytuple("SamplesToBufferRnn",
     SamplesToBuffer._fields + ("prev_rnn_state",))
+PrioritiesSamplesToBuffer = namedarraytuple("PrioritiesSamplesToBuffer",
+    ["priorities", "samples"])
 
 
 class R2D1(DQN):
@@ -56,6 +58,7 @@ class R2D1(DQN):
             pri_beta_steps=int(50e6),
             pri_eta=0.9,
             default_priority=None,
+            input_priorities=True,
             value_scale_eps=1e-3,  # 1e-3 (Steven).
             updates_per_sync=1,  # For async mode only.
             ):
@@ -93,6 +96,8 @@ class R2D1(DQN):
                 alpha=self.pri_alpha,
                 beta=self.pri_beta_init,
                 default_priority=self.default_priority,
+                input_priorities=self.input_priorities,  # True/False.
+                input_priority_shift=self.warmup_T // self.rnn_state_inveral,
             ))
             ReplayCls = (AsyncPrioritizedSequenceReplayFrameBuffer if async_
                 else PrioritizedSequenceReplayFrameBuffer)
@@ -119,6 +124,10 @@ class R2D1(DQN):
             if self.store_rnn_state_interval > 0:
                 samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
                     prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
+            if self.input_priorities:
+                priorities = self.compute_priorities(samples)
+                samples_to_buffer = PrioritiesSamplesToBuffer(
+                    priorities=priorities, samples=samples)
             self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
@@ -148,7 +157,39 @@ class R2D1(DQN):
         if self.store_rnn_state_interval > 0:
             samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
                 prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
+        if self.input_priorities:
+            priorities = self.compute_input_priorities(samples)
+            samples_to_buffer = PrioritiesSamplesToBuffer(
+                priorities=priorities, samples=samples)
         return samples_to_buffer
+
+    def compute_input_priorities(samples):
+        """Just for first input into replay buffer.
+        Simple 1-step return TD-errors using recorded Q-values from online
+        network and value scaling, with the T dimension reduced away (same
+        priority applied to all samples in this batch; whereever the rnn state
+        is kept--hopefully the first step--this priority will apply there).
+        The samples duration T might be less than the training segment, so
+        this is an approximation of an approximation, but hopefully will
+        capture the right behavior."""
+        q = samples.agent.agent_info.q
+        action = samples.agent.action
+        q_max = torch.max(q, dim=-1).values
+        q_at_a = select_at_indexes(action, q)
+        y = self.value_scale(
+            samples.env.reward[:-1] +
+            (self.discount * (1 - samples.env.done[:-1]) *  # probably done.float()
+                self.inv_value_scale(q_max[1:]))
+        )
+        delta = abs(q_at_a[:-1] - y)
+        # NOTE: by default, with R2D1, use squared-error loss, delta_clip=None.
+        if self.delta_clip is not None:  # Huber loss.
+            delta = torch.clamp(delta, 0, self.delta_clip)
+        valid = valid_from_done(samples.env.done[:-1])
+        max_d = torch.max(delta * valid, dim=0).values
+        mean_d = valid_mean(delta, valid, dim=0)  # Still high if less valid.
+        priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
+        return priorities
 
     def loss(self, samples):
         """Samples have leading Time and Batch dimentions [T,B,..]. Move all
@@ -229,9 +270,8 @@ class R2D1(DQN):
         td_abs_errors = abs_delta.detach()
         if self.delta_clip is not None:
             td_abs_errors = torch.clamp(td_abs_errors, 0, self.delta_clip)  # [T,B]
-        valid_td_abs_errors = td_abs_errors * valid
-        max_d = torch.max(valid_td_abs_errors, dim=0).values
-        mean_d = torch.mean(valid_td_abs_errors, dim=0)  # Lower if less valid.
+        max_d = torch.max(td_abs_errors * valid, dim=0).values
+        mean_d = valid_mean(td_abs_errors, valid, dim=0)  # Still high if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
 
         return loss, valid_td_abs_errors, priorities

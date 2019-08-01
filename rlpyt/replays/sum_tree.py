@@ -18,13 +18,18 @@ class SumTree(object):
     """
 
     def __init__(self, T, B, off_backward, off_forward,
-            default_value=1, share_memory=False):
+            default_value=1,
+            share_memory=False,
+            enable_input_priorities=False,
+            input_priority_shift=0,
+            ):
         self.T = T
         self.B = B
         self.size = T * B
         self.off_backward = off_backward
         self.off_forward = off_forward
         self.default_value = default_value
+        self.input_priority_shift = input_priority_shift  # To accommodate warmup  (see sample()).
         self.tree_levels = int(np.ceil(np.log2(self.size + 1)) + 1)
         if share_memory:
             self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)
@@ -34,18 +39,30 @@ class SumTree(object):
         self.low_idx = 2 ** (self.tree_levels - 1) - 1  # pri_idx + low_idx -> tree_idx
         self.high_idx = self.size + self.low_idx
         self.priorities = self.tree[self.low_idx:self.high_idx].reshape(T, B)
+        if enable_input_priorities:
+            self.input_priorities = default_value * np.ones((T, B))
+        else:
+            self.input_priorities = None  # Save memory.
         self.reset()
 
     def reset(self):
-        self.tree[:] = 0
+        self.tree.fill(0)
         self.t = 0
         self._initial_wrap_guard = True
+        if self.input_priorities is not None:
+            self.input_priorities[:] = self.default_value
 
     def advance(self, T, priorities=None):
-        """Cursor advances by T; set priorities to zero in vicinity of new
+        """Cursor advances by T: set priorities to zero in vicinity of new
         cursor position and turn priorities on for new samples since previous
-        cursor position.  Optional priorities can be None for default,
-        scalar, or with dimensions [T] or [T, B]."""
+        cursor position.
+        Optional param priorities can be None for default, or of dimensions
+        [T, B], or [B] or scalar will broadcast. These will be stored at the
+        current cursor position, meaning these priorities correspond to the
+        current values being added to the buffer, even though their priority
+        might temporarily be set to zero until future advances."""
+        if T == 0:
+            return
         t, b, f = self.t, self.off_backward, self.off_forward
         low_on_t = (t - b) % self.T  # inclusive range: [0, self.T-1]
         high_on_t = ((t + T - b - 1) % self.T) + 1  # inclusive: [1, self.T]
@@ -54,14 +71,23 @@ class SumTree(object):
         if self._initial_wrap_guard:
             low_on_t = max(f, t - b)  # Don't wrap back to end, and off_forward.
             high_on_t = low_off_t = max(low_on_t, t + T - b)
-            if priorities is not None:
-                if hasattr(priorities, "shape") and priorities.shape[0] == T:
-                    priorities = priorities[-(high_on_t - low_on_t):]
             if t + T - b >= f:  # Next low_on_t >= f.
                 self._initial_wrap_guard = False
-        on_value = self.default_value if priorities is None else priorities
-        self.reconstruct_advance(low_on_t, high_on_t, low_off_t, high_off_t,
-            on_value)
+        if priorities is not None:
+            assert self.input_priorities is not None, "Must enable input priorities."
+            # e.g. If rnn state interval = warmup_T = 40, then use
+            # input_priority_shift=1 to make the fresh priority at t be the one input
+            # with the samples at t + shift, which would be the start of training
+            # (priorities are aligned with start of warmup sequence).
+            input_t = t - self.input_priority_shift
+            if input_t < 0 or input_t + T > self.T:  # Wrap (even at very first).
+                idxs = np.arange(input_t, input_t + T) % self.T
+            else:
+                idxs = slice(input_t, input_t + T)
+            self.input_priorities[idxs] = priorities
+            if self._initial_wrap_guard and input_t < 0:
+                self.input_priorities[input_t:] = self.default_value  # Restore.
+        self.reconstruct_advance(low_on_t, high_on_t, low_off_t, high_off_t)
         self.t = (t + T) % self.T
 
     def sample(self, n, unique=False):
@@ -80,6 +106,7 @@ class SumTree(object):
         else:
             random_values = np.random.rand(n)
             tree_idxs, scaled_random_values = self.find(random_values)
+
         priorities = self.tree[tree_idxs]
         self.prev_tree_idxs = tree_idxs
         T_idxs, B_idxs = np.divmod(tree_idxs - self.low_idx, self.B)
@@ -106,8 +133,7 @@ class SumTree(object):
         self.tree[tree_idxs] = values
         self.propagate_diffs(tree_idxs, diffs, min_level=1)
 
-    def reconstruct_advance(self, low_on_t, high_on_t, low_off_t, high_off_t,
-            on_value):
+    def reconstruct_advance(self, low_on_t, high_on_t, low_off_t, high_off_t):
         """Efficiently write new values / zeros into tree."""
         low_on_idx = low_on_t * self.B + self.low_idx
         high_on_idx = high_on_t * self.B + self.low_idx
@@ -115,15 +141,31 @@ class SumTree(object):
         high_off_idx = high_off_t * self.B + self.low_idx
         idxs, diffs = list(), list()
         if high_on_t > low_on_t:
-            diffs.append(on_value - self.priorities[low_on_t:high_on_t])
-            self.priorities[low_on_t:high_on_t] = on_value
+            if self.input_priorities is None:
+                input_priorities = self.default_value
+            else:
+                input_priorities = self.input_priorities[low_on_t:high_on_t]
+            diffs.append(input_priorities - self.priorities[low_on_t:high_on_t])
+            self.priorities[low_on_t:high_on_t] = input_priorities
             idxs.append(np.arange(low_on_idx, high_on_idx))
-        elif high_on_t < low_on_t:  # Wrap.
-            on_diffs = (on_value - np.concatenate([self.priorities[low_on_t:],
-                self.priorities[:high_on_t]], axis=0))  # on_value maybe array.
-            diffs.append(on_diffs)
-            self.priorities[low_on_t:] += on_diffs[:-high_on_t]
-            self.priorities[:high_on_t] += on_diffs[-high_on_t:]
+        elif high_on_t < low_on_t:  # Wrap
+            if self.input_priorities is None:
+                diffs.append(self.default_value - np.concatenate([
+                    self.priorities[low_on_t:], self.priorities[:high_on_t]],
+                    axis=0))
+                self.priorities[low_on_t:] = self.default_value
+                self.priorities[:high_on_t] = self.default_value
+            else:
+                diffs.append(
+                    np.concatenate(
+                        [self.input_priorities[low_on_t:],
+                        self.input_priorities[:high_on_t]], axis=0) -
+                    np.concatenate(
+                        [self.priorities[low_on_t:],
+                        self.priorities[:high_on_t]], axis=0)
+                )
+                self.priorities[low_on_t:] = self.input_priorities[low_on_t:]
+                self.priorities[:high_on_t] = self.input_priorities[:high_on_t]
             idxs.extend([np.arange(low_on_idx, self.high_idx),
                 np.arange(self.low_idx, high_on_idx)])
         if high_off_t > low_off_t:

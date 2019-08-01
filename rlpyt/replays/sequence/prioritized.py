@@ -16,6 +16,7 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 class PrioritizedSequenceReplay(object):
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
+            input_priorities=False, input_priority_shift=0,
             share_memory=False, **kwargs):
         """Fix the SampleFromReplay length here, so priority tree can
         track where not to sample (else would have to temporarily subtract
@@ -34,6 +35,8 @@ class PrioritizedSequenceReplay(object):
             off_backward=off_backward,
             off_forward=math.ceil(self.off_forward / self.rnn_state_interval),
             default_value=self.default_priority ** self.alpha,
+            enable_input_priorities=self.input_priorities,
+            input_priority_shift=self.input_priority_shift,
             share_memory=self.share_memory,
         )
 
@@ -41,15 +44,24 @@ class PrioritizedSequenceReplay(object):
         self.beta = beta
 
     def append_samples(self, samples):
+        if hasattr(samples, "priorities"):
+            priorities = samples.priorities
+            samples = samples.samples
+        else:
+            priorities = None
         t, rsi = self.t, self.rnn_state_interval
         T, idxs = super().append_samples(samples)
         if rsi <= 1:  # All or no rnn states stored.
-            self.priority_tree.advance(T)
+            self.priority_tree.advance(T, priorities=priorities)
         else:  # Some rnn states stored.
+            # Let scalar or [B]-shaped priorities pass in, will broadcast.
+            if priorities is not None and priorities.ndim == 2:  # [T, B]
+                offset = (rsi - t) % rsi
+                priorities = priorities[offset::rsi]  # Select out same t as rnn.
             n = self.t // rsi - t // rsi
             if self.t < t:  # Wrapped.
                 n += self.T // rsi
-            self.priority_tree.advance(n)
+            self.priority_tree.advance(n, priorities=priorities)
         return T, idxs
 
     def sample_batch(self, batch_B):
