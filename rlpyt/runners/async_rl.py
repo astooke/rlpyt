@@ -68,7 +68,8 @@ class AsyncRlBase(BaseRunner):
                 self.store_diagnostics(itr, sampler_itr, traj_infos, opt_info)
                 if (sampler_itr // self.log_interval_itrs > log_counter):
                     if self._eval:
-                        traj_infos = drain_queue(self.traj_infos_queue, n_None=1)
+                        with self.ctrl.sampler_itr.get_lock():
+                            traj_infos = drain_queue(self.traj_infos_queue, n_None=1)
                         self.store_diagnostics(itr, sampler_itr, traj_infos, ())
                     self.log_diagnostics(itr, sampler_itr, throttle_time)
                     log_counter += 1
