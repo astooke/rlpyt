@@ -32,7 +32,7 @@ config = dict(
         batch_T=1,
         batch_B=1,
         max_decorrelation_steps=0,
-        eval_n_envs=10,
+        eval_n_envs=6,
         eval_max_steps=int(51e3),
         eval_max_trajectories=50,
     ),
@@ -42,6 +42,6 @@ configs["sac_1M_serial"] = config
 
 config = copy.deepcopy(config)
 config["sampler"]["batch_T"] = 5
-config["sampler"]["batch_B"] = 4
+config["sampler"]["batch_B"] = 3
 config["algo"]["updates_per_sync"] = 1
 configs["async_gpu"] = config
