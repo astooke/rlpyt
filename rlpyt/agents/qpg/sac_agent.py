@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.paralell import DistributedDataParallelCPU as DDPC
+from torch.nn.parallel import DistributedDataParallelCPU as DDPC
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.models.qpg.mlp import QofMuMlpModel, VMlpModel, PiMlpModel

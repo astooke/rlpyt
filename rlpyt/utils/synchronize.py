@@ -36,15 +36,16 @@ class RWLock(object):
                 self.write_lock.release()
 
 
-def drain_queue(queue_obj, n_None=0, guard_sentinel=False):
+def drain_queue(queue_obj, n_sentinel=0, guard_sentinel=False):
+    """Uses `None` obj as sentinel."""
     contents = list()
-    if n_None > 0:  # Block until this many None (sentinels) received.
-        None_counter = 0
+    if n_sentinel > 0:  # Block until this many None (sentinels) received.
+        sentinel_counter = 0
         while True:
             obj = queue_obj.get()
             if obj is None:
-                None_counter += 1
-                if None_counter >= n_None:
+                sentinel_counter += 1
+                if sentinel_counter >= n_sentinel:
                     return contents
             else:
                 contents.append(obj)

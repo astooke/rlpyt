@@ -165,7 +165,7 @@ class AsyncCpuSampler(BaseSampler):
                     break  # Workers reached max_T.
         self.ctrl.barrier_out.wait()
         traj_infos.extend(drain_queue(self.eval_traj_infos_queue,
-            n_None=self.n_worker))
+            n_sentinel=self.n_worker))
         self.ctrl.do_eval.value = False
         return traj_infos
 

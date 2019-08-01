@@ -43,7 +43,7 @@ class AsyncRlBase(BaseRunner):
         if self._eval:
             while self.ctrl.sampler_itr.value < 1:  # Sampler does eval first.
                 time.sleep(THROTTLE_WAIT)
-            traj_infos = drain_queue(self.traj_infos_queue, n_None=1)
+            traj_infos = drain_queue(self.traj_infos_queue, n_sentinel=1)
             self.store_diagnostics(0, 0, traj_infos, ())
             self.log_diagnostics(0, 0, 0)
         log_counter = 0
@@ -69,7 +69,7 @@ class AsyncRlBase(BaseRunner):
                 if (sampler_itr // self.log_interval_itrs > log_counter):
                     if self._eval:
                         with self.ctrl.sampler_itr.get_lock():
-                            traj_infos = drain_queue(self.traj_infos_queue, n_None=1)
+                            traj_infos = drain_queue(self.traj_infos_queue, n_sentinel=1)
                         self.store_diagnostics(itr, sampler_itr, traj_infos, ())
                     self.log_diagnostics(itr, sampler_itr, throttle_time)
                     log_counter += 1
