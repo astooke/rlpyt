@@ -131,3 +131,9 @@ config["sampler"]["batch_B"] = 4
 config["agent"]["eps_final_min"] = 0.001
 configs["debug_vec_eps"] = config
 
+config = copy.deepcopy(configs["dqn"])
+config["sampler"]["batch_T"] = 4
+config["sampler"]["batch_B"] = 256
+config["algo"]["prioritized_replay"] = False
+config["eval_n_envs"] = 10
+configs["async_big"] = config
