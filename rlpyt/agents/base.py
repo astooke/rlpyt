@@ -68,7 +68,7 @@ class BaseAgent(object):
     def data_parallel(self):
         """Overwrite/extend for format other than 'self.model' for network(s)
         which will have gradients through them."""
-        if self.device.dtype == "cpu":
+        if self.device.type == "cpu":
             self.model = DDPC(self.model)
             logger.log("Initialized DistributedDataParallelCPU agent model.")
         else:
