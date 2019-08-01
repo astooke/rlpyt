@@ -72,7 +72,8 @@ class BaseAgent(object):
             self.model = DDPC(self.model)
             logger.log("Initialized DistributedDataParallelCPU agent model.")
         else:
-            self.model = DDP(self.model)
+            self.model = DDP(self.model,
+                device_ids=[self.device.index], output_device=self.device.index)
             logger.log("Initialized DistributedDataParallel agent model on "
                 f"device {self.device}.")
 
