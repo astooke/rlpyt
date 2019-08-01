@@ -115,7 +115,8 @@ class SAC(RlAlgorithm):
         ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
-    def optimize_agent(self, itr, samples=None):
+    def optimize_agent(self, itr, samples=None, sampler_itr=None):
+        itr = itr if sampler_itr is None else sampler_itr  # Async uses sampler_itr.
         if samples is not None:
             samples_to_buffer = self.samples_to_buffer(samples)
             self.replay_buffer.append_samples(samples_to_buffer)
