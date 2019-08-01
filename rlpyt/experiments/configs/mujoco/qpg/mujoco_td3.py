@@ -5,7 +5,7 @@ configs = dict()
 
 config = dict(
     agent=dict(
-        mu_model_kwargs=None,
+        model_kwargs=None,
         q_model_kwargs=None,
     ),
     algo=dict(
