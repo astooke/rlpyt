@@ -128,8 +128,8 @@ class AsyncGpuSampler(BaseSampler):
                         f"({self.eval_max_T}).")
                     break  # Workers reached max_T.
         self.ctrl.barrier_out.wait()
-        traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
-            n_None=self.n_worker)  # Block until they all finish submitting.
+        traj_infos.extend(drain_queue(self.eval_traj_infos_queue,
+            n_None=self.n_worker))  # Block until they all finish submitting.
         self.ctrl.do_eval.value = False
         return traj_infos
 
