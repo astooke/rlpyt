@@ -68,6 +68,7 @@ class DQN(RlAlgorithm):
         self.agent = agent
         self.n_itr = n_itr
         self.sampler_bs = sampler_bs = batch_spec.size
+        self.mid_batch_reset = mid_batch_reset
         self.updates_per_optimize = max(1, round(self.replay_ratio * sampler_bs /
             self.batch_size))
         logger.log(f"From sampler batch size {batch_spec.size}, training "
