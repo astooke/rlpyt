@@ -52,7 +52,7 @@ class AsyncCpuSampler(BaseSampler):
     ###########################################################################
 
     def sampler_process_initialize(self, affinity):
-        n_worker = len(affinity["workers_cpus"])
+        self.n_worker = n_worker = len(affinity["workers_cpus"])
         p = psutil.Process()
         p.cpu_affinity(affinity["master_cpus"])
         n_envs_list = [self.batch_spec.B // n_worker] * n_worker
@@ -112,7 +112,7 @@ class AsyncCpuSampler(BaseSampler):
             eval_env_kwargs=self.eval_env_kwargs,
             eval_max_T=self.eval_max_T,
             global_B=self.batch_spec.B,
-            )
+        )
         workers_kwargs = assemble_workers_kwargs(affinity, self.seed,
             self.double_buffer, n_envs_list, sync)
 
@@ -151,7 +151,8 @@ class AsyncCpuSampler(BaseSampler):
         if self.eval_max_trajectories is not None:
             while True:
                 time.sleep(EVAL_TRAJ_CHECK)
-                traj_infos.extend(drain_queue(self.eval_traj_infos_queue))
+                traj_infos.extend(drain_queue(self.eval_traj_infos_queue),
+                    guard_sentinel=True)
                 if len(traj_infos) >= self.eval_max_trajectories:
                     self.sync.stop_eval.value = True
                     logger.log("Evaluation reached max num trajectories "

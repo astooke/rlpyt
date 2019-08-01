@@ -42,7 +42,7 @@ class Td3Agent(DdpgAgent):
         )
 
     def to_device(self, cuda_idx=None):
-        super.to_device(cuda_idx)
+        super().to_device(cuda_idx)
         self.q2_model.to(self.device)
         self.target_q2_model.to(self.device)
 
