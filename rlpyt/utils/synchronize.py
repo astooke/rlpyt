@@ -18,7 +18,7 @@ class RWLock(object):
         self.release_read()
 
     def acquire_write(self):
-        self.write_lock.acquire()
+        self.write_lock.acquire()  # or use `with rw_lock.write_lock:`.
 
     def release_write(self):
         self.write_lock.release()

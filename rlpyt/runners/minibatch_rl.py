@@ -122,7 +122,8 @@ class MinibatchRlBase(BaseRunner):
         self.pbar.update((itr + 1) % self.log_interval_itrs)
 
     def log_diagnostics(self, itr, traj_infos=None, eval_time=0):
-        self.pbar.stop()
+        if itr > 0:
+            self.pbar.stop()
         self.save_itr_snapshot(itr)
         new_time = time.time()
         self._cum_time = new_time - self._start_time
@@ -157,8 +158,9 @@ class MinibatchRlBase(BaseRunner):
 
         self._last_time = new_time
         self._last_update_counter = self.algo.update_counter
-        logger.log(f"Optimizing over {self.log_interval_itrs} iterations.")
-        self.pbar = ProgBarCounter(self.log_interval_itrs)
+        if itr < self.n_itr - 1:
+            logger.log(f"Optimizing over {self.log_interval_itrs} iterations.")
+            self.pbar = ProgBarCounter(self.log_interval_itrs)
 
     def _log_infos(self, traj_infos=None):
         if traj_infos is None:

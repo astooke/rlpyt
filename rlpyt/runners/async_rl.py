@@ -412,16 +412,16 @@ class AsyncOptWorker(object):
 
 def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
     sampler.sampler_process_initialize(affinity)
-    j = 0
+    db_idx = 0
     for itr in range(n_itr):
-        ctrl.sample_copied[j].acquire()
-        traj_infos = sampler.obtain_samples(itr, j)
-        ctrl.sample_ready[j].release()
+        ctrl.sample_copied[db_idx].acquire()
+        traj_infos = sampler.obtain_samples(itr, db_idx)
+        ctrl.sample_ready[db_idx].release()
         with ctrl.sampler_itr.get_lock():
             for traj_info in traj_infos:
                 traj_infos_queue.put(traj_info)
             ctrl.sampler_itr.value = itr
-        j ^= 1  # Double buffer.
+        db_idx ^= 1  # Double buffer.
     logger.log(f"Async sampler reached final itr: {itr + 1}, quitting.")
     ctrl.quit.value = True  # This ends the experiment.
     sampler.shutdown()
@@ -432,12 +432,12 @@ def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
 def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
         n_itr, eval_itrs):
     sampler.sampler_process_initialize(affinity)
-    j = 0
+    db_idx = 0
     for itr in range(n_itr):
-        ctrl.sample_copied[j].acquire()
-        # assert not ctrl.sample_copied[j].acquire(block=False)  # Debug check.
-        sampler.obtain_samples(itr, j)
-        ctrl.sample_ready[j].release()
+        ctrl.sample_copied[db_idx].acquire()
+        # assert not ctrl.sample_copied[db_idx].acquire(block=False)  # Debug check.
+        sampler.obtain_samples(itr, db_idx)
+        ctrl.sample_ready[db_idx].release()
         if itr % eval_itrs == 0:
             eval_time = -time.time()
             traj_infos = sampler.evaluate_agent(itr)
@@ -450,7 +450,7 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
                 ctrl.sampler_itr.value = itr
         else:
             ctrl.sampler_itr.value = itr
-        j ^= 1  # Double buffer
+        db_idx ^= 1  # Double buffer
     logger.log(f"Async sampler reached final itr: {itr + 1}, quitting.")
     ctrl.quit.value = True  # This ends the experiment.
     sampler.shutdown()

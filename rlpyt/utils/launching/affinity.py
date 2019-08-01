@@ -143,7 +143,7 @@ def get_hyperthread_offset():
 
 def get_n_run_slots(affinity_code):
     aff = decode_affinity(affinity_code)
-    if aff.get("ass", 0) > 0:
+    if aff.get("ass", 0) > 0:  # Asynchronous sample mode.
         total_gpu = aff["gpr"] + aff.get("sgr", 0) * (1 - aff.get("oss", 0))
         n_run_slots = aff["gpu"] // total_gpu  # NOTE: no cxg yet.
     elif aff.get("gpu", 0) > 0:
