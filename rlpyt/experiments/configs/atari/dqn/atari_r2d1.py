@@ -90,3 +90,13 @@ config["algo"]["replay_ratio"] = 4
 config["sampler"]["eval_n_envs"] = 12
 config["sampler"]["eval_max_steps"] = int(28e3 * 12)
 configs["r2d1_long_4tr"] = config
+
+
+config = copy.deepcopy(configs["r2d1_long"])
+config["sampler"]["batch_B"] = 256
+config["sampler"]["batch_T"] = 40
+config["algo"]["replay_size"] = int(4e6)
+config["algo"]["batch_B"] = 64  # But scales with # GPUs!
+config["sampler"]["eval_n_envs"] = 20
+config["sampler"]["eval_max_steps"] = int(28e3 * 20)
+configs["async_gpu"] = config
