@@ -55,7 +55,7 @@ def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
             done_n = np.maximum(done_n, done[n:n + rl])  # Supports tensors.
     if is_torch:
         done_n = done_n.type(done_dtype)
-    return return_, done_n.type(done_dtype)
+    return return_, done_n
 
 
 def valid_from_done(done):
