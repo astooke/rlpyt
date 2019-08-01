@@ -29,8 +29,9 @@ class TD3(DDPG):
         self.agent.give_min_itr_learn(self.min_itr_learn)
 
     def async_initialize(self, *args, **kwargs):
-        super().async_initialize(*args, **kwargs)
+        ret = super().async_initialize(*args, **kwargs)
         self.agent.give_min_itr_learn(self.min_itr_learn)
+        return ret
 
     def q_loss(self, samples, valid):
         q1, q2 = self.agent.q(*samples.agent_inputs, samples.action)
