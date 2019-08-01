@@ -57,8 +57,10 @@ config = copy.deepcopy(configs["r2d1"])
 config["algo"]["replay_size"] = int(4e6)  # Even bigger is better (Steven).
 config["algo"]["batch_B"] = 64  # Not sure will fit.
 config["algo"]["replay_ratio"] = 1
-config["algo"]["eps_final"] = 0.1
-config["algo"]["eps_final_min"] = 0.0005
+# config["algo"]["eps_final"] = 0.1  # Now in agent.
+# config["algo"]["eps_final_min"] = 0.0005
+config["agent"]["eps_final"] = 0.1  # (Steven: 0.4 - 0.4 ** 8 =0.00065)
+config["agent"]["eps_final_min"] = 0.0005  # (Steven: approx log space but doesn't matter)
 config["runner"]["n_steps"] = 20e9
 config["runner"]["log_interval_steps"] = 10e6
 config["sampler"]["batch_T"] = 40  # = warmup_T = store_rnn_interval; new traj at boundary.
