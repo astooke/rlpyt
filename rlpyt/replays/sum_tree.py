@@ -75,9 +75,9 @@ class SumTree(object):
                 self._initial_wrap_guard = False
         if priorities is not None:
             assert self.input_priorities is not None, "Must enable input priorities."
-            # e.g. If rnn state interval = warmup_T = 40, then use
-            # input_priority_shift=1 to make the fresh priority at t be the one input
-            # with the samples at t + shift, which would be the start of training
+            # e.g. Use input_priority_shift = warmup_T // rnn_state_interval
+            # to make the fresh priority at t be the one input with the later
+            # samples at t + shift, which would be the start of training
             # (priorities are aligned with start of warmup sequence).
             input_t = t - self.input_priority_shift
             if input_t < 0 or input_t + T > self.T:  # Wrap (even at very first).

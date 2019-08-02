@@ -28,26 +28,12 @@ class GpuParallelSampler(BaseSampler):
             traj_info_kwargs=None,
             rank=0,
             world_size=1):
-        B = self.batch_spec.B
-        n_worker = len(affinity["workers_cpus"])
-        if B < n_worker:
-            logger.log(f"WARNING: requested fewer envs ({B}) than available worker "
-                f"processes ({n_worker}). Using fewer workers (but maybe better to "
-                "increase sampler's `batch_B`.")
-            n_worker = B
-        self.n_worker = n_worker
-        n_envs_list = [B // n_worker] * n_worker
-        if not B % n_worker == 0:
-            logger.log("WARNING: unequal number of envs per process, from "
-                f"batch_B {self.batch_spec.B} and n_worker {n_worker} "
-                "(possible suboptimal speed).")
-            for b in range(B % n_worker):
-                n_envs_list[b] += 1
+        n_envs_list = self.get_n_envs_list(affinity, world_size, rank)
+        global_B = B * world_size
+        env_ranks = list(range(rank * B, (rank + 1) * B))
 
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
-        global_B = B * world_size
-        env_ranks = list(range(rank * B, (rank + 1) * B))
         agent.initialize(env.spaces, share_memory=False,  # Actual agent initialization, keep.
             global_B=global_B, env_ranks=env_ranks)
         samples_pyt, samples_np, examples = build_samples_buffer(agent, env,
@@ -114,11 +100,31 @@ class GpuParallelSampler(BaseSampler):
         self.samples_np = samples_np
         self.step_buffer_pyt = step_buffer_pyt
         self.step_buffer_np = step_buffer_np
+        self.agent_inputs = AgentInputs(step_buffer_pyt.observation,
+            step_buffer_pyt.action, step_buffer_pyt.reward)  # Fixed buffer.
         self.sync = sync
         self.mid_batch_reset = self.CollectorCls.mid_batch_reset
 
         self.ctrl.barrier_out.wait()  # Wait for workers to decorrelate envs.
         return examples  # e.g. In case useful to build replay buffer
+
+    def get_n_envs_list(self, affinity):
+        B = self.batch_spec.B
+        n_worker = len(affinity["workers_cpus"])
+        if B < n_worker:
+            logger.log(f"WARNING: requested fewer envs ({B}) than available worker "
+                f"processes ({n_worker}). Using fewer workers (but maybe better to "
+                "increase sampler's `batch_B`.")
+            n_worker = B
+        n_envs_list = [B // n_worker] * n_worker
+        if not B % n_worker == 0:
+            logger.log("WARNING: unequal number of envs per process, from "
+                f"batch_B {self.batch_spec.B} and n_worker {n_worker} "
+                "(possible suboptimal speed).")
+            for b in range(B % n_worker):
+                n_envs_list[b] += 1
+        self.n_worker = n_worker
+        return n_envs_list
 
     def obtain_samples(self, itr):
         # self.samples_np[:] = 0  # Reset all batch sample values (optional).

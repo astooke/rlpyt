@@ -37,7 +37,7 @@ class PrioritizedReplay(object):
 
     def append_samples(self, samples):
         if hasattr(samples, "priorities"):
-            priorities = samples.priorities
+            priorities = samples.priorities ** self.alpha
             samples = samples.samples
         else:
             priorities = None

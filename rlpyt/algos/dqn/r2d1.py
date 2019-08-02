@@ -171,7 +171,10 @@ class R2D1(DQN):
         is kept--hopefully the first step--this priority will apply there).
         The samples duration T might be less than the training segment, so
         this is an approximation of an approximation, but hopefully will
-        capture the right behavior."""
+        capture the right behavior.
+        Might not carry/use internal state here, because might get executed
+        by alternating memory copiers in async mode; do all with only the 
+        samples avialable from input."""
         q = samples.agent.agent_info.q
         action = samples.agent.action
         q_max = torch.max(q, dim=-1).values

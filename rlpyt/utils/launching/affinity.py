@@ -65,6 +65,7 @@ def encode_affinity(
         hyperthread_offset=None,  # Leave None for auto-detect.
         n_socket=None,  # Leave None for auto-detect.
         run_slot=None,  # Leave None in `run` script, but specified in `train` script.
+        # TODO: add alternating sampler arg.
         ):
     """Use in run script to specify computer configuration."""
     affinity_code = f"{n_cpu_core}{N_CPU_CORE}_{n_gpu}{N_GPU}"
@@ -173,6 +174,7 @@ def decode_affinity(affinity_code):
 
 
 def build_cpu_affinity(slt, cpu, cpr, cpw=1, hto=None, res=0, skt=1, gpu=0):
+    # TODO: add alternating sampler arg.
     assert gpu == 0
     assert cpu % cpr == 0
     hto = cpu if hto is None else hto  # Default is None, 0 is OFF.
@@ -230,6 +232,7 @@ def build_multigpu_affinity(run_slot, gpu, cpu, gpr=1, cpw=1, hto=None, res=0,
 
 def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
         hto=None, res=1, skt=1):
+    # TODO: add alternating sampler arg.
     oss = bool(oss)
     sgr = gpr if oss else sgr
     total_gpr = (gpr + sgr * (not oss))

@@ -21,6 +21,7 @@ class BaseAgent(object):
     distribution = None
     device = torch.device("cpu")
     recurrent = False
+    alternating = False
     _mode = None
 
     def __init__(self, ModelCls=None, model_kwargs=None, initial_model_state_dict=None):
@@ -183,6 +184,7 @@ class RecurrentAgentMixin(object):
     def train_mode(self, itr):
         if self._mode == "sample":
             self._sample_rnn_state = self._prev_rnn_state
+        self._prev_rnn_state = None
         super().train_mode(itr)
 
     def sample_mode(self, itr):
@@ -195,3 +197,61 @@ class RecurrentAgentMixin(object):
             self._sample_rnn_state = self._prev_rnn_state
         self._prev_rnn_state = None
         super().eval_mode(itr)
+
+
+class AlternatingRecurrentAgentMixin(BaseAgent):
+    """Maintain an alternating pair of recurrent states to use when stepping.
+    Automatically swap them out when step() is called, so it behaves like regular
+    recurrent agent.  Should use only in alternating samplers."""
+
+    recurrent = True
+    alternating = True
+    _alt = 0
+    _prev_rnn_state = None
+    _prev_rnn_state_pair = [None, None]
+    _sample_rnn_state_pair = [None, None]
+
+    def reset(self):
+        self._prev_rnn_state_pair = [None, None]
+        self._prev_rnn_state = None
+        self._alt = 0
+
+    def advance_rnn_state(self, new_rnn_state):
+        """To be called inside agent.step()."""
+        self._prev_rnn_state_pair[self._alt] = new_rnn_state
+        self._alt ^= 1
+        self._prev_rnn_state = self._prev_rnn_state_pair[self._alt]
+
+    @property
+    def prev_rnn_state(self):
+        return self._prev_rnn_state
+
+    def train_mode(self, itr):
+        if self._mode == "sample":
+            self._sample_rnn_state_pair = self._prev_rnn_state_pair
+        self._prev_rnn_state_pair = [None, None]
+        self._prev_rnn_state = None
+        self._alt = 0
+        super().train_mode(itr)
+
+    def sample_mode(self, itr):
+        if self._mode != "sample":
+            self._prev_rnn_state_pair = self._sample_rnn_state_pair
+            self._alt = 0
+            self._prev_rnn_state = self._prev_rnn_state_pair[0]
+        super().sample_mode(itr)
+
+    def eval_mode(self, itr):
+        if self._mode == "sample":
+            self._sample_rnn_state_pair = self._prev_rnn_state_pair
+        self._prev_rnn_state_pair = [None, None]
+        self._prev_rnn_state = None
+        self._alt = 0
+        super().eval_mode(itr)
+
+    def get_alt(self):
+        return self._alt
+
+    def toggle_alt(self):
+        self._alt ^= 1
+        self._prev_rnn_state = self._prev_rnn_state_pair[self._alt]
