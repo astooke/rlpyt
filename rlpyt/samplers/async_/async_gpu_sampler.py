@@ -7,6 +7,7 @@ import ctypes
 import psutil
 
 from rlpyt.samplers.base import BaseSampler
+from rlpyt.samplers.async_ import AsyncActionServer
 from rlpyt.samplers.utils import build_samples_buffer, build_step_buffer
 from rlpyt.samplers.parallel_worker import sampling_process
 from rlpyt.samplers.gpu.collectors import EvalCollector
@@ -20,7 +21,7 @@ from rlpyt.utils.synchronize import drain_queue
 EVAL_TRAJ_CHECK = 0.1  # Seconds.
 
 
-class AsyncGpuSampler(BaseSampler):
+class AsyncGpuSamplerBase(BaseSampler):
 
     ###########################################################################
     # Master runner methods.
@@ -184,70 +185,6 @@ class AsyncGpuSampler(BaseSampler):
             self.ctrl.barrier_out.wait()
         self.shutdown_workers()
 
-    def serve_actions(self, itr):
-        step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
-        step_np, step_pyt = self.step_buffer_np, self.step_buffer_pyt
-
-        agent_inputs = AgentInputs(step_pyt.observation, step_pyt.action,
-            step_pyt.reward)  # Fixed buffer objects.
-
-        for t in range(self.batch_spec.T):
-            for b in step_blockers:
-                b.acquire()  # Workers written obs and rew, first prev_act.
-                # assert not b.acquire(block=False)  # Debug check.
-            if self.mid_batch_reset and np.any(step_np.done):
-                for b_reset in np.where(step_np.done)[0]:
-                    step_np.action[b_reset] = 0  # Null prev_action into agent.
-                    step_np.reward[b_reset] = 0  # Null prev_reward into agent.
-                    self.agent.reset_one(idx=b_reset)
-            action, agent_info = self.agent.step(*agent_inputs)
-            step_np.action[:] = action  # Worker applies to env.
-            step_np.agent_info[:] = agent_info  # Worker sends to traj_info.
-            for w in act_waiters:
-                # assert not w.acquire(block=False)  # Debug check.
-                w.release()  # Signal to worker.
-
-        for b in step_blockers:
-            b.acquire()
-            # assert not b.acquire(block=False)  # Debug check.
-        if "bootstrap_value" in self.samples_np.agent:
-            self.samples_np.agent.bootstrap_value[:] = self.agent.value(
-                *agent_inputs)
-        if np.any(step_np.done):  # Reset at end of batch; ready for next.
-            for b_reset in np.where(step_np.done)[0]:
-                step_np.action[b_reset] = 0  # Null prev_action into agent.
-                step_np.reward[b_reset] = 0  # Null prev_reward into agent.
-                self.agent.reset_one(idx=b_reset)
-            # step_np.done[:] = False  # DON'T DO. Worker resets later.
-
-    def serve_actions_evaluation(self, itr):
-        step_blockers, act_waiters = self.sync.step_blockers, self.sync.act_waiters
-        step_np, step_pyt = self.eval_step_buffer_np, self.eval_step_buffer_pyt
-        self.agent.reset()
-        agent_inputs = AgentInputs(step_pyt.observation, step_pyt.action,
-            step_pyt.reward)  # Fixed buffer objects.
-
-        for t in range(self.eval_max_T):
-            for b in step_blockers:
-                b.acquire()
-            for b_reset in np.where(step_np.done)[0]:
-                step_np.action[b_reset] = 0  # Null prev_action.
-                step_np.reward[b_reset] = 0  # Null prev_reward.
-                self.agent.reset_one(idx=b_reset)
-            action, agent_info = self.agent.step(*agent_inputs)
-            step_np.action[:] = action
-            step_np.agent_info[:] = agent_info
-            if self.ctrl.stop_eval.value:  # From overall master process.
-                self.sync.stop_eval.value = True  # Give to my workers.
-            for w in act_waiters:
-                # assert not w.acquire(block=False)  # Debug check.
-                w.release()
-            if self.sync.stop_eval.value:
-                break
-        for b in step_blockers:
-            b.acquire()  # Workers always do extra release; drain it.
-            # assert not b.acquire(block=False)  # Debug check.
-
     def launch_workers(self, double_buffer, traj_infos_queue,
             eval_traj_infos_queue, affinity, seed, n_envs_list):
         n_worker = len(affinity["workers_cpus"])
@@ -358,3 +295,7 @@ def assemble_workers_kwargs(affinity, seed, double_buffer, n_envs_list,
             worker_kwargs["eval_step_buffer_np"] = eval_step_buffer_np[eval_slice_B]
         workers_kwargs.append(worker_kwargs)
     return workers_kwargs
+
+
+class AsyncGpuSampler(AsyncActionServer, AsyncGpuSamplerBase):
+    pass

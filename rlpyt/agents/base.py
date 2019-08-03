@@ -154,6 +154,9 @@ class BaseAgent:
                     self.model.load_state_dict(self.shared_model.state_dict())
                     self._recv_count = self._send_count.value
 
+    def toggle_alt(self):
+        pass  # Only needed for recurrent alternating agent, but might get called.
+
 
 AgentInputsRnn = namedarraytuple("AgentInputsRnn",  # Training only.
     ["observation", "prev_action", "prev_reward", "init_rnn_state"])

@@ -7,6 +7,8 @@ from rlpyt.utils.quick_args import save__init__args
 class BaseSampler:
     """Class which interfaces with the Runner, in master process only."""
 
+    alternating = False
+
     def __init__(
             self,
             EnvCls,
