@@ -12,7 +12,7 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
     SamplesFromReplay._fields + ("is_weights",))
 
 
-class PrioritizedReplay(object):
+class PrioritizedReplay:
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
             input_priorities=False, **kwargs):

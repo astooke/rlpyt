@@ -7,7 +7,7 @@ from rlpyt.utils.collections import is_namedtuple_class, is_namedtuple
 from rlpyt.spaces.composite import Composite
 
 
-class GymSpaceWrapper(object):
+class GymSpaceWrapper:
     """Wraps a gym space to interface from dictionaries to namedtuples."""
 
     def __init__(self, space, null_value=0, name="obs", force_float32=True):

@@ -4,7 +4,7 @@ import pyprind
 from rlpyt.utils.logging import logger
 
 
-class ProgBarCounter(object):
+class ProgBarCounter:
 
     def __init__(self, total_count):
         self.total_count = total_count

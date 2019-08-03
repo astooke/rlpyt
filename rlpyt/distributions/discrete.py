@@ -4,7 +4,7 @@ import torch
 from rlpyt.utils.tensor import to_onehot, from_onehot
 
 
-class DiscreteMixin(object):
+class DiscreteMixin:
 
     def __init__(self, dim, dtype=torch.long, onehot_dtype=torch.float):
         self._dim = dim

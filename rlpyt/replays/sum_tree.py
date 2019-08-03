@@ -5,7 +5,7 @@ import multiprocessing as mp
 from rlpyt.utils.buffer import np_mp_array
 
 
-class SumTree(object):
+class SumTree:
     """
     Sum tree for matrix of values stored as [T,B], updated in chunks along T
     dimension.  Priorities represented as first T*B leaves of binary tree.

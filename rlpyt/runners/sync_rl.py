@@ -16,7 +16,7 @@ from rlpyt.utils.synchronize import drain_queue, find_port
 ###############################################################################
 
 
-class SyncRlMixin(object):
+class SyncRlMixin:
 
     def startup(self):
         self.launch_workers()
@@ -98,7 +98,7 @@ class SyncRlEval(SyncRlMixin, MinibatchRlEval):
 ###############################################################################
 
 
-class SyncWorkerMixin(object):
+class SyncWorkerMixin:
 
     def __init__(
             self,

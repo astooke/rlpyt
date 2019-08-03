@@ -4,7 +4,7 @@ from rlpyt.samplers.collections import BatchSpec, TrajInfo
 from rlpyt.utils.quick_args import save__init__args
 
 
-class BaseSampler(object):
+class BaseSampler:
     """Class which interfaces with the Runner, in master process only."""
 
     def __init__(
@@ -46,7 +46,7 @@ class BaseSampler(object):
         return self.batch_spec.size  # For logging at least.
 
 
-class BaseCollector(object):
+class BaseCollector:
     """Class that steps through environments, possibly in worker process."""
 
     def __init__(
@@ -85,7 +85,7 @@ class BaseCollector(object):
         pass
 
 
-class BaseEvalCollector(object):
+class BaseEvalCollector:
     """Does not record intermediate data."""
 
     def __init__(

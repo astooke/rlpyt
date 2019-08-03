@@ -5,7 +5,7 @@ from rlpyt.samplers.cpu.collectors import ResetCollector as CpuRC
 from rlpyt.samplers.cpu.collectors import WaitResetCollector as CpuWRC
 
 
-class DoubleBufferCollectorMixin(object):
+class DoubleBufferCollectorMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

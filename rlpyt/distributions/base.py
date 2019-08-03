@@ -6,7 +6,7 @@ from rlpyt.utils.tensor import valid_mean
 DistInfo = None
 
 
-class Distribution(object):
+class Distribution:
 
     @property
     def dim(self):

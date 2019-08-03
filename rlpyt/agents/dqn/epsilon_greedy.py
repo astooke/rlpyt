@@ -9,7 +9,7 @@ from rlpyt.utils.logging import logger
 # from rlpyt.utils.buffer import np_mp_array
 
 
-class EpsilonGreedyAgentMixin(object):
+class EpsilonGreedyAgentMixin:
 
     def __init__(
             self,

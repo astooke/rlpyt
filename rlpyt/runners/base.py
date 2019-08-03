@@ -1,5 +1,5 @@
 
-class BaseRunner(object):
+class BaseRunner:
 
     def train(self):
         raise NotImplementedError

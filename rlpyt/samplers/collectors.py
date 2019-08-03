@@ -45,7 +45,7 @@ class DecorrelatingStartCollector(BaseCollector):
         return AgentInputs(observation, prev_action, prev_reward), traj_infos
 
 
-class SerialEvalCollector(object):
+class SerialEvalCollector:
     """Does not record intermediate data."""
 
     def __init__(

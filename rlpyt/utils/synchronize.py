@@ -3,7 +3,7 @@ import multiprocessing as mp
 import queue
 
 
-class RWLock(object):
+class RWLock:
     """Multiple simultaneous readers, one writer."""
 
     def __init__(self):

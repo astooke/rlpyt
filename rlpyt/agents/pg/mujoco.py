@@ -6,7 +6,7 @@ from rlpyt.models.pg.mujoco_ff_model import MujocoFfModel
 from rlpyt.models.pg.mujoco_lstm_model import MujocoLstmModel
 
 
-class MujocoMixin(object):
+class MujocoMixin:
 
     def make_env_to_model_kwargs(self, env_spaces):
         assert len(env_spaces.action.shape) == 1

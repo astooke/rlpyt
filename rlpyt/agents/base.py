@@ -14,7 +14,7 @@ AgentInputs = namedarraytuple("AgentInputs",
 AgentStep = namedarraytuple("AgentStep", ["action", "agent_info"])
 
 
-class BaseAgent(object):
+class BaseAgent:
 
     recurrent = False
     alternating = False
@@ -159,7 +159,7 @@ AgentInputsRnn = namedarraytuple("AgentInputsRnn",  # Training only.
     ["observation", "prev_action", "prev_reward", "init_rnn_state"])
 
 
-class RecurrentAgentMixin(object):
+class RecurrentAgentMixin:
     """Manages recurrent state during sampling, so sampler remains agnostic."""
 
     recurrent = True
@@ -202,7 +202,7 @@ class RecurrentAgentMixin(object):
         super().eval_mode(itr)
 
 
-class AlternatingRecurrentAgentMixin(object):
+class AlternatingRecurrentAgentMixin:
     """Maintain an alternating pair of recurrent states to use when stepping.
     Automatically swap them out when step() is called, so it behaves like regular
     recurrent agent.  Should use only in alternating samplers (no special class

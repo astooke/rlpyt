@@ -1,6 +1,6 @@
 
 
-class RlAlgorithm(object):
+class RlAlgorithm:
 
     opt_info_fields = ()
     bootstrap_value = False

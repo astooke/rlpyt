@@ -5,7 +5,7 @@ import ctypes
 from rlpyt.utils.synchronize import RWLock
 
 
-class AsyncReplayBufferMixin(object):
+class AsyncReplayBufferMixin:
 
     async_ = True
 

@@ -8,7 +8,7 @@ EnvInfo = namedtuple("EnvInfo", [])  # Define in env file.
 EnvSpaces = namedtuple("EnvSpaces", ["observation", "action"])
 
 
-class Env(object):
+class Env:
 
     def step(self, action):
         """

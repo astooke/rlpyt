@@ -8,7 +8,7 @@ from rlpyt.utils.logging import logger
 BufferSamples = None
 
 
-class FrameBufferMixin(object):
+class FrameBufferMixin:
     """
     Like n-step return buffer but expects multi-frame input observation where
     each new observation has one new frame and the rest old; stores only

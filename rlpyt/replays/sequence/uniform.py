@@ -5,7 +5,7 @@ from rlpyt.replays.sequence.n_step import SequenceNStepReturnBuffer
 from rlpyt.replays.async_ import AsyncReplayBufferMixin
 
 
-class UniformSequenceReplay(object):
+class UniformSequenceReplay:
 
     def set_batch_T(self, batch_T):
         self.batch_T = batch_T  # Can set dynamically.

@@ -5,7 +5,7 @@ from rlpyt.replays.non_sequence.n_step import NStepReturnBuffer
 from rlpyt.replays.async_ import AsyncReplayBufferMixin
 
 
-class UniformReplay(object):
+class UniformReplay:
 
     def sample_batch(self, batch_B):
         T_idxs, B_idxs = self.sample_idxs(batch_B)

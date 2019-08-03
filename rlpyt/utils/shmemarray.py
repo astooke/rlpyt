@@ -50,7 +50,7 @@ def address_of_buffer(buf):  # (python 3)
     return ctypes.addressof(ctypes.c_char.from_buffer(buf))
 
 
-class ShmemBufferWrapper(object):
+class ShmemBufferWrapper:
 
     def __init__(self, tag, size, create=True):
         # default vals so __del__ doesn't fail if __init__ fails to complete

@@ -360,7 +360,7 @@ class AsyncRlEval(AsyncRlBase):
 ###############################################################################
 
 
-class AsyncOptWorker(object):
+class AsyncOptWorker:
 
     def __init__(
             self,
