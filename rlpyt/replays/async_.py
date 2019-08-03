@@ -7,9 +7,10 @@ from rlpyt.utils.synchronize import RWLock
 
 class AsyncReplayBufferMixin(object):
 
+    async_ = True
+
     def __init__(self, *args, **kwargs):
-        kwargs.pop("share_memory")
-        super().__init__(*args, share_memory=True, **kwargs)
+        super().__init__(*args, **kwargs)
         self.async_t = mp.RawValue("l")  # Type c_long.
         self.rw_lock = RWLock()
         self._async_buffer_full = mp.RawValue(ctypes.c_bool, False)
@@ -22,7 +23,7 @@ class AsyncReplayBufferMixin(object):
         return ret
 
     def sample_batch(self, *args, **kwargs):
-        with self.rw_lock:
+        with self.rw_lock:  # Read lock.
             self._async_pull()  # Updates from writers.
             return super().sample_batch(*args, **kwargs)
 

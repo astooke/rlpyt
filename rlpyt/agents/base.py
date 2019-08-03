@@ -16,19 +16,19 @@ AgentStep = namedarraytuple("AgentStep", ["action", "agent_info"])
 
 class BaseAgent(object):
 
-    model = None  # type: torch.nn.Module
-    shared_model = None
-    distribution = None
-    device = torch.device("cpu")
     recurrent = False
     alternating = False
-    _mode = None
 
     def __init__(self, ModelCls=None, model_kwargs=None, initial_model_state_dict=None):
         save__init__args(locals())
+        self.model = None  # type: torch.nn.Module
+        self.shared_model = None
+        self.distribution = None
+        self.device = torch.device("cpu")
+        self._mode = None
         if self.model_kwargs is None:
             self.model_kwargs = dict()
-        # The rest for async operations:
+        # The rest only for async operations:
         self._rw_lock = RWLock()
         self._send_count = mp.RawValue("l", 0)
         self._recv_count = 0
@@ -163,8 +163,11 @@ class RecurrentAgentMixin(object):
     """Manages recurrent state during sampling, so sampler remains agnostic."""
 
     recurrent = True
-    _prev_rnn_state = None
-    _sample_rnn_state = None  # Store during eval.
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._prev_rnn_state = None
+        self._sample_rnn_state = None  # Store during eval.
 
     def reset(self):
         self._prev_rnn_state = None  # Gets passed as None; module makes zeros.
@@ -199,22 +202,27 @@ class RecurrentAgentMixin(object):
         super().eval_mode(itr)
 
 
-class AlternatingRecurrentAgentMixin(BaseAgent):
+class AlternatingRecurrentAgentMixin(object):
     """Maintain an alternating pair of recurrent states to use when stepping.
     Automatically swap them out when step() is called, so it behaves like regular
-    recurrent agent.  Should use only in alternating samplers."""
+    recurrent agent.  Should use only in alternating samplers (no special class
+    needed for feedforward agents)."""
 
     recurrent = True
     alternating = True
-    _alt = 0
-    _prev_rnn_state = None
-    _prev_rnn_state_pair = [None, None]
-    _sample_rnn_state_pair = [None, None]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._alt = 0
+        self._prev_rnn_state = None
+        self._prev_rnn_state_pair = [None, None]
+        self._sample_rnn_state_pair = [None, None]
 
     def reset(self):
         self._prev_rnn_state_pair = [None, None]
         self._prev_rnn_state = None
         self._alt = 0
+        # Leave _sample_rnn_state_pair alone.
 
     def advance_rnn_state(self, new_rnn_state):
         """To be called inside agent.step()."""

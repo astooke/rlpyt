@@ -2,6 +2,8 @@
 
 class BaseReplayBuffer(object):
 
+    async_ = False
+
     def append_samples(self, samples):
         """Add new data to the replay buffer, possibly ejecting old data."""
         raise NotImplementedError

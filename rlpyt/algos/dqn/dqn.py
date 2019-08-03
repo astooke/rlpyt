@@ -119,7 +119,6 @@ class DQN(RlAlgorithm):
             B=batch_spec.B,
             discount=self.discount,
             n_step_return=self.n_step_return,
-            share_memory=async_,
         )
         if self.prioritized_replay:
             replay_kwargs.update(dict(

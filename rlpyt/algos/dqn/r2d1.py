@@ -89,7 +89,6 @@ class R2D1(DQN):
             rnn_state_interval=self.store_rnn_state_interval,
             # batch_T fixed for prioritized, (relax if rnn_state_interval=1 or 0).
             batch_T=self.batch_T + self.warmup_T,
-            share_memory=async_,
         )
         if self.prioritized_replay:
             replay_kwargs.update(dict(

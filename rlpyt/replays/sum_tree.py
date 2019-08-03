@@ -1,5 +1,7 @@
 
 import numpy as np
+import multiprocessing as mp
+
 from rlpyt.utils.buffer import np_mp_array
 
 
@@ -17,11 +19,12 @@ class SumTree(object):
     random value larger than the remaining sum; suggest keeping float64.
     """
 
+    async_ = False
+
     def __init__(self, T, B, off_backward, off_forward,
             default_value=1,
-            share_memory=False,
             enable_input_priorities=False,
-            input_priority_shift=0,
+            input_priority_shift=0,  # Does not apply to update_batch_pri.
             ):
         self.T = T
         self.B = B
@@ -29,13 +32,9 @@ class SumTree(object):
         self.off_backward = off_backward
         self.off_forward = off_forward
         self.default_value = default_value
-        self.input_priority_shift = input_priority_shift  # To accommodate warmup  (see sample()).
+        self.input_priority_shift = input_priority_shift  # (See self.sample()).
         self.tree_levels = int(np.ceil(np.log2(self.size + 1)) + 1)
-        if share_memory:
-            self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)
-            self.tree.fill(0)  # Just in case.
-        else:
-            self.tree = np.zeros(2 ** self.tree_levels - 1)  # Double precision.
+        self._allocate_tree()
         self.low_idx = 2 ** (self.tree_levels - 1) - 1  # pri_idx + low_idx -> tree_idx
         self.high_idx = self.size + self.low_idx
         self.priorities = self.tree[self.low_idx:self.high_idx].reshape(T, B)
@@ -44,6 +43,9 @@ class SumTree(object):
         else:
             self.input_priorities = None  # Save memory.
         self.reset()
+
+    def _allocate_tree(self):
+        self.tree = np.zeros(2 ** self.tree_levels - 1)  # Double precision.
 
     def reset(self):
         self.tree.fill(0)
@@ -201,3 +203,26 @@ class SumTree(object):
             tree_idxs[where_right] += 1
             random_values[where_right] -= left_values[where_right]
         return tree_idxs, scaled_random_values
+
+
+class AsyncSumTree(SumTree):
+    """Assume that writing to tree values is lock protected by replay buffer."""
+
+    async_ = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.async_t = mp.rawValue("l", 0)
+
+    def _allocate_tree(self):
+        self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)  # Shared memory.
+        self.tree.fill(0)  # Just in case.
+
+    def reset():
+        super().reset()
+        self.async_t.value = 0
+
+    def advance(self, *args, **kwargs):
+        self.t = self.async_t.value
+        super().advance(*args, **kwargs)
+        self.async_t.value = self.t

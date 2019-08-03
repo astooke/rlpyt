@@ -25,6 +25,8 @@ class GpuAlternatingSampler(GpuParallelSampler):
     def initialize(self, agent, *args, **kwargs):
         if agent.recurrent and not agent.alternating:
             raise TypeError("If agent is recurrent, must be 'alternating' to use here.")
+        elif not agent.recurrent:
+            agent.alternating = True  # FF agent doesn't need special class, but tell it so.
         examples = super().initialize(agent, *args, **kwargs)
         half_w = self.n_worker // 2  # Half of workers.
         self.half_B = half_B = self.batch_spec.B // 2  # Half of envs.

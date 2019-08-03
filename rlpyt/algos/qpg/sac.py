@@ -110,7 +110,6 @@ class SAC(RlAlgorithm):
             size=self.replay_size,
             B=batch_spec.B,
             n_step_return=self.n_step_return,
-            share_memory=async_,
         )
         ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)

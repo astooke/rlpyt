@@ -4,7 +4,7 @@ import math
 from rlpyt.replays.sequence.n_step import (SequenceNStepReturnBuffer,
     SamplesFromReplay)
 from rlpyt.replays.async_ import AsyncReplayBufferMixin
-from rlpyt.replays.sum_tree import SumTree
+from rlpyt.replays.sum_tree import SumTree, AsyncSumTree
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.buffer import torchify_buffer, numpify_buffer
@@ -16,20 +16,20 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 class PrioritizedSequenceReplay(object):
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
-            input_priorities=False, input_priority_shift=0,
-            share_memory=False, **kwargs):
+            input_priorities=False, input_priority_shift=0, **kwargs):
         """Fix the SampleFromReplay length here, so priority tree can
         track where not to sample (else would have to temporarily subtract
         from tree every time sampling)."""
-        super().__init__(share_memory=share_memory, **kwargs)
+        super().__init__(**kwargs)
         save__init__args(locals())
-        assert self.batch_T is not None  # Must assign.
+        assert self.batch_T is not None, "Must assign fixed batch_T for prioritized."
         self.init_priority_tree()
 
     def init_priority_tree(self):
         off_backward = math.ceil((1 + self.off_backward + self.batch_T) /
             self.rnn_state_interval)  # +1 in case interval aligned? TODO: check
-        self.priority_tree = SumTree(
+        SumTreeCls = AsyncSumTree if self.async_ else SumTree
+        self.priority_tree = SumTreeCls(
             T=self.T // self.rnn_state_interval,
             B=self.B,
             off_backward=off_backward,
@@ -37,7 +37,6 @@ class PrioritizedSequenceReplay(object):
             default_value=self.default_priority ** self.alpha,
             enable_input_priorities=self.input_priorities,
             input_priority_shift=self.input_priority_shift,
-            share_memory=self.share_memory,
         )
 
     def set_beta(self, beta):

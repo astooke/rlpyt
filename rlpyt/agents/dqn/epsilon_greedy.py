@@ -36,7 +36,7 @@ class EpsilonGreedyAgentMixin(object):
         if (self.eps_final_min is not None and
                 self.eps_final_min != self.eps_final):  # vector epsilon.
             self.eps_init = self.eps_init * torch.ones(len(env_ranks))
-            if self.alternating:
+            if self.alternating:  # In FF case, sampler sets agent.alternating.
                 assert global_B % 2 == 0
                 global_B = global_B // 2  # Env pairs will share epsilon.
                 env_ranks = list(set([i // 2 for i in env_ranks]))

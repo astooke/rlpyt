@@ -1,7 +1,7 @@
 
 from rlpyt.replays.non_sequence.n_step import NStepReturnBuffer, SamplesFromReplay
 from rlpyt.replays.async_ import AsyncReplayBufferMixin
-from rlpyt.replays.sum_tree import SumTree
+from rlpyt.replays.sum_tree import SumTree, AsyncSumTree
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.buffer import torchify_buffer, numpify_buffer
@@ -15,21 +15,21 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 class PrioritizedReplay(object):
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
-            input_priorities=False, share_memory=False, **kwargs):
-        super().__init__(share_memory=share_memory, **kwargs)
+            input_priorities=False, **kwargs):
+        super().__init__(**kwargs)
         save__init__args(locals())
         self.init_priority_tree()
 
     def init_priority_tree(self):
         """Organized here for clean inheritance."""
-        self.priority_tree = SumTree(
+        SumTreeCls = AsyncSumTree if self.async_ else SumTree
+        self.priority_tree = SumTreeCls(
             T=self.T,
             B=self.B,
             off_backward=self.off_backward,
             off_forward=self.off_forward,
             default_value=self.default_priority ** self.alpha,
             enable_input_priorities=self.input_priorities,
-            share_memory=self.share_memory,
         )
 
     def set_beta(self, beta):
