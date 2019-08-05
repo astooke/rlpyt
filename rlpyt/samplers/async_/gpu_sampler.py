@@ -6,7 +6,7 @@ import psutil
 
 from rlpyt.samplers.async_.base import AsyncParallelSamplerMixin
 from rlpyt.samplers.parallel.base import ParallelSamplerBase
-from rlpyt.samplers.parallel.gpu import GpuSamplerBase, build_step_buffer
+from rlpyt.samplers.parallel.gpu.sampler import GpuSamplerBase, build_step_buffer
 from rlpyt.samplers.async_.collectors import DbGpuResetCollector
 from rlpyt.samplers.parallel.gpu import GpuEvalCollector
 from rlpyt.samplers.async_ import AsyncActionServer
