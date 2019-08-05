@@ -30,7 +30,7 @@ class AsyncActionServer(ActionServer):
             for w in act_waiters:
                 # assert not w.acquire(block=False)  # Debug check.
                 w.release()
-            if self.sync.stop_eval.value:
+            if self.sync.stop_eval.value:  # Signal from sampler runner.
                 break
         for b in step_blockers:
             b.acquire()  # Workers always do extra release; drain it.
@@ -69,7 +69,7 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 for w in act_waiters_pair[alt]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if self.sync.stop_eval.value:
+                if self.sync.stop_eval.value:  # Signal from sampler runner.
                     for w in act_waiters_pair[1 - alt]:
                         # assert not w.acquire(block=False)  # Debug check.
                         w.release()
@@ -132,7 +132,7 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
                 for w in act_waiters_pair[1 - alt]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if self.sync.stop_eval.value:
+                if self.sync.stop_eval.value:  # Signal from sampler runner.
                     break
                 for b_reset in np.where(step_h.done)[0]:
                     step_h.action[b_reset] = 0  # Null prev_action.

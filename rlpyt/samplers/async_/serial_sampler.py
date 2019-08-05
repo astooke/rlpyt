@@ -3,49 +3,29 @@ import psutil
 import torch
 
 from rlpyt.samplers.base import BaseSampler
-from rlpyt.samplers.utils import build_samples_buffer
-from rlpyt.samplers.collectors import SerialEvalCollector
-from rlpyt.utils.seed import make_seed
+from rlpyt.samplers.async_.base import AsyncSamplerMixin
+from rlpyt.samplers.serial.collectors import SerialEvalCollector
+from rlpyt.samplers.async_.collectors import DbCpuResetCollector
 from rlpyt.utils.logging import logger
 from rlpyt.utils.collections import AttrDict
 
 
-class AsyncSerialSampler(BaseSampler):
+class AsyncSerialSampler(AsyncSamplerMixin, BaseSampler):
 
-    ###########################################################################
-    # Master runner methods.
-    ###########################################################################
-
-    def async_initialize(self, agent, bootstrap_value=False,
-            traj_info_kwargs=None, seed=None):
-        self.seed = make_seed() if seed is None else seed
-        env = self.EnvCls(**self.env_kwargs)
-        agent.initialize(env.spaces, share_memory=True,
-            global_B=self.batch_spec.B, env_ranks=list(range(self.batch_spec.B)))
-        _, samples_np, examples = build_samples_buffer(agent, env,
-            self.batch_spec, bootstrap_value, agent_shared=True, env_shared=True,
-            subprocess=True)  # Would like subprocess=True, but might hang?
-        _, samples_np2, _ = build_samples_buffer(agent, env, self.batch_spec,
-            bootstrap_value, agent_shared=True, env_shared=True, subprocess=True)
-        env.close()
-        del env
-        if traj_info_kwargs:
-            for k, v in traj_info_kwargs.items():
-                setattr(self.TrajInfoCls, "_" + k, v)
-        self.double_buffer = double_buffer = (samples_np, samples_np2)
-        self.examples = examples
-        self.agent = agent
-        return double_buffer, examples
+    def __init__(self, *args, CollectorCls=DbCpuResetCollector,
+            eval_CollectorCls=SerialEvalCollector, **kwargs):
+        super().__init__(*args, CollectorCls=CollectorCls,
+            eval_CollectorCls=eval_CollectorCls, **kwargs)
 
     ###########################################################################
     # Sampler runner methods (forked).
     ###########################################################################
 
-    def sampler_process_initialize(self, affinity):
+    def initialize(self, affinity):
         p = psutil.Process()
         p.cpu_affinity(affinity["master_cpus"])
         # torch.set_num_threads(affinity["master_torch_threads"])
-        torch.set_num_threads(1)  # FIXME: temporary to prevent MKL hang.
+        torch.set_num_threads(1)  # Needed to prevent MKL hang :( .
         B = self.batch_spec.B
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
         sync = AttrDict(db_idx=AttrDict(value=0))  # Mimic the mp.RawValue format.

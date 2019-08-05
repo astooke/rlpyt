@@ -2,7 +2,8 @@
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer
 from rlpyt.utils.logging import logger
-from rlpyt.samplers.collectors import SerialEvalCollector
+from rlpyt.samplers.serial.collectors import (SerialEvalCollector,
+    CpuResetCollector)
 
 
 class SerialSampler(BaseSampler):
@@ -10,6 +11,11 @@ class SerialSampler(BaseSampler):
     processes; can be easier for debugging (e.g. breakpoint() in master).  Use
     with collectors which sample actions themselves (e.g. under cpu
     category)."""
+
+    def __init__(self, *args, CollectorCls=CpuResetCollector,
+            eval_CollectorCls=SerialEvalCollector, **kwargs):
+        super().__init__(*args, CollectorCls=CollectorCls,
+            eval_CollectorCls=eval_CollectorCls, **kwargs)
 
     def initialize(
             self,

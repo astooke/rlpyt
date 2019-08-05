@@ -1,8 +1,8 @@
 
-from rlpyt.samplers.gpu.collectors import ResetCollector as GpuRC
-from rlpyt.samplers.gpu.collectors import WaitResetCollector as GpuWRC
-from rlpyt.samplers.cpu.collectors import ResetCollector as CpuRC
-from rlpyt.samplers.cpu.collectors import WaitResetCollector as CpuWRC
+from rlpyt.samplers.parallel.cpu.collectors import ResetCollector as CpuRC
+from rlpyt.samplers.parallel.cpu.collectors import WaitResetCollector as CpuWRC
+from rlpyt.samplers.parallel.gpu.collectors import ResetCollector as GpuRC
+from rlpyt.samplers.parallel.gpu.collectors import WaitResetCollector as GpuWRC
 
 
 class DoubleBufferCollectorMixin:
@@ -13,16 +13,9 @@ class DoubleBufferCollectorMixin:
         self.samples_np = self.double_buffer[0]
 
     def collect_batch(self, *args, **kwargs):
+        """Swap in the called-for double buffer to record samples into."""
         self.samples_np = self.double_buffer[self.sync.db_idx.value]
         return super().collect_batch(*args, **kwargs)
-
-
-class DbGpuResetCollector(DoubleBufferCollectorMixin, GpuRC):
-    pass
-
-
-class DbGpuWaitResetCollector(DoubleBufferCollectorMixin, GpuWRC):
-    pass
 
 
 class DbCpuResetCollector(DoubleBufferCollectorMixin, CpuRC):
@@ -30,4 +23,12 @@ class DbCpuResetCollector(DoubleBufferCollectorMixin, CpuRC):
 
 
 class DbCpuWaitResetCollector(DoubleBufferCollectorMixin, CpuWRC):
+    pass
+
+
+class DbGpuResetCollector(DoubleBufferCollectorMixin, GpuRC):
+    pass
+
+
+class DbGpuWaitResetCollector(DoubleBufferCollectorMixin, GpuWRC):
     pass

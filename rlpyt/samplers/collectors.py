@@ -1,11 +1,69 @@
 
 import numpy as np
 
-from rlpyt.samplers.base import BaseCollector
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.buffer import buffer_from_example, torchify_buffer, numpify_buffer
 from rlpyt.utils.logging import logger
 from rlpyt.utils.quick_args import save__init__args
+
+
+class BaseCollector:
+    """Class that steps through environments, possibly in worker process."""
+
+    def __init__(
+            self,
+            rank,
+            envs,
+            samples_np,
+            batch_T,
+            TrajInfoCls,
+            agent=None,  # Present or not, depending on collector class.
+            sync=None,
+            step_buffer_np=None,
+            global_B=1,
+            env_ranks=None,
+            ):
+        save__init__args(locals())
+
+    def start_envs(self):
+        """Calls reset() on every env."""
+        raise NotImplementedError
+
+    def start_agent(self):
+        if getattr(self, "agent", None) is not None:  # Not in GPU collectors.
+            self.agent.collector_initialize(
+                global_B=self.global_B,  # Args used e.g. for vector epsilon greedy.
+                env_ranks=self.env_ranks,
+            )
+            self.agent.reset()
+            self.agent.sample_mode(itr=0)
+
+    def collect_batch(self, agent_inputs, traj_infos):
+        raise NotImplementedError
+
+    def reset_if_needed(self, agent_inputs):
+        """Reset agent and or env as needed, if doing between batches."""
+        pass
+
+
+class BaseEvalCollector:
+    """Does not record intermediate data."""
+
+    def __init__(
+            self,
+            rank,
+            envs,
+            TrajInfoCls,
+            traj_infos_queue,
+            max_T,
+            agent=None,
+            sync=None,
+            step_buffer_np=None,
+            ):
+        save__init__args(locals())
+
+    def collect_evaluation(self):
+        raise NotImplementedError
 
 
 class DecorrelatingStartCollector(BaseCollector):
@@ -43,57 +101,3 @@ class DecorrelatingStartCollector(BaseCollector):
             prev_action[b] = a
             prev_reward[b] = r
         return AgentInputs(observation, prev_action, prev_reward), traj_infos
-
-
-class SerialEvalCollector:
-    """Does not record intermediate data."""
-
-    def __init__(
-            self,
-            envs,
-            agent,
-            TrajInfoCls,
-            max_T,
-            max_trajectories=None,
-            ):
-        save__init__args(locals())
-
-    def collect_evaluation(self, itr):
-        traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
-        completed_traj_infos = list()
-        observations = list()
-        for env in self.envs:
-            observations.append(env.reset())
-        observation = buffer_from_example(observations[0], len(self.envs))
-        action = buffer_from_example(self.envs[0].action_space.null_value(),
-            len(self.envs))
-        reward = np.zeros(len(self.envs), dtype="float32")
-        obs_pyt, act_pyt, rew_pyt = torchify_buffer((observation, action, reward))
-        self.agent.reset()
-        self.agent.eval_mode(itr)
-        for t in range(self.max_T):
-            act_pyt, agent_info = self.agent.step(obs_pyt, act_pyt, rew_pyt)
-            action = numpify_buffer(act_pyt)
-            for b, env in enumerate(self.envs):
-                o, r, d, env_info = env.step(action[b])
-                traj_infos[b].step(observation[b], action[b], r, d,
-                    agent_info[b], env_info)
-                if getattr(env_info, "traj_done", d):
-                    completed_traj_infos.append(traj_infos[b].terminate(o))
-                    traj_infos[b] = self.TrajInfoCls()
-                    o = env.reset()
-                if d:
-                    action[b] = 0  # Prev_action for next step.
-                    r = 0
-                    self.agent.reset_one(idx=b)
-                observation[b] = o
-                reward[b] = r
-            if (self.max_trajectories is not None and
-                    len(completed_traj_infos) >= self.max_trajectories):
-                logger.log("Evaluation reached max num trajectories "
-                    f"({self.max_trajectories}).")
-                break
-        if t == self.max_T - 1:
-            logger.log("Evaluation reached max num time steps "
-                f"({self.max_T}).")
-        return completed_traj_infos

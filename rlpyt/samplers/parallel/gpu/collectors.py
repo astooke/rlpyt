@@ -6,7 +6,7 @@ from rlpyt.samplers.collectors import DecorrelatingStartCollector
 from rlpyt.utils.buffer import buffer_method
 
 
-class ResetCollector(DecorrelatingStartCollector):
+class GpuResetCollector(DecorrelatingStartCollector):
     """Valid to run episodic lives."""
 
     mid_batch_reset = True
@@ -46,7 +46,7 @@ class ResetCollector(DecorrelatingStartCollector):
         return None, traj_infos, completed_infos
 
 
-class WaitResetCollector(DecorrelatingStartCollector):
+class GpuWaitResetCollector(DecorrelatingStartCollector):
     """Valid to run episodic lives."""
 
     mid_batch_reset = False

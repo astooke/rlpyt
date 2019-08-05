@@ -1,30 +1,29 @@
 
 import multiprocessing as mp
-import ctypes
 import numpy as np
 
 from rlpyt.utils.buffer import buffer_from_example, torchify_buffer
-from rlpyt.utils.collections import AttrDict
 from rlpyt.agents.base import AgentInputs
 from rlpyt.samplers.collections import (Samples, AgentSamples, AgentSamplesBsv,
-    EnvSamples, StepBuffer)
+    EnvSamples)
 
 
 def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
-        agent_shared=True, env_shared=True, subprocess=True):
+        agent_shared=True, env_shared=True, subprocess=True, examples=None):
     """Recommended to step/reset agent and env in subprocess, so it doesn't
     affect settings in master before forking workers (e.g. torch num_threads
     (MKL) may be set at first forward computation.)"""
-    if subprocess:
-        mgr = mp.Manager()
-        examples = mgr.dict()  # Examples pickled back to master.
-        w = mp.Process(target=get_example_outputs,
-            args=(agent, env, examples, subprocess))
-        w.start()
-        w.join()
-    else:
-        examples = dict()
-        get_example_outputs(agent, env, examples)
+    if examples is None:
+        if subprocess:
+            mgr = mp.Manager()
+            examples = mgr.dict()  # Examples pickled back to master.
+            w = mp.Process(target=get_example_outputs,
+                args=(agent, env, examples, subprocess))
+            w.start()
+            w.join()
+        else:
+            examples = dict()
+            get_example_outputs(agent, env, examples)
 
     T, B = batch_spec
     all_action = buffer_from_example(examples["action"], (T + 1, B), agent_shared)
@@ -56,39 +55,6 @@ def build_samples_buffer(agent, env, batch_spec, bootstrap_value=False,
     samples_np = Samples(agent=agent_buffer, env=env_buffer)
     samples_pyt = torchify_buffer(samples_np)
     return samples_pyt, samples_np, examples
-
-
-def build_step_buffer(examples, B):
-    bufs = tuple(buffer_from_example(examples[k], B, share_memory=True)
-        for k in ["observation", "action", "reward", "done", "agent_info"])
-    need_reset = buffer_from_example(examples["done"], B, share_memory=True)
-    step_buffer_np = StepBuffer(*bufs, need_reset)
-    step_buffer_pyt = torchify_buffer(step_buffer_np)
-    return step_buffer_pyt, step_buffer_np
-
-
-def build_par_objs(n, groups=1):
-    ctrl = AttrDict(
-        quit=mp.RawValue(ctypes.c_bool, False),
-        barrier_in=mp.Barrier(n * groups + 1),
-        barrier_out=mp.Barrier(n * groups + 1),
-        do_eval=mp.RawValue(ctypes.c_bool, False),
-        itr=mp.RawValue(ctypes.c_long, 0),
-    )
-    traj_infos_queue = mp.Queue()
-    eval_traj_infos_queue = mp.Queue()
-
-    step_blockers = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
-    act_waiters = [[mp.Semaphore(0) for _ in range(n)] for _ in range(groups)]
-    if groups == 1:
-        step_blockers = step_blockers[0]
-        act_waiters = act_waiters[0]
-    sync = AttrDict(
-        step_blockers=step_blockers,
-        act_waiters=act_waiters,
-        stop_eval=mp.RawValue(ctypes.c_bool, False),
-    )
-    return ctrl, traj_infos_queue, eval_traj_infos_queue, sync
 
 
 def get_example_outputs(agent, env, examples, subprocess=False):

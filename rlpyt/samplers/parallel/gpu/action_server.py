@@ -4,6 +4,9 @@ import numpy as np
 from rlpyt.agents.base import AgentInputs
 
 
+EVAL_TRAJ_CHECK = 20  # [steps].
+
+
 class ActionServer:
 
     def serve_actions(self, itr):

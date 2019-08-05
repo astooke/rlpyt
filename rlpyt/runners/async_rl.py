@@ -411,7 +411,7 @@ class AsyncOptWorker:
 
 
 def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
-    sampler.sampler_process_initialize(affinity)
+    sampler.initialize(affinity)
     db_idx = 0
     for itr in range(n_itr):
         ctrl.sample_copied[db_idx].acquire()
@@ -431,7 +431,7 @@ def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
 
 def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
         n_itr, eval_itrs):
-    sampler.sampler_process_initialize(affinity)
+    sampler.initialize(affinity)
     db_idx = 0
     for itr in range(n_itr):
         ctrl.sample_copied[db_idx].acquire()

@@ -1,14 +1,14 @@
 
 import numpy as np
 
-from rlpyt.samplers.collectors import DecorrelatingStartCollector
-from rlpyt.samplers.base import BaseEvalCollector
+from rlpyt.samplers.base import BaseCollector
 from rlpyt.agents.base import AgentInputs
-from rlpyt.utils.buffer import (torchify_buffer, numpify_buffer, buffer_from_example,
-    buffer_method)
+from rlpyt.utils.buffer import buffer_from_example, torchify_buffer, numpify_buffer
+from rlpyt.utils.logging import logger
+from rlpyt.utils.quick_args import save__init__args
 
 
-class ResetCollector(DecorrelatingStartCollector):
+class CpuResetCollector(DecorrelatingStartCollector):
 
     mid_batch_reset = True
 
@@ -55,7 +55,7 @@ class ResetCollector(DecorrelatingStartCollector):
         return AgentInputs(observation, action, reward), traj_infos, completed_infos
 
 
-class WaitResetCollector(DecorrelatingStartCollector):
+class CpuWaitResetCollector(DecorrelatingStartCollector):
 
     mid_batch_reset = False
 
@@ -128,10 +128,22 @@ class WaitResetCollector(DecorrelatingStartCollector):
         self.need_reset[:] = False
 
 
-class EvalCollector(BaseEvalCollector):
+class SerialEvalCollector:
+    """Does not record intermediate data."""
+
+    def __init__(
+            self,
+            envs,
+            agent,
+            TrajInfoCls,
+            max_T,
+            max_trajectories=None,
+            ):
+        save__init__args(locals())
 
     def collect_evaluation(self, itr):
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
+        completed_traj_infos = list()
         observations = list()
         for env in self.envs:
             observations.append(env.reset())
@@ -150,15 +162,21 @@ class EvalCollector(BaseEvalCollector):
                 traj_infos[b].step(observation[b], action[b], r, d,
                     agent_info[b], env_info)
                 if getattr(env_info, "traj_done", d):
-                    self.traj_infos_queue.put(traj_infos[b].terminate(o))
+                    completed_traj_infos.append(traj_infos[b].terminate(o))
                     traj_infos[b] = self.TrajInfoCls()
                     o = env.reset()
                 if d:
-                    action[b] = 0  # Next prev_action.
+                    action[b] = 0  # Prev_action for next step.
                     r = 0
                     self.agent.reset_one(idx=b)
                 observation[b] = o
                 reward[b] = r
-            if self.sync.stop_eval.value:
+            if (self.max_trajectories is not None and
+                    len(completed_traj_infos) >= self.max_trajectories):
+                logger.log("Evaluation reached max num trajectories "
+                    f"({self.max_trajectories}).")
                 break
-        self.traj_infos_queue.put(None)  # End sentinel.
+        if t == self.max_T - 1:
+            logger.log("Evaluation reached max num time steps "
+                f"({self.max_T}).")
+        return completed_traj_infos

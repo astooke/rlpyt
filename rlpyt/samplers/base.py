@@ -15,12 +15,12 @@ class BaseSampler:
             env_kwargs,
             batch_T,
             batch_B,
+            CollectorCls,
             max_decorrelation_steps=100,
             TrajInfoCls=TrajInfo,
-            CollectorCls=None,  # Not auto-populated.
             eval_n_envs=0,  # 0 for no eval setup.
-            eval_CollectorCls=None,  # Maybe auto-populated.
-            eval_env_kwargs=None,  # Must supply if doing eval.
+            eval_CollectorCls=None,  # Must supply if doing eval.
+            eval_env_kwargs=None,
             eval_max_steps=None,  # int if using evaluation.
             eval_max_trajectories=None,  # Optional earlier cutoff.
             ):
@@ -46,62 +46,3 @@ class BaseSampler:
     @property
     def batch_size(self):
         return self.batch_spec.size  # For logging at least.
-
-
-class BaseCollector:
-    """Class that steps through environments, possibly in worker process."""
-
-    def __init__(
-            self,
-            rank,
-            envs,
-            samples_np,
-            batch_T,
-            TrajInfoCls,
-            agent=None,  # Present or not, depending on collector class.
-            sync=None,
-            step_buffer_np=None,
-            global_B=1,
-            env_ranks=None,
-            ):
-        save__init__args(locals())
-
-    def start_envs(self):
-        """Calls reset() on every env."""
-        raise NotImplementedError
-
-    def start_agent(self):
-        if getattr(self, "agent", None) is not None:  # Not in GPU samplers.
-            self.agent.collector_initialize(
-                global_B=self.global_B,  # Args used e.g. for vector epsilon greedy.
-                env_ranks=self.env_ranks,
-            )
-            self.agent.reset()
-            self.agent.sample_mode(itr=0)
-
-    def collect_batch(self, agent_inputs, traj_infos):
-        raise NotImplementedError
-
-    def reset_if_needed(self, agent_inputs):
-        """Reset agent and or env as needed, if doing between batches."""
-        pass
-
-
-class BaseEvalCollector:
-    """Does not record intermediate data."""
-
-    def __init__(
-            self,
-            rank,
-            envs,
-            TrajInfoCls,
-            traj_infos_queue,
-            max_T,
-            agent=None,
-            sync=None,
-            step_buffer_np=None,
-            ):
-        save__init__args(locals())
-
-    def collect_evaluation(self):
-        raise NotImplementedError
