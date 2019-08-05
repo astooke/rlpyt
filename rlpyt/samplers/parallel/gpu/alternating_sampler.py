@@ -43,6 +43,8 @@ class AlternatingSamplerBase(GpuSamplerBase):
                 self.samples_np.agent.bootstrap_value[half_B:])
 
     def _get_n_envs_list(self, affinity=None, n_worker=None, B=None):
+        if affinity is not None:
+            assert affinity.get("alternating", False), "Need alternating affinity."
         n_worker = len(affinity["workers_cpus"]) if n_worker is None else n_worker
         assert n_worker % 2 == 0, "Need even number workers."
         B = self.batch_spec.B if B is None else B

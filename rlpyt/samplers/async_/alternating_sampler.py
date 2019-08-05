@@ -46,6 +46,8 @@ class AsyncAlternatingSamplerBase(AsyncGpuSamplerBase):
                 for buf in self.double_buffer)
 
     def _get_n_envs_lists(self, affinity):
+        for aff in affinity:
+            assert aff.get("alternating", False), "Need alternating affinity."
         B = self.batch_spec.B
         n_server = len(affinity)
         n_workers = [len(aff["workers_cpus"]) for aff in affinity]
