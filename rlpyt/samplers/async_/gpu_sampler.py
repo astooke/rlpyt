@@ -42,7 +42,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
 
         self._build_parallel_ctrl(n_server, n_worker)
 
-        servers_kwargs = self._assemble_servers_kwargs(affinity, seed,
+        servers_kwargs = self._assemble_servers_kwargs(affinity, self.seed,
             n_envs_lists)
         servers = [mp.Process(target=self.action_server_process,
             kwargs=s_kwargs)
