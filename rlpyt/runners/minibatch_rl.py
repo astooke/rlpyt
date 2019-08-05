@@ -138,7 +138,7 @@ class MinibatchRlBase(BaseRunner):
         replay_ratio = (new_updates * self.algo.batch_size * self.world_size /
             new_samples)
         cum_replay_ratio = (self.algo.batch_size * self.algo.update_counter /
-            (itr + 1) * self.sampler.batch_size)  # world_size cancels.
+            ((itr + 1) * self.sampler.batch_size))  # world_size cancels.
         cum_steps = (itr + 1) * self.sampler.batch_size * self.world_size
 
         if self._eval:

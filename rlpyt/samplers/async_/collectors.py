@@ -1,8 +1,8 @@
 
-from rlpyt.samplers.parallel.cpu.collectors import ResetCollector as CpuRC
-from rlpyt.samplers.parallel.cpu.collectors import WaitResetCollector as CpuWRC
-from rlpyt.samplers.parallel.gpu.collectors import ResetCollector as GpuRC
-from rlpyt.samplers.parallel.gpu.collectors import WaitResetCollector as GpuWRC
+from rlpyt.samplers.parallel.cpu.collectors import (CpuResetCollector,
+    CpuWaitResetCollector)
+from rlpyt.samplers.parallel.gpu.collectors import (GpuResetCollector,
+    GpuWaitResetCollector)
 
 
 class DoubleBufferCollectorMixin:
@@ -18,17 +18,17 @@ class DoubleBufferCollectorMixin:
         return super().collect_batch(*args, **kwargs)
 
 
-class DbCpuResetCollector(DoubleBufferCollectorMixin, CpuRC):
+class DbCpuResetCollector(DoubleBufferCollectorMixin, CpuResetCollector):
     pass
 
 
-class DbCpuWaitResetCollector(DoubleBufferCollectorMixin, CpuWRC):
+class DbCpuWaitResetCollector(DoubleBufferCollectorMixin, CpuWaitResetCollector):
     pass
 
 
-class DbGpuResetCollector(DoubleBufferCollectorMixin, GpuRC):
+class DbGpuResetCollector(DoubleBufferCollectorMixin, GpuResetCollector):
     pass
 
 
-class DbGpuWaitResetCollector(DoubleBufferCollectorMixin, GpuWRC):
+class DbGpuWaitResetCollector(DoubleBufferCollectorMixin, GpuWaitResetCollector):
     pass

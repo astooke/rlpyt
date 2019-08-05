@@ -1,9 +1,10 @@
 
 import multiprocessing as mp
 
+from rlpyt.agents.base import AgentInputs
 from rlpyt.samplers.parallel.base import ParallelSamplerBase
 from rlpyt.samplers.parallel.gpu.action_server import ActionServer
-from rlpyt.sampler.parallel.gpu.collectors import (GpuResetCollector,
+from rlpyt.samplers.parallel.gpu.collectors import (GpuResetCollector,
     GpuEvalCollector)
 from rlpyt.utils.collections import namedarraytuple, AttrDict
 from rlpyt.utils.synchronize import drain_queue
@@ -44,8 +45,8 @@ class GpuSamplerBase(ParallelSamplerBase):
         self.ctrl.do_eval.value = False
         return traj_infos
 
-    def _agent_init(self, agent, env_spaces, global_B=1, env_ranks=None):
-        agent.initialize(env_spaces, share_memory=False,  # No share memory.
+    def _agent_init(self, agent, env, global_B=1, env_ranks=None):
+        agent.initialize(env.spaces, share_memory=False,  # No share memory.
             global_B=global_B, env_ranks=env_ranks)
         self.agent = agent
 
@@ -53,6 +54,8 @@ class GpuSamplerBase(ParallelSamplerBase):
         examples = super()._build_buffers(*args, **kwargs)
         self.step_buffer_pyt, self.step_buffer_np = build_step_buffer(
             examples, self.batch_spec.B)
+        self.agent_inputs = AgentInputs(self.step_buffer_pyt.observation,
+            self.step_buffer_pyt.action, self.step_buffer_pyt.reward)
         if self.eval_n_envs > 0:
             self.eval_step_buffer_pyt, self.eval_step_buffer_np = \
                 build_step_buffer(examples, self.eval_n_envs)
@@ -66,6 +69,7 @@ class GpuSamplerBase(ParallelSamplerBase):
     def _assemble_common_kwargs(self, *args, **kwargs):
         common_kwargs = super()._assemble_common_kwargs(*args, **kwargs)
         common_kwargs["agent"] = None  # Remove.
+        return common_kwargs
 
     def _assemble_workers_kwargs(self, affinity, seed, n_envs_list):
         workers_kwargs = super()._assemble_workers_kwargs(affinity, seed,

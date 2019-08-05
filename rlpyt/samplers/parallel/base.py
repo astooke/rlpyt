@@ -1,9 +1,17 @@
 
+import multiprocessing as mp
+import ctypes
+import time
 
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.buffer import build_samples_buffer
 from rlpyt.samplers.parallel.worker import sampling_process
 from rlpyt.utils.logging import logger
+from rlpyt.utils.collections import AttrDict
+from rlpyt.utils.synchronize import drain_queue
+
+
+EVAL_TRAJ_CHECK = 0.1  # seconds.
 
 
 class ParallelSamplerBase(BaseSampler):
@@ -35,7 +43,7 @@ class ParallelSamplerBase(BaseSampler):
 
         if self.eval_n_envs > 0:
             self.eval_n_envs_per = max(1, self.eval_n_envs // n_worker)
-            self.eval_n_envs = eval_n_envs = eval_n_envs_per * n_worker
+            self.eval_n_envs = eval_n_envs = self.eval_n_envs_per * n_worker
             logger.log(f"Total parallel evaluation envs: {eval_n_envs}.")
             self.eval_max_T = eval_max_T = int(self.eval_max_steps // eval_n_envs)
 
@@ -142,7 +150,7 @@ class ParallelSamplerBase(BaseSampler):
             quit=mp.RawValue(ctypes.c_bool, False),
             barrier_in=mp.Barrier(n_worker + 1),
             barrier_out=mp.Barrier(n_worker + 1),
-            do_eval=mp.Rawvalues(ctypes.c_bool, False),
+            do_eval=mp.RawValue(ctypes.c_bool, False),
             itr=mp.RawValue(ctypes.c_long, 0),
         )
         self.traj_infos_queue = mp.Queue()

@@ -3,16 +3,9 @@ import multiprocessing as mp
 import time
 
 
-from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.parallel.base import ParallelSamplerBase
-from rlpyt.samplers.utils import build_samples_buffer, build_par_objs
-from rlpyt.samplers.parallel_worker import sampling_process
-from rlpyt.samplers.cpu.collectors import CpuResetCollector, EvalCollector
-from rlpyt.utils.logging import logger
-from rlpyt.utils.synchronize import drain_queue
-
-
-EVAL_TRAJ_CHECK = 1  # Seconds.
+from rlpyt.samplers.parallel.cpu.collectors import (CpuResetCollector, 
+    CpuEvalCollector)
 
 
 class CpuSampler(ParallelSamplerBase):

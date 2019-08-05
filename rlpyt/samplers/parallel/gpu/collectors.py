@@ -1,8 +1,8 @@
 
 import numpy as np
 
-from rlpyt.samplers.base import BaseEvalCollector
-from rlpyt.samplers.collectors import DecorrelatingStartCollector
+from rlpyt.samplers.collectors import (DecorrelatingStartCollector,
+    BaseEvalCollector)
 from rlpyt.utils.buffer import buffer_method
 
 
@@ -13,16 +13,16 @@ class GpuResetCollector(DecorrelatingStartCollector):
 
     def collect_batch(self, agent_inputs, traj_infos, itr):
         """Params agent_inputs and itr unused."""
-        act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
+        act_ready, obs_ready = self.sync.act_ready, self.sync.obs_ready
         step = self.step_buffer_np
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
         agent_buf.prev_action[0] = step.action
         env_buf.prev_reward[0] = step.reward
-        step_blocker.release()  # Previous obs already written, ready for new.
+        obs_ready.release()  # Previous obs already written, ready for new.
         completed_infos = list()
         for t in range(self.batch_T):
             env_buf.observation[t] = step.observation
-            act_waiter.acquire()  # Need sampled actions from server.
+            act_ready.acquire()  # Need sampled actions from server.
             for b, env in enumerate(self.envs):
                 o, r, d, env_info = env.step(step.action[b])
                 traj_infos[b].step(step.observation[b], step.action[b], r, d,
@@ -41,7 +41,7 @@ class GpuResetCollector(DecorrelatingStartCollector):
             env_buf.done[t] = step.done
             if step.agent_info:
                 agent_buf.agent_info[t] = step.agent_info  # OPTIONAL BY SERVER
-            step_blocker.release()  # Ready for server to use/write step buffer.
+            obs_ready.release()  # Ready for server to use/write step buffer.
 
         return None, traj_infos, completed_infos
 
@@ -61,7 +61,7 @@ class GpuWaitResetCollector(DecorrelatingStartCollector):
 
     def collect_batch(self, agent_inputs, traj_infos, itr):
         """Params agent_inputs and itr unused."""
-        act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
+        act_ready, obs_ready = self.sync.act_ready, self.sync.obs_ready
         step = self.step_buffer_np
         b = np.where(step.done)[0]
         step.observation[b] = self.temp_observation[b]
@@ -69,11 +69,11 @@ class GpuWaitResetCollector(DecorrelatingStartCollector):
         agent_buf, env_buf = self.samples_np.agent, self.samples_np.env
         agent_buf.prev_action[0] = step.action
         env_buf.prev_reward[0] = step.reward
-        step_blocker.release()  # Previous obs already written, ready for new.
+        obs_ready.release()  # Previous obs already written, ready for new.
         completed_infos = list()
         for t in range(self.batch_T):
             env_buf.observation[t] = step.observation
-            act_waiter.acquire()  # Need sampled actions from server.
+            act_ready.acquire()  # Need sampled actions from server.
             for b, env in enumerate(self.envs):
                 if step.done[b]:
                     step.action[b] = 0  # Record blank.
@@ -102,7 +102,7 @@ class GpuWaitResetCollector(DecorrelatingStartCollector):
             env_buf.done[t] = step.done
             if step.agent_info:
                 agent_buf.agent_info[t] = step.agent_info  # OPTIONAL BY SERVER
-            step_blocker.release()  # Ready for server to use/write step buffer.
+            obs_ready.release()  # Ready for server to use/write step buffer.
 
         return None, traj_infos, completed_infos
 
@@ -118,22 +118,22 @@ class GpuWaitResetCollector(DecorrelatingStartCollector):
             self.need_reset[:] = False
 
 
-class EvalCollector(BaseEvalCollector):
+class GpuEvalCollector(BaseEvalCollector):
 
     def collect_evaluation(self, itr):
         """Param itr unused."""
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
-        act_waiter, step_blocker = self.sync.act_waiter, self.sync.step_blocker
+        act_ready, obs_ready = self.sync.act_ready, self.sync.obs_ready
         step = self.step_buffer_np
         for b, env in enumerate(self.envs):
             step.observation[b] = env.reset()
         step.done[:] = False
-        step_blocker.release()
+        obs_ready.release()
 
         for t in range(self.max_T):
-            act_waiter.acquire()
+            act_ready.acquire()
             if self.sync.stop_eval.value:
-                step_blocker.release()  # Always release at end of loop.
+                obs_ready.release()  # Always release at end of loop.
                 break
             for b, env in enumerate(self.envs):
                 o, r, d, env_info = env.step(step.action[b])
@@ -146,5 +146,5 @@ class EvalCollector(BaseEvalCollector):
                 step.observation[b] = o
                 step.reward[b] = r
                 step.done[b] = d
-            step_blocker.release()
+            obs_ready.release()
         self.traj_infos_queue.put(None)  # End sentinel.

@@ -52,8 +52,8 @@ def sampling_process(common_kwargs, worker_kwargs):
     agent_inputs, traj_infos = collector.start_envs(c.max_decorrelation_steps)
     collector.start_agent()
 
-    eval_envs = [c.EnvCls(**c.eval_env_kwargs) for _ in range(c.eval_n_envs)]
-    if eval_envs:  # May do evaluation.
+    if c.get("eval_n_envs", 0) > 0:
+        eval_envs = [c.EnvCls(**c.eval_env_kwargs) for _ in range(c.eval_n_envs)]
         eval_collector = c.eval_CollectorCls(
             rank=w.rank,
             envs=eval_envs,
@@ -64,6 +64,8 @@ def sampling_process(common_kwargs, worker_kwargs):
             sync=w.get("sync", None),
             step_buffer_np=w.get("eval_step_buffer_np", None),
         )
+    else:
+        eval_envs = list()
 
     ctrl = c.ctrl
     ctrl.barrier_out.wait()

@@ -1,6 +1,6 @@
 
 from rlpyt.samplers.parallel.gpu.sampler import GpuSamplerBase
-from rlpyt.samplers.paralell.gpu.action_server import (AlternatingActionServer,
+from rlpyt.samplers.parallel.gpu.action_server import (AlternatingActionServer,
     NoOverlapAlternatingActionServer)
 
 
@@ -27,8 +27,8 @@ class AlternatingSamplerBase(GpuSamplerBase):
     def _make_alternating_pairs(self):
         half_w = self.n_worker // 2  # Half of workers.
         self.half_B = half_B = self.batch_spec.B // 2  # Half of envs.
-        self.step_blockers_pair = (self.sync.step_blockers[:half_w], self.sync.step_blockers[half_w:])
-        self.act_waiters_pair = (self.sync.act_waiters[:half_w], self.sync.act_waiter[half_w:])
+        self.obs_ready_pair = (self.sync.obs_ready[:half_w], self.sync.obs_ready[half_w:])
+        self.act_ready_pair = (self.sync.act_ready[:half_w], self.sync.act_ready[half_w:])
         self.step_buffer_np_pair = (self.step_buffer_np[:half_B], self.step_buffer_np[half_B:])
         self.agent_inputs_pair = (self.agent_inputs[:half_B], self.agent_inputs[half_B:])
         if self.eval_n_envs > 0:
