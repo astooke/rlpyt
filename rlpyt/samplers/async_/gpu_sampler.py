@@ -160,7 +160,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
         self.step_buffer_pyt, self.step_buffer_np = build_step_buffer(
             self.examples, sum(n_envs_list))
 
-        if self.eval_n_envs_per > 0:
+        if self.eval_n_envs > 0:
             eval_n_envs = self.eval_n_envs_per * n_worker
             eval_step_buffer_pyt, eval_step_buffer_np = build_step_buffer(
                 self.examples, eval_n_envs)
