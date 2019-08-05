@@ -6,7 +6,7 @@ import torch
 from rlpyt.samplers.async_.base import AsyncParallelSamplerMixin
 from rlpyt.samplers.parallel.base import ParallelSamplerBase
 from rlpyt.samplers.async_.collectors import DbCpuResetCollector
-from rlpyt.samplers.parallel.cpu import CpuEvalCollector
+from rlpyt.samplers.parallel.cpu.collectors import CpuEvalCollector
 from rlpyt.utils.logging import logger
 from rlpyt.utils.synchronize import drain_queue
 
