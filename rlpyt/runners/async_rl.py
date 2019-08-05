@@ -312,7 +312,7 @@ class AsyncRlBase(BaseRunner):
 
 class AsyncRl(AsyncRlBase):
 
-    def __init__(self, *args, log_traj_window=100, **kwargs)
+    def __init__(self, *args, log_traj_window=100, **kwargs):
         super().__init__(*args, **kwargs)
         self.log_traj_window = int(log_traj_window)
 
