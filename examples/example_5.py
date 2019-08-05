@@ -8,12 +8,12 @@ should improve the efficiency of the forward/backward passes during training.
 
 """
 
-from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
-from rlpyt.samplers.gpu.collectors import WaitResetCollector
+from rlpyt.samplers.parallel.gpu.sampler import GpuParallelSampler
+from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
-from rlpyt.runners.minibatch_rl_eval import MinibatchRlEval
+from rlpyt.runners.minibatch_rl import MinibatchRlEval
 from rlpyt.utils.logging.context import logger_context
 
 
@@ -26,7 +26,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, n_parallel=2):
     sampler = GpuParallelSampler(
         EnvCls=AtariEnv,
         env_kwargs=dict(game=game),
-        CollectorCls=WaitResetCollector,
+        CollectorCls=GpuWaitResetCollector,
         eval_env_kwargs=dict(game=game),
         max_decorrelation_steps=0,
         eval_n_envs=10,

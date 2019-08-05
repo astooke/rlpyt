@@ -2,9 +2,9 @@
 from rlpyt.utils.launching.affinity import make_affinity
 # from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
 # from rlpyt.samplers.async_.async_serial_sampler import AsyncSerialSampler
-from rlpyt.samplers.async_.async_gpu_sampler import AsyncGpuSampler
+from rlpyt.samplers.async_.gpu_sampler import AsyncGpuSampler
 # from rlpyt.samplers.cpu.collectors import ResetCollector
-from rlpyt.samplers.async_.collectors import DbGpuResetCollector
+# from rlpyt.samplers.async_.collectors import DbGpuResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
@@ -35,7 +35,6 @@ def build_and_train(game="pong", run_ID=0):
     sampler = AsyncGpuSampler(
         EnvCls=AtariEnv,
         env_kwargs=dict(game=game),
-        CollectorCls=DbGpuResetCollector,
         batch_T=5,
         batch_B=36,
         max_decorrelation_steps=100,

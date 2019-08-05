@@ -2,8 +2,8 @@
 from rlpyt.samplers.base import BaseSampler
 from rlpyt.samplers.utils import build_samples_buffer
 from rlpyt.utils.logging import logger
-from rlpyt.samplers.serial.collectors import (SerialEvalCollector,
-    CpuResetCollector)
+from rlpyt.samplers.parallel.cpu import CpuResetCollector
+from rlpyt.samplers.serial.collectors import SerialEvalCollector
 
 
 class SerialSampler(BaseSampler):

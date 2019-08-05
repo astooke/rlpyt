@@ -15,13 +15,13 @@ so batch sizes grow with the number of parallel runners (might change this).
 Try different affinity inputs to see where the jobs run on the machine.
 
 """
-from rlpyt.utils.launching.affinity import encode_affinity, prepend_run_slot, affinity_from_code
-from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
-from rlpyt.samplers.gpu.collectors import WaitResetCollector
+from rlpyt.utils.launching.affinity import make_affinity
+from rlpyt.samplers.parallel.gpu.sampler import GpuParallelSampler
+from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariFfAgent
-from rlpyt.runners.multigpu_sync import MultiGpuRl
+from rlpyt.runners.sync_rl import SyncRl
 from rlpyt.utils.logging.context import logger_context
 
 
@@ -29,7 +29,8 @@ def build_and_train(game="pong", run_ID=0):
     # Seems like we should be able to skip the intermediate step of the code,
     # but so far have just always run that way.
     # Change these inputs to match local machine and desired parallelism.
-    affinity_code = encode_affinity(
+    affinity = make_affinity(
+        run_slot=0,
         n_cpu_cores=16,  # Use 16 cores across all experiments.
         n_gpu=8,  # Use 8 gpus across all experiments.
         hyperthread_offset=24,  # If machine has 24 cores.
@@ -37,21 +38,18 @@ def build_and_train(game="pong", run_ID=0):
         gpu_per_run=2,  # How many GPUs to parallelize one run across.
         # cpu_per_run=1,
     )
-    slot_affinity_code = prepend_run_slot(run_slot=0, affinity_code=affinity_code)
-    affinity = affinity_from_code(slot_affinity_code)
-    breakpoint()
 
     sampler = GpuParallelSampler(
         EnvCls=AtariEnv,
         env_kwargs=dict(game=game),
-        CollectorCls=WaitResetCollector,
+        CollectorCls=GpuWaitResetCollector,
         batch_T=5,
         batch_B=16,
         max_decorrelation_steps=400,
     )
     algo = A2C()  # Run with defaults.
     agent = AtariFfAgent()
-    runner = MultiGpuRl(
+    runner = SyncRl(
         algo=algo,
         agent=agent,
         sampler=sampler,

@@ -23,7 +23,7 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 # Either manually set the resources for the experiment:
 affinity_code = encode_affinity(
-    n_cpu_cores=2,
+    n_cpu_core=2,
     n_gpu=0,
     # hyperthread_offset=8,
     # n_socket=1,

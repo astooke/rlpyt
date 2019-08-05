@@ -5,11 +5,9 @@ algorithm. Can choose between configurations for use of CPU/GPU for sampling
 (serial or parallel) and optimization (serial).
 
 """
-from rlpyt.samplers.serial_sampler import SerialSampler
-from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
-from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
-from rlpyt.samplers.cpu.collectors import ResetCollector as CpuResetCollector
-from rlpyt.samplers.gpu.collectors import ResetCollector as GpuResetCollector
+from rlpyt.samplers.serial.sampler import SerialSampler
+from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
+from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariFfAgent
@@ -22,21 +20,17 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, sample_mode="serial", 
     gpu_cpu = "CPU" if cuda_idx is None else f"GPU {cuda_idx}"
     if sample_mode == "serial":
         Sampler = SerialSampler  # (Ignores workers_cpus.)
-        Collector = CpuResetCollector
         print(f"Using serial sampler, {gpu_cpu} for sampling and optimizing.")
     elif sample_mode == "cpu":
         Sampler = CpuParallelSampler
-        Collector = CpuResetCollector
         print(f"Using CPU parallel sampler (agent in workers), {gpu_cpu} for optimizing.")
     elif sample_mode == "gpu":
         Sampler = GpuParallelSampler
-        Collector = GpuResetCollector
         print(f"Using GPU parallel sampler (agent in master), {gpu_cpu} for sampling and optimizing.")
 
     sampler = Sampler(
         EnvCls=AtariEnv,
         env_kwargs=dict(game=game),
-        CollectorCls=Collector,
         batch_T=5,  # 5 time-steps per sampler iteration.
         batch_B=16,  # 16 parallel environments.
         max_decorrelation_steps=400,

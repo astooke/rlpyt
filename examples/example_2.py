@@ -10,12 +10,11 @@ example.
 
 """
 
-from rlpyt.samplers.serial_sampler import SerialSampler
-from rlpyt.samplers.cpu.collectors import ResetCollector
+from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.envs.gym import make as gym_make
 from rlpyt.algos.qpg.sac import SAC
 from rlpyt.agents.qpg.sac_agent import SacAgent
-from rlpyt.runners.minibatch_rl_eval import MinibatchRlEval
+from rlpyt.runners.minibatch_rl import MinibatchRlEval
 from rlpyt.utils.logging.context import logger_context
 
 
@@ -23,7 +22,6 @@ def build_and_train(env_id="Hopper-v3", run_ID=0, cuda_idx=None):
     sampler = SerialSampler(
         EnvCls=gym_make,
         env_kwargs=dict(id=env_id),
-        CollectorCls=ResetCollector,
         eval_env_kwargs=dict(id=env_id),
         batch_T=1,  # One time-step per sampler iteration.
         batch_B=1,  # One environment (i.e. sampler Batch dimension).
