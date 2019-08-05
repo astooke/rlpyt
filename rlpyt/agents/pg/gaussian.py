@@ -2,7 +2,8 @@
 import numpy as np
 import torch
 
-from rlpyt.agents.base import AgentStep, RecurrentAgentMixin, BaseAgent
+from rlpyt.agents.base import (AgentStep, BaseAgent, RecurrentAgentMixin,
+    AlternatingRecurrentAgentMixin)
 from rlpyt.agents.pg.base import AgentInfo, AgentInfoRnn
 from rlpyt.distributions.gaussian import Gaussian, DistInfoStd
 from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
@@ -49,7 +50,7 @@ class GaussianPgAgent(BaseAgent):
         return value.to("cpu")
 
 
-class RecurrentGaussianPgAgent(RecurrentAgentMixin, BaseAgent):
+class RecurrentGaussianPgAgentBase(BaseAgent):
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
         # Assume init_rnn_state already shaped: [N,B,H]
@@ -92,3 +93,12 @@ class RecurrentGaussianPgAgent(RecurrentAgentMixin, BaseAgent):
             device=self.device)
         _mu, _log_std, value, _rnn_state = self.model(*agent_inputs, self.prev_rnn_state)
         return value.to("cpu")
+
+
+class RecurrentGaussianPgAgent(RecurrentAgentMixin, RecurrentGaussianPgAgentBase):
+    pass
+
+
+class AlternatingRecurrentGaussianPgAgent(AlternatingRecurrentAgentMixin,
+        RecurrentGaussianPgAgentBase):
+    pass

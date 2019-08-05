@@ -1,7 +1,8 @@
 
 import torch
 
-from rlpyt.agents.base import AgentStep, RecurrentAgentMixin
+from rlpyt.agents.base import (AgentStep, RecurrentAgentMixin, 
+    AlternatingRecurrentAgentMixin)
 from rlpyt.agents.dqn.dqn_agent import DqnAgent
 from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
 from rlpyt.utils.collections import namedarraytuple
@@ -10,7 +11,7 @@ from rlpyt.utils.collections import namedarraytuple
 AgentInfo = namedarraytuple("AgentInfo", ["q", "prev_rnn_state"])
 
 
-class R2d1Agent(RecurrentAgentMixin, DqnAgent):
+class R2d1AgentBase(DqnAgent):
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
         # Assume init_rnn_state already shaped: [N,B,H]
@@ -44,3 +45,11 @@ class R2d1Agent(RecurrentAgentMixin, DqnAgent):
             device=self.device)
         target_q, rnn_state = self.target_model(*model_inputs)
         return target_q.cpu(), rnn_state  # Leave rnn state on device.
+
+
+class R2d1Agent(RecurrentAgentMixin, R2d1AgentBase):
+    pass
+
+
+class R2d1AlternatingAgent(AlternatingRecurrentAgentMixin, R2d1AgentBase):
+    pass

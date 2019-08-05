@@ -1,7 +1,8 @@
 
 import torch
 
-from rlpyt.agents.base import AgentStep, RecurrentAgentMixin, BaseAgent
+from rlpyt.agents.base import (AgentStep, BaseAgent, RecurrentAgentMixin,
+    AlternatingRecurrentAgentMixin)
 from rlpyt.agents.pg.base import AgentInfo, AgentInfoRnn
 from rlpyt.distributions.categorical import Categorical, DistInfo
 from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
@@ -42,7 +43,7 @@ class CategoricalPgAgent(BaseAgent):
         return value.to("cpu")
 
 
-class RecurrentCategoricalPgAgent(RecurrentAgentMixin, BaseAgent):
+class RecurrentCategoricalPgAgentBase(BaseAgent):
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
         # Assume init_rnn_state already shaped: [N,B,H]
@@ -83,3 +84,13 @@ class RecurrentCategoricalPgAgent(RecurrentAgentMixin, BaseAgent):
             device=self.device)
         _pi, value, _rnn_state = self.model(*agent_inputs, self.prev_rnn_state)
         return value.to("cpu")
+
+
+class RecurrentCategoricalPgAgent(RecurrentAgentMixin,
+        RecurrentCategoricalPgAgentBase):
+    pass
+
+
+class AlternatingRecurrentCategoricalPgAgent(AlternatingRecurrentAgentMixin,
+        RecurrentCategoricalPgAgentBase):
+    pass
