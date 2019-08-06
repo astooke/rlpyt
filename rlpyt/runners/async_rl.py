@@ -79,7 +79,7 @@ class AsyncRlBase(BaseRunner):
         sampler_itr = self.ctrl.sampler_itr.value
         traj_infos = drain_queue(self.traj_infos_queue)
         if traj_infos:
-            self.store_diagnostics(itr, sampler_itr, traj_infos)
+            self.store_diagnostics(itr, sampler_itr, traj_infos, ())
             self.log_diagnostics(itr, sampler_itr, throttle_time)
         self.shutdown()
 
@@ -443,7 +443,7 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
         n_itr, eval_itrs):
     sampler.initialize(affinity)
     db_idx = 0
-    for itr in range(n_itr):
+    for itr in range(n_itr + 1):  # +1 to get last eval :)
         ctrl.sample_copied[db_idx].acquire()
         # assert not ctrl.sample_copied[db_idx].acquire(block=False)  # Debug check.
         sampler.obtain_samples(itr, db_idx)
