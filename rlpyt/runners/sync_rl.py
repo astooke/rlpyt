@@ -112,7 +112,7 @@ class SyncWorkerMixin:
             rank,
             world_size,
             port,
-            backend
+            backend,
             par,
             ):
         save__init__args(locals())
