@@ -57,7 +57,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
 
     def shutdown(self):
         self.ctrl.quit.value = True
-        self.ctrl.barrier_int.wait()
+        self.ctrl.barrier_in.wait()
         for s in self.servers:
             s.join()
 
