@@ -32,7 +32,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
         self.world_size = n_server = len(affinity)
         n_envs_lists = self._get_n_envs_lists(affinity)
         n_server = len(n_envs_lists)
-        n_worker = sum([sum(n_envs_list) for n_envs_list in n_envs_lists])
+        n_worker = sum([len(n_envs_list) for n_envs_list in n_envs_lists])
 
         if self.eval_n_envs > 0:
             self.eval_n_envs_per = max(1, self.eval_n_envs // n_worker)
@@ -85,7 +85,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
     def _build_parallel_ctrl(self, n_server, n_worker):
         super()._build_parallel_ctrl(n_worker + n_server)
         self.ctrl.stop_eval = mp.RawValue(ctypes.c_bool, False)  # 2-level.
-        del self.sync  # None of this made in sampler runner, but in server.
+        del self.sync  # None of this made in sampler runner, but each server.
 
     def _assemble_servers_kwargs(self, affinity, seed, n_envs_lists):
         servers_kwargs = list()
