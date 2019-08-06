@@ -37,7 +37,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
 
         if self.eval_n_envs > 0:
             self.eval_n_envs_per = max(1, self.eval_n_envs // n_worker)
-            self.eval_n_envs = eval_n_envs = eval_n_envs_per * n_worker
+            self.eval_n_envs = eval_n_envs = self.eval_n_envs_per * n_worker
             logger.log(f"Total parallel evaluation envs: {eval_n_envs}.")
             self.eval_max_T = eval_max_T = int(self.eval_max_steps // eval_n_envs)
 
