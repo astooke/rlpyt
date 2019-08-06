@@ -85,9 +85,6 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
 
     def _build_parallel_ctrl(self, n_server, n_worker):
         super()._build_parallel_ctrl(n_worker + n_server)
-        self.ctrl.stop_eval = mp.RawValue(ctypes.c_bool, False)  # 2-level.
-        if hasattr(self.sync, "stop_eval"):
-            del self.sync.stop_eval  # Make again in each server, 2-level signal.
 
     def _assemble_servers_kwargs(self, affinity, seed, n_envs_lists):
         servers_kwargs = list()
@@ -152,6 +149,8 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
 
     def launch_workers(self, double_buffer_slice, affinity, seed, n_envs_list):
         n_worker = len(n_envs_list)
+        # A little slight-of-hand to make 2-level signal:
+        self.ctrl.stop_eval = self.sync.stop_eval
         self.sync = AttrDict(
             obs_ready=[mp.Semaphore(0) for _ in range(n_worker)],
             act_ready=[mp.Semaphore(0) for _ in range(n_worker)],
