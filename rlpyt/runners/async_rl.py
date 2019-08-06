@@ -78,7 +78,7 @@ class AsyncRlBase(BaseRunner):
         # Final log:
         sampler_itr = self.ctrl.sampler_itr.value
         traj_infos = drain_queue(self.traj_infos_queue)
-        if traj_infos:
+        if traj_infos or not self._eval:
             self.store_diagnostics(itr, sampler_itr, traj_infos, ())
             self.log_diagnostics(itr, sampler_itr, throttle_time)
         self.shutdown()
