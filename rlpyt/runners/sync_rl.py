@@ -1,6 +1,5 @@
 
 import multiprocessing as mp
-import queue
 import time
 import torch.distributed
 

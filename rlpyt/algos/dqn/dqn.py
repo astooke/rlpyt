@@ -72,7 +72,7 @@ class DQN(RlAlgorithm):
         self.updates_per_optimize = max(1, round(self.replay_ratio * sampler_bs /
             self.batch_size))
         logger.log(f"From sampler batch size {batch_spec.size}, training "
-            f"batch size {self.batch_size}, and training ratio "
+            f"batch size {self.batch_size}, and replay ratio "
             f"{self.replay_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
         self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
@@ -205,7 +205,7 @@ class DQN(RlAlgorithm):
     def update_itr_hyperparams(self, itr):
         # EPS NOW IN AGENT.
         # if itr <= self.eps_itr:  # Epsilon can be vector-valued.
-        #     prog = min(1, max(0, itr - self.min_itr_learn) / 
+        #     prog = min(1, max(0, itr - self.min_itr_learn) /
         #       (self.eps_itr - self.min_itr_learn))
         #     new_eps = prog * self.eps_final + (1 - prog) * self.eps_init
         #     self.agent.set_sample_epsilon_greedy(new_eps)

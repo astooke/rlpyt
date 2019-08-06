@@ -56,8 +56,8 @@ class DDPG(RlAlgorithm):
         self.sampler_bs = sampler_bs = batch_spec.size
         self.updates_per_optimize = max(1, round(self.replay_ratio * sampler_bs /
             self.batch_size))
-        logger.log(f"From sampler batch size {sample_bs}, training "
-            f"batch size {self.batch_size}, and training ratio "
+        logger.log(f"From sampler batch size {sampler_bs}, training "
+            f"batch size {self.batch_size}, and replay ratio "
             f"{self.replay_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
         self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
