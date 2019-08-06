@@ -148,7 +148,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
         self.shutdown_workers()
 
     def launch_workers(self, double_buffer_slice, affinity, seed, n_envs_list):
-        n_worker = len(n_envs_list)
+        self.n_worker = n_worker = len(n_envs_list)
         # A little slight-of-hand to make 2-level signal:
         self.ctrl.stop_eval = self.sync.stop_eval
         self.sync = AttrDict(
