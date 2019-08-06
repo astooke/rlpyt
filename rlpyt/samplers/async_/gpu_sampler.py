@@ -186,10 +186,25 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
             w.join()  # Already signaled to quit by central master.
 
     def _assemble_workers_kwargs(self, affinity, seed, n_envs_list):
-        workers_kwargs = GpuSamplerBase._assemble_workers_kwargs(self,
-            affinity, seed, n_envs_list)
+        workers_kwargs = super()._assemble_workers_kwargs(affinity, seed,
+            n_envs_list)
+        i_env = 0
         for rank, w_kwargs in enumerate(workers_kwargs):
-            w_kwargs["sync"].db_idx = self.sync.db_idx
+            n_envs = n_envs_list[rank]
+            slice_B = slice(i_env, i_env + n_envs)
+            w_kwargs["sync"] = AttrDict(
+                stop_eval=self.sync.stop_eval,
+                obs_ready=self.sync.obs_ready[rank],
+                act_ready=self.sync.act_ready[rank],
+                db_idx=self.sync.db_idx,
+            )
+            w_kwargs["step_buffer_np"] = self.step_buffer_np[slice_B]
+            if self.eval_n_envs > 0:
+                eval_slice_B = slice(self.eval_n_envs_per * rank,
+                    self.eval_n_envs_per * (rank + 1))
+                w_kwargs["eval_step_buffer_np"] = \
+                    self.eval_step_buffer_np[eval_slice_B]
+            i_env += n_envs
         return workers_kwargs
 
 
