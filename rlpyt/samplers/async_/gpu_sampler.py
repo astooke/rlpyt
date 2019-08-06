@@ -34,6 +34,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
         n_envs_lists = self._get_n_envs_lists(affinity)
         n_server = len(n_envs_lists)
         n_worker = sum([len(n_envs_list) for n_envs_list in n_envs_lists])
+        self.n_worker = n_worker
 
         if self.eval_n_envs > 0:
             self.eval_n_envs_per = max(1, self.eval_n_envs // n_worker)
