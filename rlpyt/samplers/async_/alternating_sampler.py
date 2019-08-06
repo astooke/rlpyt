@@ -66,7 +66,7 @@ class AsyncAlternatingSamplerBase(AsyncGpuSamplerBase):
 
         n_envs_lists = list()
         for s_worker, s_B in zip(n_workers, server_Bs):
-            n_envs_list.append(self._get_n_envs_list(n_worker=s_worker, B=s_B))
+            n_envs_lists.append(self._get_n_envs_list(n_worker=s_worker, B=s_B))
 
         return n_envs_lists
 
