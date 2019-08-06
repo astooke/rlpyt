@@ -4,6 +4,7 @@ import multiprocessing as mp
 import ctypes
 import psutil
 
+from rlpyt.agents.base import AgentInputs
 from rlpyt.samplers.async_.base import AsyncParallelSamplerMixin
 from rlpyt.samplers.parallel.base import ParallelSamplerBase
 from rlpyt.samplers.parallel.gpu.sampler import GpuSamplerBase, build_step_buffer
@@ -160,6 +161,8 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
         )
         self.step_buffer_pyt, self.step_buffer_np = build_step_buffer(
             self.examples, sum(n_envs_list))
+        self.agent_inputs = AgentInputs(self.step_buffer_pyt.observation,
+            self.step_buffer_pyt.action, self.step_buffer_pyt.reward)
 
         if self.eval_n_envs > 0:
             eval_n_envs = self.eval_n_envs_per * n_worker
