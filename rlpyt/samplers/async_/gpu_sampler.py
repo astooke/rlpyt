@@ -85,7 +85,8 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
     def _build_parallel_ctrl(self, n_server, n_worker):
         super()._build_parallel_ctrl(n_worker + n_server)
         self.ctrl.stop_eval = mp.RawValue(ctypes.c_bool, False)  # 2-level.
-        del self.sync  # None of this made in sampler runner, but each server.
+        if hasattr(self.sync, "stop_eval"):
+            del self.sync.stop_eval  # Make again in each server, 2-level signal.
 
     def _assemble_servers_kwargs(self, affinity, seed, n_envs_lists):
         servers_kwargs = list()
@@ -153,7 +154,7 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
         self.sync = AttrDict(
             obs_ready=[mp.Semaphore(0) for _ in range(n_worker)],
             act_ready=[mp.Semaphore(0) for _ in range(n_worker)],
-            stop_eval=mp.RawValue(ctypes.c_bool, False),
+            stop_eval=mp.RawValue(ctypes.c_bool, False),  # Overwrite.
             # stop_eval=self.ctrl.stop_eval,  # No, make 2-level signal.
             db_idx=self.ctrl.db_idx,  # Copy into sync which passes to Collector.
         )
