@@ -75,6 +75,11 @@ class AsyncRlBase(BaseRunner):
                     log_counter += 1
                     throttle_time = 0.
             itr += 1
+        # Final log:
+        sampler_itr = self.ctrl.sampler_itr.value
+        traj_infos = drain_queue(self.traj_infos_queue)
+        self.store(diagnostics(itr, sampler_itr, traj_infos))
+        self.log_diagnostics(itr, sampler_itr, throttle_time)
         self.shutdown()
 
     def startup(self):
