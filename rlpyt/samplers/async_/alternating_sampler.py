@@ -1,5 +1,5 @@
 
-from rlpyt.samplers.async_.async_gpu_sampler import AsyncGpuSamplerBase
+from rlpyt.samplers.async_.gpu_sampler import AsyncGpuSamplerBase
 from rlpyt.samplers.async_.action_server import (AsyncAlternatingActionServer,
     AsyncNoOverlapAlternatingActionServer)
 
