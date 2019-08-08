@@ -46,7 +46,7 @@ class AtariLstmModel(torch.nn.Module):
         img = img.mul_(1. / 255)  # From [0-255] to [0-1], in place.
 
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
-        img_shape, T, B, has_T, has_B = infer_leading_dims(img, 3)
+        lead_dim, T, B, img_shape = infer_leading_dims(img, 3)
 
         fc_out = self.conv(img.view(T * B, *img_shape))
         lstm_input = torch.cat([
@@ -60,7 +60,7 @@ class AtariLstmModel(torch.nn.Module):
         v = self.value(lstm_out.view(T * B, -1)).squeeze(-1)
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
-        pi, v = restore_leading_dims((pi, v), T, B, has_T, has_B)
+        pi, v = restore_leading_dims((pi, v), lead_dim, T, B)
         # Model should always leave B-dimension in rnn state: [N,B,H].
         next_rnn_state = RnnState(h=hn, c=cn)
 

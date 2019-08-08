@@ -45,11 +45,11 @@ class AtariDqnModel(torch.nn.Module):
         img = img.mul_(1. / 255)  # From [0-255] to [0-1], in place.
 
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
-        img_shape, T, B, has_T, has_B = infer_leading_dims(img, 3)
+        lead_dim, T, B, img_shape = infer_leading_dims(img, 3)
 
         conv_out = self.conv(img.view(T * B, *img_shape))  # Fold if T dimension.
         q = self.head(conv_out.view(T * B, -1))
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
-        q = restore_leading_dims(q, T, B, has_T, has_B)
+        q = restore_leading_dims(q, lead_dim, T, B)
         return q

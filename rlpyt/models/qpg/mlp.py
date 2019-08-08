@@ -50,11 +50,11 @@ class PiMlpModel(torch.nn.Module):
         )
 
     def forward(self, observation, prev_action, prev_reward):
-        obs_shape, T, B, has_T, has_B = infer_leading_dims(observation,
+        lead_dim, T, B, _ = infer_leading_dims(observation,
             self._obs_ndim)
         output = self.mlp(observation.view(T * B, -1))
         mu, log_std = output[:, :self._action_size], output[:, self._action_size:]
-        mu, log_std = restore_leading_dims((mu, log_std), T, B, has_T, has_B)
+        mu, log_std = restore_leading_dims((mu, log_std), lead_dim, T, B)
         return mu, log_std
 
 
@@ -75,12 +75,12 @@ class QofMuMlpModel(torch.nn.Module):
         )
 
     def forward(self, observation, prev_action, prev_reward, action):
-        obs_shape, T, B, has_T, has_B = infer_leading_dims(observation,
+        lead_dim, T, B, _ = infer_leading_dims(observation,
             self._obs_ndim)
         q_input = torch.cat(
             [observation.view(T * B, -1), action.view(T * B, -1)], dim=1)
         q = self.mlp(q_input).squeeze(-1)
-        q = restore_leading_dims(q, T, B, has_T, has_B)
+        q = restore_leading_dims(q, lead_dim, T, B)
         return q
 
 
@@ -101,8 +101,8 @@ class VMlpModel(torch.nn.Module):
         )
 
     def forward(self, observation, prev_action, prev_reward):
-        obs_shape, T, B, has_T, has_B = infer_leading_dims(observation,
+        lead_dim, T, B, _ = infer_leading_dims(observation,
             self._obs_ndim)
         v = self.mlp(observation.view(T * B, -1)).squeeze(-1)
-        v = restore_leading_dims(v, T, B, has_T, has_B)
+        v = restore_leading_dims(v, lead_dim, T, B)
         return v

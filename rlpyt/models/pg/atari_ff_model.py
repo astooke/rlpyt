@@ -39,13 +39,13 @@ class AtariFfModel(torch.nn.Module):
         img = img.mul_(1. / 255)  # From [0-255] to [0-1], in place.
 
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
-        img_shape, T, B, has_T, has_B = infer_leading_dims(img, 3)
+        lead_dim, T, B, img_shape = infer_leading_dims(img, 3)
 
         fc_out = self.conv(img.view(T * B, *img_shape))
         pi = F.softmax(self.pi(fc_out), dim=-1)
         v = self.value(fc_out).squeeze(-1)
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
-        pi, v = restore_leading_dims((pi, v), T, B, has_T, has_B)
+        pi, v = restore_leading_dims((pi, v), lead_dim, T, B)
 
         return pi, v

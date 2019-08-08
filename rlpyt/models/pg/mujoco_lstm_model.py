@@ -39,7 +39,7 @@ class MujocoLstmModel(torch.nn.Module):
         input, can be [T,B], [B], or []."""
 
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
-        obs_shape, T, B, has_T, has_B = infer_leading_dims(observation, self._obs_n_dim)
+        lead_dim, T, B, _ = infer_leading_dims(observation, self._obs_n_dim)
 
         mlp_out = self.mlp(observation.view(T * B, -1))
         lstm_input = torch.cat([
@@ -55,7 +55,7 @@ class MujocoLstmModel(torch.nn.Module):
         v = outputs[:, -1].squeeze(-1)
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
-        mu, log_std, v = restore_leading_dims((mu, log_std, v), T, B, has_T, has_B)
+        mu, log_std, v = restore_leading_dims((mu, log_std, v), lead_dim, T, B)
         # Model should always leave B-dimension in rnn state: [N,B,H]
         next_rnn_state = RnnState(h=hn, c=cn)
 

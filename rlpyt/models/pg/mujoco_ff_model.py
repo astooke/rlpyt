@@ -44,7 +44,7 @@ class MujocoFfModel(torch.nn.Module):
         input, can be [T,B], [B], or []."""
 
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
-        obs_shape, T, B, has_T, has_B = infer_leading_dims(observation, self._obs_ndim)
+        lead_dim, T, B, _ = infer_leading_dims(observation, self._obs_ndim)
 
         obs_flat = observation.view(T * B, -1)
         mu = self.mu(obs_flat)
@@ -52,6 +52,6 @@ class MujocoFfModel(torch.nn.Module):
         log_std = self.log_std.repeat(T * B, 1)
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
-        mu, log_std, v = restore_leading_dims((mu, log_std, v), T, B, has_T, has_B)
+        mu, log_std, v = restore_leading_dims((mu, log_std, v), lead_dim, T, B)
 
         return mu, log_std, v
