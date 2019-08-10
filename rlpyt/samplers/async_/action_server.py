@@ -44,9 +44,10 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
         step_np, step_np_pair = self.eval_step_buffer_np, self.eval_step_buffer_np_pair
-        agent_inputs = self.eval_agent_inputs
         agent_inputs_pair = self.eval_agent_inputs_pair
         self.agent.reset()
+        step_np.action[:] = 0  # Null prev_action.
+        step_np.reward[:] = 0  # Null prev_reward.
 
         for t in range(self.eval_max_T):
             for alt in range(2):
@@ -61,9 +62,6 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 action, agent_info = self.agent.step(*agent_inputs_pair[alt])
                 step_h.action[:] = action
                 step_h.agent_info[:] = agent_info
-                if (self.eval_max_trajectories is not None and
-                        t % EVAL_TRAJ_CHECK == 0 and alt == 0):
-                    self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
                 if self.ctrl.stop_eval.value:  # From overall master.
                     self.sync.stop_eval.value = True  # To my workers.
                 for w in act_ready_pair[alt]:
@@ -73,14 +71,7 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                     for w in act_ready_pair[1 - alt]:
                         # assert not w.acquire(block=False)  # Debug check.
                         w.release()
-                    logger.log("Evaluation reached max num trajectories "
-                        f"({self.eval_max_trajectories}).")
                     break
-
-        # TODO: check exit logic for/while ..?
-        if t == self.eval_max_T - 1 and self.eval_max_trajectories is not None:
-            logger.log("Evaluation reached max num time steps "
-                f"({self.eval_max_T}).")
 
         for b in obs_ready:
             b.acquire()  # Workers always do extra release; drain it.
@@ -90,11 +81,10 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
 class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
 
     def serve_actions_evaluation(self, itr):
-        obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
+        obs_ready = self.sync.obs_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
         step_np, step_np_pair = self.eval_step_buffer_np, self.eval_step_buffer_np_pair
-        agent_inputs = self.eval_agent_inputs
         agent_inputs_pair = self.eval_agent_inputs_pair
         self.agent.reset()
         step_np.action[:] = 0  # Null prev_action.
@@ -127,12 +117,12 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
                 for b in obs_ready_pair[alt]:
                     b.acquire()
                     # assert not b.acquire(block=False)  # Debug check.
-                if self.ctrl.stop_eval.value:
-                    self.sync.stop_eval.value = True
+                if self.ctrl.stop_eval.value:  # Signal from sampler runner.
+                    self.sync.stop_eval.value = True  # Signal to my workers.
                 for w in act_ready_pair[1 - alt]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if self.sync.stop_eval.value:  # Signal from sampler runner.
+                if self.sync.stop_eval.value:
                     break
                 for b_reset in np.where(step_h.done)[0]:
                     step_h.action[b_reset] = 0  # Null prev_action.
