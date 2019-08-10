@@ -181,7 +181,7 @@ class R2D1(DQN):
         q_at_a = select_at_indexes(action, q)
         y = self.value_scale(
             samples.env.reward[:-1] +
-            (self.discount * (1 - samples.env.done[:-1]) *  # probably done.float()
+            (self.discount * (1 - samples.env.done[:-1].float()) *  # probably done.float()
                 self.inv_value_scale(q_max[1:]))
         )
         delta = abs(q_at_a[:-1] - y)
