@@ -128,13 +128,14 @@ class AlternatingActionServer:
             self.agent.toggle_alt()  # Value and reset method do not advance rnn state.
 
     def serve_actions_evaluation(self, itr):
-        obs_ready = self.sync.obs_ready
+        obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
         step_np_pair = self.eval_step_buffer_np_pair
         agent_inputs_pair = self.eval_agent_inputs_pair
         traj_infos = list()
         self.agent.reset()
+        stop = False
 
         for t in range(self.eval_max_T):
             if t % EVAL_TRAJ_CHECK == 0:  # (While workers stepping.)
@@ -154,26 +155,31 @@ class AlternatingActionServer:
                 step_h.agent_info[:] = agent_info
                 if (self.eval_max_trajectories is not None and
                         t % EVAL_TRAJ_CHECK == 0 and alt == 0):
-                    self.sync.stop_eval.value = len(traj_infos) >= self.eval_max_trajectories
+                    if len(traj_infos) >= self.eval_max_trajectories:
+                        for b in obs_ready_pair[1 - alt]:
+                            b.acquire()  # Now all workers waiting.
+                        self.sync.stop_eval.value = stop = True
+                        for w in act_ready[alt]:
+                            w.release()
+                        break
                 for w in act_ready_pair[alt]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if self.sync.stop_eval.value:
-                    for w in act_ready_pair[1 - alt]:
-                        # assert not w.acquire(block=False)  # Debug check.
-                        w.release()
-                    logger.log("Evaluation reached max num trajectories "
-                        f"({self.eval_max_trajectories}).")
-                    break
+            if stop:
+                logger.log("Evaluation reached max num trajectories "
+                    f"({self.eval_max_trajectories}).")
+                break
 
         # TODO: check exit logic for/while ..?
-        if t == self.eval_max_T - 1 and self.eval_max_trajectories is not None:
+        if not stop:
             logger.log("Evaluation reached max num time steps "
                 f"({self.eval_max_T}).")
 
         for b in obs_ready:
             b.acquire()  # Workers always do extra release; drain it.
-            # assert not b.acquire(block=False)  # Debug check.
+            assert not b.acquire(block=False)  # Debug check.
+        for w in act_ready:
+            assert not w.acquire(block=False)  # Debug check.
 
         return traj_infos
 

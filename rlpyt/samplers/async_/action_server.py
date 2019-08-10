@@ -55,7 +55,7 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 step_h = step_np_pair[alt]
                 for b in obs_ready_pair[alt]:
                     b.acquire()
-                    assert not b.acquire(block=False)  # Debug check.
+                    # assert not b.acquire(block=False)  # Debug check.
                 for b_reset in np.where(step_h.done)[0]:
                     step_h.action[b_reset] = 0  # Null prev_action.
                     step_h.reward[b_reset] = 0  # Null prev_reward.
@@ -66,15 +66,13 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 if self.ctrl.stop_eval.value:  # From overall master.
                     for b in obs_ready_pair[1 - alt]:
                         b.acquire()  # Wait until all workers are waiting.
-                        assert not b.acquire(block=False)
+                        # assert not b.acquire(block=False)
                     self.sync.stop_eval.value = stop = True  # To my workers.
-                    for w in act_ready_pair[1 - alt]:
-                        w.release()
-                    for w in act_ready_pair[alt]:
+                    for w in act_ready:
                         w.release()
                     break
                 for w in act_ready_pair[alt]:
-                    assert not w.acquire(block=False)  # Debug check.
+                    # assert not w.acquire(block=False)  # Debug check.
                     w.release()
             if stop:
                 break
@@ -83,7 +81,7 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
             b.acquire()  # Workers always do extra release; drain it.
             assert not b.acquire(block=False)  # Debug check.
         for w in act_ready:
-            assert not w.acquire(block=False)
+            assert not w.acquire(block=False)  # Debug check.
 
 
 
