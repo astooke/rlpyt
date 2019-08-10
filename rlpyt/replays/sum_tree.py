@@ -224,5 +224,7 @@ class AsyncSumTree(SumTree):
 
     def advance(self, *args, **kwargs):
         self.t = self.async_t.value
+        print("async sume tree advance pull t: ", self.t)
         super().advance(*args, **kwargs)
         self.async_t.value = self.t
+        print("async sum tree advance push t: ", self.t)

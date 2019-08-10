@@ -106,15 +106,17 @@ configs["async_gpu"] = config
 
 config = copy.deepcopy(configs["r2d1_long"])
 config["sampler"]["batch_B"] = 8
-config["sampler"]["batch_T"] = 10
+config["sampler"]["batch_T"] = 5
+config["env"]["episodic_lives"] = True  # To test more resets.
 config["algo"]["replay_size"] = int(1e5)
 config["algo"]["batch_B"] = 16
-config["algo"]["batch_T"] = 20
-config["algo"]["warmup_T"] = 10
+config["algo"]["batch_T"] = 10
+config["algo"]["warmup_T"] = 5
 config["algo"]["min_steps_learn"] = 1e4
 config["algo"]["eps_steps"] = 1e5
 config["sampler"]["eval_n_envs"] = 8
 config["sampler"]["eval_max_steps"] = int(8 * 1.5e3)
 config["sampler"]["eval_max_trajectories"] = 8
 config["runner"]["log_interval_steps"] = 1e5
+
 configs["r2d1_test"] = config

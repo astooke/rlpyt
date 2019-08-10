@@ -162,7 +162,7 @@ class R2D1(DQN):
                 priorities=priorities, samples=samples)
         return samples_to_buffer
 
-    def compute_input_priorities(samples):
+    def compute_input_priorities(self, samples):
         """Just for first input into replay buffer.
         Simple 1-step return TD-errors using recorded Q-values from online
         network and value scaling, with the T dimension reduced away (same
@@ -191,6 +191,7 @@ class R2D1(DQN):
         max_d = torch.max(delta * valid, dim=0).values
         mean_d = valid_mean(delta, valid, dim=0)  # Still high if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
+        print("r2d1 computed input priorities (shape): ", priorities.shape, priorities)
         return priorities
 
     def loss(self, samples):
@@ -272,7 +273,8 @@ class R2D1(DQN):
         td_abs_errors = abs_delta.detach()
         if self.delta_clip is not None:
             td_abs_errors = torch.clamp(td_abs_errors, 0, self.delta_clip)  # [T,B]
-        max_d = torch.max(td_abs_errors * valid, dim=0).values
+        valid_td_abs_errors = td_abs_errors * valid
+        max_d = torch.max(valid_td_abs_errors, dim=0).values
         mean_d = valid_mean(td_abs_errors, valid, dim=0)  # Still high if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
 
