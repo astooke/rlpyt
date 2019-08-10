@@ -170,6 +170,11 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
                 self.examples, eval_n_envs)
             self.eval_step_buffer_pyt = eval_step_buffer_pyt
             self.eval_step_buffer_np = eval_step_buffer_np
+            self.eval_agent_inputs = AgentInputs(
+                self.eval_step_buffer_pyt.observation,
+                self.eval_step_buffer_pyt.action,
+                self.eval_step_buffer_pyt.reward,
+            )
             # eval_max_T already made in earlier initialize.
 
         self.double_buffer = double_buffer_slice  # Now only see my part.
