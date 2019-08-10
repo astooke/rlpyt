@@ -48,7 +48,6 @@ class PrioritizedSequenceReplay:
             samples = samples.samples
         else:
             priorities = None
-        print("pri_replay append_samples, samples._fields: ", samples._fields)
         t, rsi = self.t, self.rnn_state_interval
         T, idxs = super().append_samples(samples)
         if rsi <= 1:  # All or no rnn states stored.

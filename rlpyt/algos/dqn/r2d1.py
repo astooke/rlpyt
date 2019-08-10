@@ -159,7 +159,7 @@ class R2D1(DQN):
         if self.input_priorities:
             priorities = self.compute_input_priorities(samples)
             samples_to_buffer = PrioritiesSamplesToBuffer(
-                priorities=priorities, samples=samples)
+                priorities=priorities, samples=samples_to_buffer)
         return samples_to_buffer
 
     def compute_input_priorities(self, samples):
