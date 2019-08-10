@@ -115,6 +115,7 @@ config["algo"]["batch_T"] = 10
 config["algo"]["warmup_T"] = 5
 config["algo"]["min_steps_learn"] = 1e4
 config["algo"]["eps_steps"] = 1e5
+config["algo"]["store_rnn_state_interval"] = 5
 config["sampler"]["eval_n_envs"] = 8
 config["sampler"]["eval_max_steps"] = int(8 * 1.5e3)
 config["sampler"]["eval_max_trajectories"] = 8
