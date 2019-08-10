@@ -3,7 +3,7 @@ import sys
 
 from rlpyt.utils.launching.affinity import affinity_from_code
 # from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
-from rlpyt.samplers.async_.async_gpu_sampler import AsyncGpuSampler
+from rlpyt.samplers.async_.gpu_sampler import AsyncGpuSampler
 # from rlpyt.samplers.cpu.collectors import WaitResetCollector
 from rlpyt.samplers.async_.collectors import DbGpuResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
