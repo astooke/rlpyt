@@ -211,8 +211,8 @@ class AsyncSumTree(SumTree):
     async_ = True
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         self.async_t = mp.rawValue("l", 0)
+        super().__init__(*args, **kwargs)
 
     def _allocate_tree(self):
         self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)  # Shared memory.
