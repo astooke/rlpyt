@@ -40,7 +40,7 @@ class AsyncActionServer(ActionServer):
 class AsyncAlternatingActionServer(AlternatingActionServer):
 
     def serve_actions_evaluation(self, itr):
-        obs_ready = self.sync.obs_ready
+        obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
         step_np, step_np_pair = self.eval_step_buffer_np, self.eval_step_buffer_np_pair
@@ -64,24 +64,27 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 step_h.action[:] = action
                 step_h.agent_info[:] = agent_info
                 if self.ctrl.stop_eval.value:  # From overall master.
+                    for b in obs_ready_pair[1 - alt]:
+                        b.acquire()  # Wait until all workers are waiting.
+                        assert not b.acquire(block=False)
                     self.sync.stop_eval.value = stop = True  # To my workers.
+                    for w in act_ready_pair[1 - alt]:
+                        w.release()
+                    for w in act_ready_pair[alt]:
+                        w.release()
+                    break
                 for w in act_ready_pair[alt]:
                     assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if stop:
-                    for b in obs_ready_pair[1 - alt]:
-                        b.acquire()  # Wait until the other workers are waiting.
-                        assert not b.acquire(block=False)  # Debug check.
-                    for w in act_ready_pair[1 - alt]:
-                        assert not w.acquire(block=False)  # Debug check.
-                        w.release()
-                    break
             if stop:
                 break
 
         for b in obs_ready:
             b.acquire()  # Workers always do extra release; drain it.
             assert not b.acquire(block=False)  # Debug check.
+        for w in act_ready:
+            assert not w.acquire(block=False)
+
 
 
 class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
