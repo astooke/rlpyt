@@ -12,7 +12,7 @@ from rlpyt.replays.sequence.frame import (UniformSequenceReplayFrameBuffer,
     AsyncPrioritizedSequenceReplayFrameBuffer)
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
 from rlpyt.algos.utils import valid_from_done
-from rlpyt.utils.buffer import buffer_to, buffer_method
+from rlpyt.utils.buffer import buffer_to, buffer_method, torchify_buffer
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr", "priority"])
 SamplesToBufferRnn = namedarraytuple("SamplesToBufferRnn",
@@ -174,6 +174,7 @@ class R2D1(DQN):
         Might not carry/use internal state here, because might get executed
         by alternating memory copiers in async mode; do all with only the 
         samples avialable from input."""
+        samples = torchify_buffer(samples)
         q = samples.agent.agent_info.q
         action = samples.agent.action
         q_max = torch.max(q, dim=-1).values
@@ -192,7 +193,7 @@ class R2D1(DQN):
         mean_d = valid_mean(delta, valid, dim=0)  # Still high if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
         print("r2d1 computed input priorities (shape): ", priorities.shape, priorities)
-        return priorities
+        return priorities.numpy()
 
     def loss(self, samples):
         """Samples have leading Time and Batch dimentions [T,B,..]. Move all
