@@ -24,6 +24,7 @@ class EpsilonGreedyAgentMixin:
             ):
         super().__init__(*args, **kwargs)
         save__init__args(locals())
+        self._eps_final_float = eps_final  # In case make_vec_eps called twice?
 
     def collector_initialize(self, global_B=1, env_ranks=None):
         if env_ranks is not None:
@@ -34,7 +35,7 @@ class EpsilonGreedyAgentMixin:
             print("OOPS HAD NONE ENV_RANKS")
             return
         if (self.eps_final_min is not None and
-                self.eps_final_min != self.eps_final):  # vector epsilon.
+                self.eps_final_min != self._eps_final_float):  # vector epsilon.
             self.eps_init = self.eps_init * torch.ones(len(env_ranks))
             if self.alternating:  # In FF case, sampler sets agent.alternating.
                 assert global_B % 2 == 0
@@ -42,7 +43,7 @@ class EpsilonGreedyAgentMixin:
                 env_ranks = list(set([i // 2 for i in env_ranks]))
             global_eps_final = torch.logspace(
                 torch.log10(torch.tensor(self.eps_final_min)),
-                torch.log10(torch.tensor(self.eps_final)),
+                torch.log10(torch.tensor(self._eps_final_float)),
                 global_B)
             self.eps_final = global_eps_final[env_ranks]
         self.eps_sample = self.eps_init
