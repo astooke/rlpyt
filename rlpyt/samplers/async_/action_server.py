@@ -55,7 +55,7 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 step_h = step_np_pair[alt]
                 for b in obs_ready_pair[alt]:
                     b.acquire()
-                    # assert not b.acquire(block=False)  # Debug check.
+                    assert not b.acquire(block=False)  # Debug check.
                 for b_reset in np.where(step_h.done)[0]:
                     step_h.action[b_reset] = 0  # Null prev_action.
                     step_h.reward[b_reset] = 0  # Null prev_reward.
@@ -66,11 +66,14 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 if self.ctrl.stop_eval.value:  # From overall master.
                     self.sync.stop_eval.value = stop = True  # To my workers.
                 for w in act_ready_pair[alt]:
-                    # assert not w.acquire(block=False)  # Debug check.
+                    assert not w.acquire(block=False)  # Debug check.
                     w.release()
                 if stop:
+                    for b in obs_ready_pair[1 - alt]:
+                        b.acquire()  # Wait until the other workers are waiting.
+                        assert not b.acquire(block=False)  # Debug check.
                     for w in act_ready_pair[1 - alt]:
-                        # assert not w.acquire(block=False)  # Debug check.
+                        assert not w.acquire(block=False)  # Debug check.
                         w.release()
                     break
             if stop:
@@ -78,10 +81,11 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
 
         for b in obs_ready:
             b.acquire()  # Workers always do extra release; drain it.
-            # assert not b.acquire(block=False)  # Debug check.
+            assert not b.acquire(block=False)  # Debug check.
 
 
 class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
+    """Not tested, possibly faulty corner cases for synchronization."""
 
     def serve_actions_evaluation(self, itr):
         obs_ready = self.sync.obs_ready
