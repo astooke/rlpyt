@@ -89,11 +89,10 @@ class AlternatingActionServer:
     """Two environment instance groups may execute partially simultaneously."""
 
     def serve_actions(self, itr):
-        obs_ready = self.sync.obs_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
-        step_np, step_np_pair = self.step_buffer_np, self.step_buffer_np_pair
-        agent_inputs, agent_inputs_pair = self.agent_inputs, self.agent_inputs_pair
+        step_np_pair = self.step_buffer_np_pair
+        agent_inputs_pair = self.agent_inputs_pair
 
         # Can easily write overlap and no overlap of workers versions.
         for t in range(self.batch_spec.T):
@@ -132,8 +131,7 @@ class AlternatingActionServer:
         obs_ready = self.sync.obs_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
-        step_np, step_np_pair = self.eval_step_buffer_np, self.eval_step_buffer_np_pair
-        agent_inputs = self.eval_agent_inputs
+        step_np_pair = self.eval_step_buffer_np_pair
         agent_inputs_pair = self.eval_agent_inputs_pair
         traj_infos = list()
         self.agent.reset()
