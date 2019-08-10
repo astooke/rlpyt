@@ -67,11 +67,13 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 for w in act_ready_pair[alt]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if self.sync.stop_eval.value:  # Signal from sampler runner.
+                if self.sync.stop_eval.value:
                     for w in act_ready_pair[1 - alt]:
                         # assert not w.acquire(block=False)  # Debug check.
                         w.release()
                     break
+            if self.sync.stop_eval.value:
+                break
 
         for b in obs_ready:
             b.acquire()  # Workers always do extra release; drain it.
@@ -131,6 +133,8 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
                 action, agent_info = self.agent.step(*agent_inputs_pair[alt])
                 step_h.action[:] = action
                 step_h.agent_info[:] = agent_info
+            if self.sync.stop_eval.value:
+                break
 
         # TODO: check logic when traj limit hits at natural end of loop?
         for w in act_ready_pair[alt]:
