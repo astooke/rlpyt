@@ -211,7 +211,7 @@ class AsyncSumTree(SumTree):
     async_ = True
 
     def __init__(self, *args, **kwargs):
-        self.async_t = mp.rawValue("l", 0)
+        self.async_t = mp.RawValue("l", 0)
         super().__init__(*args, **kwargs)
 
     def _allocate_tree(self):
