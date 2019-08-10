@@ -132,7 +132,7 @@ config["sampler"]["eval_max_trajectories"] = 120  # Try not to bias towards shor
 configs["async_alt_pabti"] = config
 
 config = copy.deepcopy(configs["async_gpu"])
-config["sampler"]["batch_B"] = 266  # For using full maching with 2 gpu sampler, 1 gpu opt.
+config["sampler"]["batch_B"] = 304  # For using full maching with 2 gpu sampler, 1 gpu opt.
 config["sampler"]["eval_n_envs"] = 76
 config["sampler"]["eval_max_steps"] = int(76 * 28e3)  # At least one full length.
 config["sampler"]["eval_max_trajectories"] = 210  # Try not to bias towards shorter ones.
