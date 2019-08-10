@@ -132,9 +132,9 @@ class AlternatingActionServer:
                     self.agent.reset_one(idx=b_reset)
             self.agent.toggle_alt()  # Value and reset method do not advance rnn state.
 
-        for b in self.obs_ready:
+        for b in self.sync.obs_ready:
             assert not b.acquire(block=False)  # Debug check.
-        for w in self.act_ready:
+        for w in self.sync.act_ready:
             assert not w.acquire(block=False)  # Debug check.
 
     def serve_actions_evaluation(self, itr):
