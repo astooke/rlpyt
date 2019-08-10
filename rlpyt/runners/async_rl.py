@@ -274,11 +274,12 @@ class AsyncRlBase(BaseRunner):
         samples_per_second = (float('nan') if itr == 0 else
             new_samples / time_elapsed)
         if self._eval:
-            non_eval_time_elapsed = (time_elapsed - self.ctrl.eval_time.value -
-                self._last_eval_time)
+            new_eval_time = self.ctrl.eval_time.value
+            eval_time_elapsed = new_eval_time - self._last_eval_time
+            non_eval_time_elapsed = time_elapsed - eval_time_elapsed
             non_eval_samples_per_second = (float('nan') if itr == 0 else
                 new_samples / non_eval_time_elapsed)
-            self._last_eval_time = self.ctrl.eval_time.value
+            self._last_eval_time = new_eval_time
         cum_steps = sampler_itr * self.sampler.batch_size  # No * world_size.
         replay_ratio = (new_updates * self.algo.batch_size * self.world_size /
             max(1, new_samples))
