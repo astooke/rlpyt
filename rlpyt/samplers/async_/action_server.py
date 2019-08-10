@@ -58,7 +58,7 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 for b_reset in np.where(step_h.done)[0]:
                     step_h.action[b_reset] = 0  # Null prev_action.
                     step_h.reward[b_reset] = 0  # Null prev_reward.
-                    self.agent.reset_one(idx=b_reset, alt=alt)
+                    self.agent.reset_one(idx=b_reset)
                 action, agent_info = self.agent.step(*agent_inputs_pair[alt])
                 step_h.action[:] = action
                 step_h.agent_info[:] = agent_info
@@ -127,7 +127,7 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
                 for b_reset in np.where(step_h.done)[0]:
                     step_h.action[b_reset] = 0  # Null prev_action.
                     step_h.reward[b_reset] = 0  # Null prev_reward.
-                    self.agent.reset_one(idx=b_reset, alt=alt)
+                    self.agent.reset_one(idx=b_reset)
                 action, agent_info = self.agent.step(*agent_inputs_pair[alt])
                 step_h.action[:] = action
                 step_h.agent_info[:] = agent_info
