@@ -34,9 +34,7 @@ class AsyncReplayBufferMixin:
     def _async_pull(self):
         self.t = self.async_t.value
         self._buffer_full = self._async_buffer_full.value
-        print("replay async_pull t: ", self.t)
 
     def _async_push(self):
         self.async_t.value = self.t
         self._async_buffer_full.value = self._buffer_full
-        print("replay async_push t: ", self.t)

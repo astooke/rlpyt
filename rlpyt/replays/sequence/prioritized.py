@@ -53,18 +53,14 @@ class PrioritizedSequenceReplay:
         if rsi <= 1:  # All or no rnn states stored.
             self.priority_tree.advance(T, priorities=priorities)
         else:  # Some rnn states stored.
-            print("pri_replay storing some priorities, pri.shape: ", priorities.shape)
             # Let scalar or [B]-shaped priorities pass in, will broadcast.
             if priorities is not None and priorities.ndim == 2:  # [T, B]
                 offset = (rsi - t) % rsi
                 priorities = priorities[offset::rsi]  # Select out same t as rnn.
-                print("pri_replay reshaped priorities: ", priorities.shape)
+                # Possibly untested.
             n = self.t // rsi - t // rsi
             if self.t < t:  # Wrapped.
-                print(f"pri_replay wrapped, had n {n}, added {self.T // rsi}")
                 n += self.T // rsi
-            print("pri_replay advancing tree: t, T, n: ", t, T, n)
-            print("pri_replay advancing tree, input priorities: ", priorities)
             self.priority_tree.advance(n, priorities=priorities)
         return T, idxs
 

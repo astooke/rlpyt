@@ -1,5 +1,4 @@
 
-import numpy as np
 
 from rlpyt.utils.buffer import buffer_from_example, get_leading_dims
 from rlpyt.utils.collections import namedarraytuple
@@ -35,7 +34,7 @@ class FrameBufferMixin:
         logger.log(f"Frame-based buffer using {n_frames}-frame sequences.")
         # frames: oldest stored at t; duplicate n_frames - 1 beginning & end.
         self.samples_frames = buffer_from_example(example.observation[0],
-            (self.T + n_frames - 1, self.B), 
+            (self.T + n_frames - 1, self.B),
             share_memory=self.async_)  # [T+n_frames-1,B,H,W]
         # new_frames: shifted so newest stored at t; no duplication.
         self.samples_new_frames = self.samples_frames[n_frames - 1:]  # [T,B,H,W]

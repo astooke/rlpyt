@@ -192,7 +192,6 @@ class R2D1(DQN):
         max_d = torch.max(delta * valid, dim=0).values
         mean_d = valid_mean(delta, valid, dim=0)  # Still high if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
-        print("r2d1 computed input priorities (shape): ", priorities.shape, priorities)
         return priorities.numpy()
 
     def loss(self, samples):

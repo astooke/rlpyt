@@ -31,9 +31,6 @@ class EpsilonGreedyAgentMixin:
             self.make_vec_eps(global_B, env_ranks)
 
     def make_vec_eps(self, global_B, env_ranks):
-        if env_ranks is None:
-            print("OOPS HAD NONE ENV_RANKS")
-            return
         if (self.eps_final_min is not None and
                 self.eps_final_min != self._eps_final_float):  # vector epsilon.
             self.eps_init = self.eps_init * torch.ones(len(env_ranks))

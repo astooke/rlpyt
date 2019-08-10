@@ -96,7 +96,7 @@ class SumTree:
         """Get n samples, with (default) or without replacement."""
         self._sampled_unique = unique
         if unique:
-            tree_idxs = np.unique(self.find(np.random.rand(int(n * 1.05))))
+            tree_idxs = np.unique(self.find(np.random.rand(int(n * 1))))  # * 1.05
             i = 0
             while len(tree_idxs) < n:
                 if i >= 100:
@@ -224,7 +224,5 @@ class AsyncSumTree(SumTree):
 
     def advance(self, *args, **kwargs):
         self.t = self.async_t.value
-        print("async sume tree advance pull t: ", self.t)
         super().advance(*args, **kwargs)
         self.async_t.value = self.t
-        print("async sum tree advance push t: ", self.t)

@@ -474,7 +474,7 @@ def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
     # appending samples to make replay buffer full, but only for batch_B > 84
     # (dqn + r2d1 atari), regardless of replay size or batch_T.  Would seem to
     # progress through all code in replay.append_samples() but simply would
-    # not return from it.)
+    # not return from it.  Some tipping point for MKL threading?)
     torch.set_num_threads(1)
     while True:
         ctrl.sample_ready.acquire()
