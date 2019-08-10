@@ -5,7 +5,7 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 script = "rlpyt/experiments/scripts/atari/dqn/train/atari_r2d1_async_alt.py"
 affinity_code = encode_affinity(
-    n_cpu_core=20,
+    n_cpu_core=40,
     n_gpu=4,
     async_sample=True,
     gpu_per_run=1,
@@ -15,11 +15,11 @@ affinity_code = encode_affinity(
     n_socket=1,  # Force this.
     alternating=True,
 )
-runs_per_setting = 2
+runs_per_setting = 1
 experiment_title = "atari_r2d1_async_alt"
 variant_levels = list()
 
-games = ["pong", "seaquest", "qbert", "chopper_command"]
+games = ["seaquest"]
 values = list(zip(games))
 dir_names = ["{}".format(*v) for v in values]
 keys = [("env", "game")]
@@ -27,7 +27,7 @@ variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
 
-default_config_key = "async_gpu"
+default_config_key = "async_alt_dgx"
 
 run_experiments(
     script=script,

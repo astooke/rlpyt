@@ -48,6 +48,7 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
         self.agent.reset()
         step_np.action[:] = 0  # Null prev_action.
         step_np.reward[:] = 0  # Null prev_reward.
+        stop = False
 
         for t in range(self.eval_max_T):
             for alt in range(2):
@@ -63,16 +64,16 @@ class AsyncAlternatingActionServer(AlternatingActionServer):
                 step_h.action[:] = action
                 step_h.agent_info[:] = agent_info
                 if self.ctrl.stop_eval.value:  # From overall master.
-                    self.sync.stop_eval.value = True  # To my workers.
+                    self.sync.stop_eval.value = stop = True  # To my workers.
                 for w in act_ready_pair[alt]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if self.sync.stop_eval.value:
+                if stop:
                     for w in act_ready_pair[1 - alt]:
                         # assert not w.acquire(block=False)  # Debug check.
                         w.release()
                     break
-            if self.sync.stop_eval.value:
+            if stop:
                 break
 
         for b in obs_ready:
@@ -91,6 +92,7 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
         self.agent.reset()
         step_np.action[:] = 0  # Null prev_action.
         step_np.reward[:] = 0  # Null prev_reward.
+        stop = False
 
         # First step of both.
         alt = 0
@@ -120,11 +122,11 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
                     b.acquire()
                     # assert not b.acquire(block=False)  # Debug check.
                 if self.ctrl.stop_eval.value:  # Signal from sampler runner.
-                    self.sync.stop_eval.value = True  # Signal to my workers.
+                    self.sync.stop_eval.value = stop = True  # Signal to my workers.
                 for w in act_ready_pair[1 - alt]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
-                if self.sync.stop_eval.value:
+                if stop:
                     break
                 for b_reset in np.where(step_h.done)[0]:
                     step_h.action[b_reset] = 0  # Null prev_action.
@@ -133,7 +135,7 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
                 action, agent_info = self.agent.step(*agent_inputs_pair[alt])
                 step_h.action[:] = action
                 step_h.agent_info[:] = agent_info
-            if self.sync.stop_eval.value:
+            if stop:
                 break
 
         # TODO: check logic when traj limit hits at natural end of loop?

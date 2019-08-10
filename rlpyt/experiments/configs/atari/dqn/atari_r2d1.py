@@ -122,3 +122,13 @@ config["sampler"]["eval_max_trajectories"] = 8
 config["runner"]["log_interval_steps"] = 1e5
 
 configs["r2d1_test"] = config
+
+
+config = copy.deepcopy(configs["async_gpu"])
+config["sampler"]["batch_B"] = 256
+config["sampler"]["eval_n_envs"] = 36
+config["sampler"]["eval_max_steps"] = int(36 * 28e3)  # At least one full length.
+configs["async_alt_pabti"] = config
+
+# config = copy.deepcopy(configs["async_gpu"])
+# config["sampler"]["batch_B"] = 
