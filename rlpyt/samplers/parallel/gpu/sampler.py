@@ -59,6 +59,11 @@ class GpuSamplerBase(ParallelSamplerBase):
         if self.eval_n_envs > 0:
             self.eval_step_buffer_pyt, self.eval_step_buffer_np = \
                 build_step_buffer(examples, self.eval_n_envs)
+            self.eval_agent_inputs = AgentInputs(
+                self.eval_step_buffer_pyt.observation,
+                self.eval_step_buffer_pyt.action,
+                self.eval_step_buffer_pyt.reward,
+            )
         return examples
 
     def _build_parallel_ctrl(self, n_worker):
