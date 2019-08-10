@@ -218,7 +218,7 @@ class AsyncSumTree(SumTree):
         self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)  # Shared memory.
         self.tree.fill(0)  # Just in case.
 
-    def reset():
+    def reset(self):
         super().reset()
         self.async_t.value = 0
 
