@@ -273,6 +273,12 @@ class AsyncRlBase(BaseRunner):
             new_updates / time_elapsed)
         samples_per_second = (float('nan') if itr == 0 else
             new_samples / time_elapsed)
+        if self._eval:
+            non_eval_time_elapsed = (time_elapsed - self.ctrl.eval_time.value -
+                self._last_eval_time)
+            non_eval_samples_per_second = (float('nan') if itr == 0 else
+                new_samples / non_eval_time_elapsed)
+            self._last_eval_time = self.ctrl.eval_time.value
         cum_steps = sampler_itr * self.sampler.batch_size  # No * world_size.
         replay_ratio = (new_updates * self.algo.batch_size * self.world_size /
             max(1, new_samples))
@@ -287,6 +293,8 @@ class AsyncRlBase(BaseRunner):
         logger.record_tabular('ReplayRatio', replay_ratio)
         logger.record_tabular('CumReplayRatio', cum_replay_ratio)
         logger.record_tabular('SamplesPerSecond', samples_per_second)
+        if self._eval:
+            logger.record_tabular('NonEvalSamplesPerSecond', non_eval_samples_per_second)
         logger.record_tabular('UpdatesPerSecond', updates_per_second)
         logger.record_tabular('OptThrottle', (time_elapsed - throttle_time) /
             time_elapsed)
@@ -351,6 +359,7 @@ class AsyncRlEval(AsyncRlBase):
 
     def initialize_logging(self):
         self._traj_infos = list()
+        self._last_eval_time = 0.
         super().initialize_logging()
         self.pbar = ProgBarCounter(self.log_interval_itrs)
 
