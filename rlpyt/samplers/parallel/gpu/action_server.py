@@ -33,7 +33,7 @@ class ActionServer:
 
         for b in obs_ready:
             b.acquire()
-            # assert not b.acquire(block=False)  # Debug check.
+            assert not b.acquire(block=False)  # Debug check.
         if "bootstrap_value" in self.samples_np.agent:
             self.samples_np.agent.bootstrap_value[:] = self.agent.value(
                 *agent_inputs)
@@ -43,6 +43,9 @@ class ActionServer:
                 step_np.reward[b_reset] = 0  # Null prev_reward into agent.
                 self.agent.reset_one(idx=b_reset)
             # step_np.done[:] = False  # Worker resets at start of next.
+        for w in act_ready:
+            assert not w.acquire(block=False)  # Debug check.
+
 
     def serve_actions_evaluation(self, itr):
         obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
@@ -80,7 +83,9 @@ class ActionServer:
                 f"({self.eval_max_T}).")
         for b in obs_ready:
             b.acquire()  # Workers always do extra release; drain it.
-            # assert not b.acquire(block=False)  # Debug check.
+            assert not b.acquire(block=False)  # Debug check.
+        for w in act_ready:
+            assert not w.acquire(block=False)  # Debug check.
 
         return traj_infos
 
@@ -126,6 +131,11 @@ class AlternatingActionServer:
                     step_h.reward[b_reset] = 0
                     self.agent.reset_one(idx=b_reset)
             self.agent.toggle_alt()  # Value and reset method do not advance rnn state.
+
+        for b in self.obs_ready:
+            assert not b.acquire(block=False)  # Debug check.
+        for w in self.act_ready:
+            assert not w.acquire(block=False)  # Debug check.
 
     def serve_actions_evaluation(self, itr):
         obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
