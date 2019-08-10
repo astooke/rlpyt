@@ -61,7 +61,7 @@ class PrioritizedSequenceReplay:
                 print("pri_replay reshaped priorities: ", priorities.shape)
             n = self.t // rsi - t // rsi
             if self.t < t:  # Wrapped.
-                print(f"pri_replay wrapped, had n {n}, added {self._T // rsi}")
+                print(f"pri_replay wrapped, had n {n}, added {self.T // rsi}")
                 n += self.T // rsi
             print("pri_replay advancing tree: t, T, n: ", t, T, n)
             print("pri_replay advancing tree, input priorities: ", priorities)
