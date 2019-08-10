@@ -13,6 +13,7 @@ affinity_code = encode_affinity(
     # hyperthread_offset=24,
     # optim_sample_share_gpu=True,
     n_socket=1,  # Force this.
+    alternating=True,
 )
 runs_per_setting = 2
 experiment_title = "atari_r2d1_async_alt"
