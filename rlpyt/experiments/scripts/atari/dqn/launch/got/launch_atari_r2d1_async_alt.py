@@ -27,7 +27,7 @@ variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
 
-default_config_key = "async_gpu"
+default_config_key = "async_alt_got"
 
 run_experiments(
     script=script,
