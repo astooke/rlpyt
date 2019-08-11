@@ -9,7 +9,7 @@ affinity_code = encode_affinity(
     n_gpu=4,
     async_sample=True,
     gpu_per_run=1,
-    sample_gpu_per_run=2,
+    sample_gpu_per_run=3,
     # hyperthread_offset=24,
     # optim_sample_share_gpu=True,
     n_socket=1,  # Force this.
@@ -27,7 +27,7 @@ variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
 
-default_config_key = "async_alt_dgx"
+default_config_key = "async_gpu_dgx"
 
 run_experiments(
     script=script,
