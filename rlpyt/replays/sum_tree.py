@@ -213,6 +213,7 @@ class AsyncSumTree(SumTree):
     def __init__(self, *args, **kwargs):
         self.async_t = mp.RawValue("l", 0)
         super().__init__(*args, **kwargs)
+        # Wrap guard behavior should be fine without async--each will catch it.
 
     def _allocate_tree(self):
         self.tree = np_mp_array(2 ** self.tree_levels - 1, np.float64)  # Shared memory.
@@ -221,6 +222,7 @@ class AsyncSumTree(SumTree):
     def reset(self):
         super().reset()
         self.async_t.value = 0
+        self._async_initial_wrap_guard.value = True
 
     def advance(self, *args, **kwargs):
         self.t = self.async_t.value

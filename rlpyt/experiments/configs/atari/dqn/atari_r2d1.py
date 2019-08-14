@@ -20,6 +20,9 @@ config = dict(
         double_dqn=True,
         prioritized_replay=True,
         n_step_return=5,
+        pri_alpha=0.9,  # Fixed on 20190813
+        pri_beta_init=0.6,  # I think had these backwards before.
+        pri_beta_final=0.6,
     ),
     optim=dict(),
     env=dict(
@@ -132,7 +135,7 @@ config["sampler"]["eval_max_trajectories"] = 120  # Try not to bias towards shor
 configs["async_alt_pabti"] = config
 
 config = copy.deepcopy(configs["async_gpu"])
-config["sampler"]["batch_B"] = 312  # For using full maching with 2 gpu sampler, 1 gpu opt.
+config["sampler"]["batch_B"] = 312  # For using full maching with 3 gpu sampler, 1 gpu opt.
 config["sampler"]["eval_n_envs"] = 78
 config["sampler"]["eval_max_steps"] = int(78 * 28e3)  # At least one full length.
 config["sampler"]["eval_max_trajectories"] = 210  # Try not to bias towards shorter ones.
@@ -146,7 +149,7 @@ config["sampler"]["eval_max_trajectories"] = 100  # Try not to bias towards shor
 configs["async_alt_got"] = config
 
 config = copy.deepcopy(configs["async_gpu"])
-config["sampler"]["batch_B"] = 312  # For using full maching with 2 gpu sampler, 1 gpu opt.
+config["sampler"]["batch_B"] = 312  # For using full maching with 3 gpu sampler, 1 gpu opt.
 config["sampler"]["eval_n_envs"] = 39
 config["sampler"]["eval_max_steps"] = int(39 * 28e3)  # At least one full length.
 config["sampler"]["eval_max_trajectories"] = 210  # Try not to bias towards shorter ones.
