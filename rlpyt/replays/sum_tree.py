@@ -222,7 +222,6 @@ class AsyncSumTree(SumTree):
     def reset(self):
         super().reset()
         self.async_t.value = 0
-        self._async_initial_wrap_guard.value = True
 
     def advance(self, *args, **kwargs):
         self.t = self.async_t.value
