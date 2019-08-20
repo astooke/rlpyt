@@ -27,8 +27,14 @@ config = dict(
     sampler=dict(
         batch_T=2048,
         batch_B=1,
-        max_decorrelation_steps=1000,
+        max_decorrelation_steps=0,
     ),
 )
 
 configs["ppo_1M_serial"] = config
+
+config = copy.deepcopy(configs["ppo_1M_serial"])
+
+config["algo"]["minibatches"] = 1
+config["algo"]["epochs"] = 32
+configs["ppo_32ep_1mb"] = config

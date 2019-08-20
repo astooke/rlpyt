@@ -1,6 +1,7 @@
 
 from contextlib import contextmanager
 import datetime
+import os
 import os.path as osp
 import json
 
@@ -46,3 +47,36 @@ def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none")
     logger.remove_tabular_output(tabular_log_file)
     logger.remove_text_output(text_log_file)
     logger.pop_prefix()
+
+
+def add_exp_param(param_name, param_val, exp_dir=None, overwrite=False):
+    """Puts a param in all experiments in immediate subdirectories.
+    So you can write a new distinguising param after the fact, perhaps
+    reflecting a combination of settings."""
+    if exp_dir is None:
+        exp_dir = os.getcwd()
+    # exp_folders = get_immediate_subdirectories(exp_dir)
+    for sub_dir in os.walk(exp_dir):
+        if "params.json" in sub_dir[2]:
+            update_param = True
+            params_f = osp.join(sub_dir[0], "params.json")
+            with open(params_f, "r") as f:
+                params = json.load(f)
+                if param_name in params:
+                    if overwrite:
+                        print("Overwriting param: {}, old val: {}, new val: {}".format(
+                            param_name, params[param_name], param_val))
+                    else:
+                        print("Param {} already found & overwrite set to False; "
+                            "leaving old val: {}.".format(param_name, params[param_name]))
+                        update_param = False
+            if update_param:
+                os.remove(params_f)
+                params[param_name] = param_val
+                with open(params_f, "w") as f:
+                    json.dump(params, f)
+
+
+# def get_immediate_subdirectories(a_dir):
+#     return [osp.join(a_dir, name) for name in os.listdir(a_dir)
+#             if osp.isdir(osp.join(a_dir, name))]

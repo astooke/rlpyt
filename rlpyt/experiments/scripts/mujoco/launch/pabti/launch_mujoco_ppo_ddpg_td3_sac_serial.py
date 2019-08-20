@@ -37,6 +37,20 @@ run_experiments(
     common_args=(default_config_key,),
 )
 
+default_config_key = "ppo_32ep_1mb"
+script = "rlpyt/experiments/scripts/mujoco/pg/train/mujoco_ppo_serial.py"
+experiment_title = "ppo_mujoco_32x1"
+
+run_experiments(
+    script=script,
+    affinity_code=affinity_code,
+    experiment_title=experiment_title,
+    runs_per_setting=runs_per_setting,
+    variants=variants,
+    log_dirs=log_dirs,
+    common_args=(default_config_key,),
+)
+
 
 default_config_key = "ddpg_from_td3_1M_serial"
 script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_serial.py"

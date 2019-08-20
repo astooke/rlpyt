@@ -2,8 +2,8 @@
 import sys
 
 from rlpyt.utils.launching.affinity import affinity_from_code
-from rlpyt.samplers.serial_sampler import SerialSampler
-from rlpyt.samplers.cpu.collectors import ResetCollector
+from rlpyt.samplers.serial.sampler import SerialSampler
+from rlpyt.samplers.parallel.cpu.collectors import CpuResetCollector
 from rlpyt.envs.gym import make as gym_make
 from rlpyt.algos.pg.ppo import PPO
 from rlpyt.agents.pg.mujoco import MujocoFfAgent
@@ -23,7 +23,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     sampler = SerialSampler(
         EnvCls=gym_make,
         env_kwargs=config["env"],
-        CollectorCls=ResetCollector,
+        CollectorCls=CpuResetCollector,
         **config["sampler"]
     )
     algo = PPO(optim_kwargs=config["optim"], **config["algo"])
