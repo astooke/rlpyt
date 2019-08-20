@@ -25,10 +25,9 @@ class MuMlpModel(torch.nn.Module):
         )
 
     def forward(self, observation, prev_action, prev_reward):
-        obs_shape, T, B, has_T, has_B = infer_leading_dims(observation,
-            self._obs_ndim)
+        lead_dim, T, B, _ = infer_leading_dims(observation, self._obs_ndim)
         mu = self._output_max * torch.tanh(self.mlp(observation.view(T * B, -1)))
-        mu = restore_leading_dims(mu, T, B, has_T, has_B)
+        mu = restore_leading_dims(mu, lead_dim, T, B)
         return mu
 
 
