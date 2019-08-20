@@ -42,7 +42,7 @@ class PPO(PolicyGradientAlgo):
         if self.linear_lr_schedule:
             self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
                 optimizer=self.optimizer,
-                lr_lambda=lambda itr: (n_itr - itr) / n_itr)  # Step once per itr.
+                lr_lambda=lambda itr: (self.n_itr - itr) / self.n_itr)  # Step once per itr.
             self._ratio_clip = self.ratio_clip  # Save base value.
 
     def optimize_agent(self, itr, samples):
