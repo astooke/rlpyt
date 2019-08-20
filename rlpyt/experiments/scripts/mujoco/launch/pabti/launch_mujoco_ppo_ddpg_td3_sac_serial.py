@@ -4,7 +4,7 @@ from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 affinity_code = encode_affinity(
-    n_cpu_cores=16,
+    n_cpu_core=16,
     n_gpu=8,
     contexts_per_gpu=2,
     hyperthread_offset=24,
