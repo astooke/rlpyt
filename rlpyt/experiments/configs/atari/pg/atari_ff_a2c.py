@@ -34,3 +34,7 @@ config = copy.deepcopy(config)
 config["algo"]["learning_rate"] = 4e-4
 
 configs["low_lr"] = config
+
+config = copy.deepcopy(configs["0"])
+config["sampler"]["batch_B"] = 16
+configs["2gpu"] = config
