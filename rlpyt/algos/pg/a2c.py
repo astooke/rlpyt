@@ -55,7 +55,7 @@ class A2C(PolicyGradientAlgo):
             prev_reward=samples.env.prev_reward,
         )
         if self.agent.recurrent:
-            init_rnn_state = self.samples.agent.agent_info.prev_rnn_state[0]  # T = 0.
+            init_rnn_state = samples.agent.agent_info.prev_rnn_state[0]  # T = 0.
             # [B,N,H] --> [N,B,H] (for cudnn).
             init_rnn_state = buffer_method(init_rnn_state, "transpose", 0, 1)
             init_rnn_state = buffer_method(init_rnn_state, "contiguous")
