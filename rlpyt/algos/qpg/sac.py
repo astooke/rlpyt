@@ -175,7 +175,7 @@ class SAC(RlAlgorithm):
         v_loss = 0.5 * valid_mean((v - v_target) ** 2, valid)
 
         if self.reparameterize:
-            pi_losses = log_pi - min_log_target
+            pi_losses = log_pi - log_target1
         else:
             pi_factor = (v - v_target).detach()  # No grad.
             pi_losses = log_pi * pi_factor
