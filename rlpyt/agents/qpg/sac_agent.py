@@ -51,7 +51,8 @@ class SacAgent(BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
-        super().initialize(env_spaces, share_memory)
+        super().initialize(env_spaces, share_memory,
+            global_B=global_B, env_ranks=env_ranks)
         self.q1_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
         self.q2_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
         self.v_model = self.VModelCls(**self.env_model_kwargs, **self.v_model_kwargs)
@@ -135,8 +136,6 @@ class SacAgent(BaseAgent):
         action = self.distribution.sample(dist_info)
         agent_info = AgentInfo(dist_info=dist_info)
         action, agent_info = buffer_to((action, agent_info), device="cpu")
-        if np.any(np.isnan(action.numpy())):
-            breakpoint()
         return AgentStep(action=action, agent_info=agent_info)
 
     def update_target(self, tau=1):

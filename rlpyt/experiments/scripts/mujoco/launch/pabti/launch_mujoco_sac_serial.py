@@ -23,19 +23,19 @@ variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
 
-default_config_key = "ppo_1M_serial"
-script = "rlpyt/experiments/scripts/mujoco/pg/train/mujoco_ppo_serial.py"
-experiment_title = "ppo_mujoco"
+# default_config_key = "ppo_1M_serial"
+# script = "rlpyt/experiments/scripts/mujoco/pg/train/mujoco_ppo_serial.py"
+# experiment_title = "ppo_mujoco"
 
-run_experiments(
-    script=script,
-    affinity_code=affinity_code,
-    experiment_title=experiment_title,
-    runs_per_setting=runs_per_setting,
-    variants=variants,
-    log_dirs=log_dirs,
-    common_args=(default_config_key,),
-)
+# run_experiments(
+#     script=script,
+#     affinity_code=affinity_code,
+#     experiment_title=experiment_title,
+#     runs_per_setting=runs_per_setting,
+#     variants=variants,
+#     log_dirs=log_dirs,
+#     common_args=(default_config_key,),
+# )
 
 # default_config_key = "ppo_32ep_1mb"
 # script = "rlpyt/experiments/scripts/mujoco/pg/train/mujoco_ppo_serial.py"
@@ -52,33 +52,33 @@ run_experiments(
 # )
 
 
-default_config_key = "ddpg_from_td3_1M_serial"
-script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_serial.py"
-experiment_title = "ddpg_mujoco"
+# default_config_key = "ddpg_from_td3_1M_serial"
+# script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_serial.py"
+# experiment_title = "ddpg_mujoco"
 
-run_experiments(
-    script=script,
-    affinity_code=affinity_code,
-    experiment_title=experiment_title,
-    runs_per_setting=runs_per_setting,
-    variants=variants,
-    log_dirs=log_dirs,
-    common_args=(default_config_key,),
-)
+# run_experiments(
+#     script=script,
+#     affinity_code=affinity_code,
+#     experiment_title=experiment_title,
+#     runs_per_setting=runs_per_setting,
+#     variants=variants,
+#     log_dirs=log_dirs,
+#     common_args=(default_config_key,),
+# )
 
-default_config_key = "td3_1M_serial"
-script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_td3_serial.py"
-experiment_title = "td3_mujoco"
+# default_config_key = "td3_1M_serial"
+# script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_td3_serial.py"
+# experiment_title = "td3_mujoco"
 
-run_experiments(
-    script=script,
-    affinity_code=affinity_code,
-    experiment_title=experiment_title,
-    runs_per_setting=runs_per_setting,
-    variants=variants,
-    log_dirs=log_dirs,
-    common_args=(default_config_key,),
-)
+# run_experiments(
+#     script=script,
+#     affinity_code=affinity_code,
+#     experiment_title=experiment_title,
+#     runs_per_setting=runs_per_setting,
+#     variants=variants,
+#     log_dirs=log_dirs,
+#     common_args=(default_config_key,),
+# )
 
 default_config_key = "sac_1M_serial"
 script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_sac_serial.py"
