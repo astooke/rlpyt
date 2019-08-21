@@ -8,7 +8,7 @@ config = dict(
     agent=dict(),
     algo=dict(
         discount=0.99,
-        learning_rate=1e-3,
+        learning_rate=7e-4,
         value_loss_coeff=0.5,
         entropy_loss_coeff=0.01,
         clip_grad_norm=1.,
@@ -22,7 +22,7 @@ config = dict(
     ),
     sampler=dict(
         batch_T=5,
-        batch_B=64,
+        batch_B=32,
         max_decorrelation_steps=1000,
     ),
 )

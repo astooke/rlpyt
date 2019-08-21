@@ -12,6 +12,8 @@ config = dict(
         clip_grad_norm=1.,
         gae_lambda=0.98,
         linear_lr_schedule=True,
+        minibatches=4,
+        epochs=4,
     ),
     env=dict(game="pong"),
     model=dict(),
