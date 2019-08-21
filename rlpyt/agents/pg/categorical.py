@@ -19,7 +19,8 @@ class CategoricalPgAgent(BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
-        super().initialize(env_spaces, share_memory, global_B, env_ranks)
+        super().initialize(env_spaces, share_memory,
+            global_B=global_B, env_ranks=env_ranks)
         self.distribution = Categorical(dim=env_spaces.action.n)
 
     @torch.no_grad()
@@ -54,8 +55,10 @@ class RecurrentCategoricalPgAgentBase(BaseAgent):
         dist_info, value = buffer_to((DistInfo(prob=pi), value), device="cpu")
         return dist_info, value, next_rnn_state  # Leave rnn_state on device.
 
-    def initialize(self, env_spaces, share_memory=False):
-        super().initialize(env_spaces, share_memory)
+    def initialize(self, env_spaces, share_memory=False,
+            global_B=1, env_ranks=None):
+        super().initialize(env_spaces, share_memory,
+            global_B=global_B, env_ranks=env_ranks)
         self.distribution = Categorical(dim=env_spaces.action.n)
 
     @torch.no_grad()
