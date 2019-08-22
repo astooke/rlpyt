@@ -139,3 +139,9 @@ class DdpgAgent(BaseAgent):
             target_model=self.target_model.state_dict(),
             target_q_model=self.target_q_model.state_dict(),
         )
+
+    def load_state_dict(self, state_dict):
+        self.model.load_state_dict(state_dict["model"])
+        self.q_model.load_state_dict(state_dict["q_model"])
+        self.target_model.load_state_dict(state_dict["target_model"])
+        self.target_q_model.load_state_dict(state_dict["target_q_model"])

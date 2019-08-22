@@ -99,3 +99,14 @@ class Td3Agent(DdpgAgent):
     def eval_mode(self, itr):
         super().eval_mode(itr)
         self.q2_model.eval()
+
+    def state_dict(self):
+        state_dict = super().state_dict()
+        state_dict["q2_model"] = self.q2_model.state_dict()
+        state_dict["target_q2_model"] = self.target_q2_model.state_dict()
+        return state_dict
+
+    def load_state_dict(self, state_dict):
+        super().load_state_dict(state_dict)
+        self.q2_model.load_state_dict(state_dict["q2_model"])
+        self.target_q2_model.load_state_dict(state_dict["target_q2_model"])

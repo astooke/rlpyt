@@ -40,7 +40,10 @@ class SAC(RlAlgorithm):
             learning_rate=3e-4,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
-            initial_optim_state_dict=None,
+            initial_optim_state_dict=None,  # for pi only.
+            initial_q1_optim_state_dict=None,
+            initial_q2_optim_state_dict=None,
+            initial_v_optim_state_dict=None,
             action_prior="uniform",  # or "gaussian"
             reward_scale=1,
             reparameterize=True,
@@ -90,10 +93,22 @@ class SAC(RlAlgorithm):
     def optim_initialize(self, rank=0):
         """Called by async runner."""
         self.rank = rank
-        self.optimizer = self.OptimCls(self.agent.parameters(),
+        self.pi_optimizer = self.OptimCls(self.agent.pi_parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
-        if self.initial_optim_state_dict is not None:
-            self.optimizer.load_state_dict(self.initial_optim_state_dict)
+        self.q1_optimizer = self.OptimCls(self.agent.q1_parameters(),
+            lr=self.learning_rate, **self.optim_kwargs)
+        self.q2_optimizer = self.OptimCls(self.agent.q2_parameters(),
+            lr=self.learning_rate, **self.optim_kwargs)
+        self.v_optimizer = self.OptimCls(self.agent.v_parameters(),
+            lr=self.learning_rate, **self.optim_kwargs)
+        if self.initial_pi_optim_state_dict is not None:
+            self.pi_optimizer.load_state_dict(self.initial_pi_optim_state_dict)
+        if self.initial_q1_optim_state_dict is not None:
+            self.q1_optimizer.load_state_dict(self.initial_q1_optim_state_dict)
+        if self.initial_q2_optim_state_dict is not None:
+            self.q2_optimizer.load_state_dict(self.initial_q2_optim_state_dict)
+        if self.initial_v_optim_state_dict is not None:
+            self.v_optimizer.load_state_dict(self.initial_v_optim_state_dict)
         if self.action_prior == "gaussian":
             self.action_prior_distribution = Gaussian(
                 dim=self.agent.env_spaces.action.size, std=1.)
@@ -124,13 +139,31 @@ class SAC(RlAlgorithm):
             return opt_info
         for _ in range(self.updates_per_optimize):
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
-            self.optimizer.zero_grad()
-            losses, values = self.loss(samples_from_replay)
-            for loss in losses:
+            self.q1_optimizer.zero_grad()
+            self.q2_optimizer.zero_grad()
+            q_losses, q_values, agent_inputs = self.q_loss(samples_from_replay)
+            for loss in q_losses:
                 loss.backward()
-            grad_norms = [torch.nn.utils.clip_grad_norm_(ps, self.clip_grad_norm)
-                for ps in self.agent.parameters_by_model()]
-            self.optimizer.step()
+            q1_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.q1_parameters(),
+                self.clip_grad_norm)
+            q2_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.q2_parameters(),
+                self.clip_grad_norm)
+            self.q1_optimizer.step()
+            self.q2_optimizer.step()
+            self.pi_optimizer.zero_grad()
+            self.v_optimizer.zero_grad()
+            pi_v_losses, pi_v_values = self.pi_v_loss(agent_inputs)
+            for loss in pi_v_losses:
+                loss.backward()
+            pi_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.pi_parameters(),
+                self.clip_grad_norm)
+            v_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.v_parameters(),
+                self.clip_grad_norm)
+            self.pi_optimizer.step()
+            self.v_optimizer.step()
+            grad_norms = (q1_grad_norm, q2_grad_norm, v_grad_norm, pi_grad_norm)
+            losses = q_losses + pi_v_losses
+            values = q_values + pi_v_values
             self.append_opt_info_(opt_info, losses, grad_norms, values)
             self.update_counter += 1
             if self.update_counter % self.target_update_interval == 0:
@@ -145,7 +178,7 @@ class SAC(RlAlgorithm):
             done=samples.env.done,
         )
 
-    def loss(self, samples):
+    def q_loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
         agent_inputs, target_inputs, action = buffer_to(
             (samples.agent_inputs, samples.target_inputs, samples.action),
@@ -164,6 +197,11 @@ class SAC(RlAlgorithm):
         q1_loss = 0.5 * valid_mean((y - q1) ** 2, valid)
         q2_loss = 0.5 * valid_mean((y - q2) ** 2, valid)
 
+        losses = (q1_loss, q2_loss)
+        values = tuple(val.detach() for val in (q1, q2))
+        return losses, values, agent_inputs
+
+    def pi_v_loss(self, agent_inputs):
         v = self.agent.v(*agent_inputs)
         new_action, log_pi, (pi_mean, pi_log_std) = self.agent.pi(*agent_inputs)
         if not self.reparameterize:
@@ -175,7 +213,7 @@ class SAC(RlAlgorithm):
         v_loss = 0.5 * valid_mean((v - v_target) ** 2, valid)
 
         if self.reparameterize:
-            pi_losses = log_pi - min_log_target  # log_target1
+            pi_losses = log_pi - log_target1  # min_log_target
         else:
             pi_factor = (v - v_target).detach()  # No grad.
             pi_losses = log_pi * pi_factor
@@ -184,9 +222,52 @@ class SAC(RlAlgorithm):
                 pi_mean ** 2 + pi_log_std ** 2, dim=-1)
         pi_loss = valid_mean(pi_losses, valid)
 
-        losses = (q1_loss, q2_loss, v_loss, pi_loss)
-        values = tuple(val.detach() for val in (q1, q2, v, pi_mean, pi_log_std))
+        losses = (v_loss, pi_loss)
+        values = tuple(val.detach() for val in (v, pi_mean, pi_log_std))
         return losses, values
+
+    # def loss(self, samples):
+    #     """Samples have leading batch dimension [B,..] (but not time)."""
+    #     agent_inputs, target_inputs, action = buffer_to(
+    #         (samples.agent_inputs, samples.target_inputs, samples.action),
+    #         device=self.agent.device)  # Move to device once, re-use.
+    #     q1, q2 = self.agent.q(*agent_inputs, action)
+    #     with torch.no_grad():
+    #         target_v = self.agent.target_v(*target_inputs)
+    #     disc = self.discount ** self.n_step_return
+    #     y = (self.reward_scale * samples.return_ +
+    #         (1 - samples.done_n.float()) * disc * target_v)
+    #     if self.mid_batch_reset and not self.agent.recurrent:
+    #         valid = None  # OR: torch.ones_like(samples.done, dtype=torch.float)
+    #     else:
+    #         valid = valid_from_done(samples.done)
+
+    #     q1_loss = 0.5 * valid_mean((y - q1) ** 2, valid)
+    #     q2_loss = 0.5 * valid_mean((y - q2) ** 2, valid)
+
+    #     v = self.agent.v(*agent_inputs)
+    #     new_action, log_pi, (pi_mean, pi_log_std) = self.agent.pi(*agent_inputs)
+    #     if not self.reparameterize:
+    #         new_action = new_action.detach()  # No grad.
+    #     log_target1, log_target2 = self.agent.q(*agent_inputs, new_action)
+    #     min_log_target = torch.min(log_target1, log_target2)
+    #     prior_log_pi = self.get_action_prior(new_action.cpu())
+    #     v_target = (min_log_target - log_pi + prior_log_pi).detach()  # No grad.
+    #     v_loss = 0.5 * valid_mean((v - v_target) ** 2, valid)
+
+    #     if self.reparameterize:
+    #         pi_losses = log_pi - min_log_target  # log_target1
+    #     else:
+    #         pi_factor = (v - v_target).detach()  # No grad.
+    #         pi_losses = log_pi * pi_factor
+    #     if self.policy_output_regularization > 0:
+    #         pi_losses += torch.sum(self.policy_output_regularization * 0.5 *
+    #             pi_mean ** 2 + pi_log_std ** 2, dim=-1)
+    #     pi_loss = valid_mean(pi_losses, valid)
+
+    #     losses = (q1_loss, q2_loss, v_loss, pi_loss)
+    #     values = tuple(val.detach() for val in (q1, q2, v, pi_mean, pi_log_std))
+    #     return losses, values
 
     def get_action_prior(self, action):
         if self.action_prior == "uniform":
@@ -215,3 +296,17 @@ class SAC(RlAlgorithm):
         opt_info.piMu.extend(pi_mean[::10].numpy())
         opt_info.piLogStd.extend(pi_log_std[::10].numpy())
         opt_info.qMeanDiff.append(torch.mean(abs(q1 - q2)).item())
+
+    def optim_state_dict(self):
+        return dict(
+            pi_optimizer=self.pi_optimizer.state_dict(),
+            q1_optimizer=self.q1_optimizer.state_dict(),
+            q2_optimizer=self.q2_optimizer.state_dict(),
+            v_optimizer=self.v_optimizer.state_dict(),
+        )
+
+    def load_optim_state_dict(self, state_dict):
+        self.pi_optimizer.load_state_dict(state_dict["pi_optimizer"])
+        self.q1_optimizer.load_state_dict(state_dict["q1_optimizer"])
+        self.q2_optimizer.load_state_dict(state_dict["q2_optimizer"])
+        self.v_optimizer.load_state_dict(state_dict["v_optimizer"])

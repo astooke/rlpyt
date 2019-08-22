@@ -1,6 +1,7 @@
 
 import numpy as np
 import torch
+from collections import namedtuple
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.parallel import DistributedDataParallelCPU as DDPC
 
@@ -18,6 +19,7 @@ MIN_LOG_STD = -20
 MAX_LOG_STD = 2
 
 AgentInfo = namedarraytuple("AgentInfo", ["dist_info"])
+Models = namedtuple("Models", ["pi", "q1", "q2", "v"])
 
 
 class SacAgent(BaseAgent):
@@ -143,14 +145,20 @@ class SacAgent(BaseAgent):
 
     @property
     def models(self):
-        return self.model, self.q1_model, self.q2_model, self.v_model
+        return Models(pi=self.model, q1=self.q1_model, q2=self.q2_model,
+            v=self.v_model)
 
-    def parameters(self):
-        for model in self.models:
-            yield from model.parameters()
+    def pi_parameters(self):
+        return self.model.parameters()
 
-    def parameters_by_model(self):
-        return (model.parameters() for model in self.models)
+    def q1_parameters(self):
+        return self.q1_model.parameters()
+
+    def q2_parameters(self):
+        return self.q2_model.parameters()
+
+    def v_parameters(self):
+        return self.v_model.parameters()
 
     def train_mode(self, itr):
         super().train_mode(itr)
@@ -185,3 +193,10 @@ class SacAgent(BaseAgent):
             v_model=self.v_model.state_dict(),
             target_v_model=self.target_v_model.state_dict(),
         )
+
+    def load_state_dict(self, state_dict):
+        self.model.load_state_dict(state_dict["model"])
+        self.q1_model.load_state_dict(state_dict["q1_model"])
+        self.q2_model.load_state_dict(state_dict["q2_model"])
+        self.v_model.load_state_dict(state_dict["v_model"])
+        self.target_v_model.load_state_dict(state_dict["target_v_model"])
