@@ -80,7 +80,8 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
         """
         if not (isinstance(value, tuple) and  # Check for matching structure.
                 getattr(value, "_fields", None) == self._fields):
-            value = (value,) * len(self)  # Repeat whole value for each.
+            # Repeat value for each but respect any None.
+            value = (None if s is None else value for s in self)
         try:
             for j, (s, v) in enumerate(zip(self, value)):
                 if s is not None or v is not None:
