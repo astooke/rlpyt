@@ -111,7 +111,8 @@ class AsyncRlBase(BaseRunner):
     def optim_startup(self):
         main_affinity = self.affinity.optimizer[0]
         p = psutil.Process()
-        p.cpu_affinity(main_affinity["cpus"])
+        if main_affinity.get("set_affinity", True):
+            p.cpu_affinity(main_affinity["cpus"])
         logger.log(f"Optimizer master CPU affinity: {p.cpu_affinity()}.")
         torch.set_num_threads(main_affinity["torch_threads"])
         logger.log(f"Optimizer master Torch threads: {torch.get_num_threads()}.")
@@ -293,7 +294,7 @@ class AsyncRlBase(BaseRunner):
         logger.record_tabular('CumUpdates', self.algo.update_counter)
         logger.record_tabular('ReplayRatio', replay_ratio)
         logger.record_tabular('CumReplayRatio', cum_replay_ratio)
-        logger.record_tabular('SamplesPerSecond', samples_per_second)
+        logger.record_tabular('StepsPerSecond', samples_per_second)
         if self._eval:
             logger.record_tabular('NonEvalSamplesPerSecond', non_eval_samples_per_second)
         logger.record_tabular('UpdatesPerSecond', updates_per_second)
@@ -415,7 +416,8 @@ class AsyncOptWorker:
             init_method=f"tcp://127.0.0.1:{self.port}",
         )
         p = psutil.Process()
-        p.cpu_affinity(self.affinity["cpus"])
+        if self.affinity.get("set_affinity", True):
+            p.cpu_affinity(self.affinity["cpus"])
         logger.log(f"Optimizer rank {self.rank} CPU affinity: {p.cpu_affinity()}.")
         torch.set_num_threads(self.affinity["torch_threads"])
         logger.log(f"Optimizer rank {self.rank} Torch threads: {torch.get_num_threads()}.")

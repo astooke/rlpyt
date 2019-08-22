@@ -23,7 +23,8 @@ class AsyncSerialSampler(AsyncSamplerMixin, BaseSampler):
 
     def initialize(self, affinity):
         p = psutil.Process()
-        p.cpu_affinity(affinity["master_cpus"])
+        if affinity.get("set_affinity", True):
+            p.cpu_affinity(affinity["master_cpus"])
         # torch.set_num_threads(affinity["master_torch_threads"])
         torch.set_num_threads(1)  # Needed to prevent MKL hang :( .
         B = self.batch_spec.B

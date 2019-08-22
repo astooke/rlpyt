@@ -27,7 +27,8 @@ class AsyncCpuSampler(AsyncParallelSamplerMixin, ParallelSamplerBase):
 
     def initialize(self, affinity):
         p = psutil.Process()
-        p.cpu_affinity(affinity["master_cpus"])
+        if affinity.get("set_affinity", True):
+            p.cpu_affinity(affinity["master_cpus"])
         torch.set_num_threads(1)  # Needed to prevent MKL hang :( .
         self.agent.async_cpu(share_memory=True)
         super().initialize(

@@ -18,11 +18,12 @@ SAMPLE_GPU_PER_RUN = "sgr"
 OPTIM_SAMPLE_SHARE_GPU = "oss"
 # For alternating sampler.
 ALTERNATING = "alt"
+SET_AFFINITY = "saf"
 
 ABBREVS = [N_GPU, CONTEXTS_PER_GPU, GPU_PER_RUN, N_CPU_CORE,
     HYPERTHREAD_OFFSET, N_SOCKET, CPU_PER_RUN, CPU_PER_WORKER, CPU_RESERVED,
     ASYNC_SAMPLE, SAMPLE_GPU_PER_RUN, OPTIM_SAMPLE_SHARE_GPU,
-    ALTERNATING]
+    ALTERNATING, SET_AFFINITY]
 
 
 # API
@@ -69,6 +70,7 @@ def encode_affinity(
         n_socket=None,  # Leave None for auto-detect.
         run_slot=None,  # Leave None in `run` script, but specified in `train` script.
         alternating=False,  # True for altenating sampler.
+        set_affinity=True,  # Everything same except psutil.Process().cpu_affinity(cpus)
         ):
     """Use in run script to specify computer configuration."""
     affinity_code = f"{n_cpu_core}{N_CPU_CORE}_{n_gpu}{N_GPU}"
@@ -98,6 +100,8 @@ def encode_affinity(
         affinity_code += f"_1{OPTIM_SAMPLE_SHARE_GPU}"
     if alternating:
         affinity_code += f"_1{ALTERNATING}"
+    if not set_affinity:
+        affinity_code += f"_0{SET_AFFINITY}"
     if run_slot is not None:
         assert run_slot <= (n_gpu * contexts_per_gpu) // gpu_per_run
         affinity_code = f"{run_slot}{RUN_SLOT}_" + affinity_code
@@ -179,7 +183,7 @@ def decode_affinity(affinity_code):
 
 
 def build_cpu_affinity(slt, cpu, cpr, cpw=1, hto=None, res=0, skt=1, gpu=0,
-        alt=0):
+        alt=0, saf=1):
     assert gpu == 0
     assert cpu % cpr == 0
     hto = cpu if hto is None else hto  # Default is None, 0 is OFF.
@@ -213,12 +217,13 @@ def build_cpu_affinity(slt, cpu, cpr, cpw=1, hto=None, res=0, skt=1, gpu=0,
         master_torch_threads=len(cores),
         worker_torch_threads=cpw,
         alternating=bool(alt),  # Just to pass through a check.
+        set_affinity=bool(saf),
     )
     return affinity
 
 
 def build_gpu_affinity(slt, gpu, cpu, cxg=1, cpw=1, hto=None, res=0, skt=1,
-        alt=0):
+        alt=0, saf=1):
     """Divides CPUs evenly among GPUs."""
     n_ctx = gpu * cxg
     assert slt < n_ctx
@@ -226,19 +231,19 @@ def build_gpu_affinity(slt, gpu, cpu, cxg=1, cpw=1, hto=None, res=0, skt=1,
     cpr = cpu // n_ctx
     if cxg > 1:
         slt = (slt % gpu) * cxg + slt // gpu  # Spread over GPUs first.
-    affinity = build_cpu_affinity(slt, cpu, cpr, cpw, hto, res, skt, alt)
+    affinity = build_cpu_affinity(slt, cpu, cpr, cpw, hto, res, skt, alt, saf)
     affinity["cuda_idx"] = slt // cxg
     return affinity
 
 
 def build_multigpu_affinity(run_slot, gpu, cpu, gpr=1, cpw=1, hto=None, res=0,
-        skt=1, alt=0):
+        skt=1, alt=0, saf=1):
     return [build_gpu_affinity(slt, gpu, cpu, cxg=1, cpw=cpw, hto=hto, res=res,
-        skt=skt, alt=alt) for slt in range(run_slot * gpr, (run_slot + 1) * gpr)]
+        skt=skt, alt=alt, saf=saf) for slt in range(run_slot * gpr, (run_slot + 1) * gpr)]
 
 
 def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
-        hto=None, res=1, skt=1, alt=0):
+        hto=None, res=1, skt=1, alt=0, saf=1):
     oss = bool(oss)
     sgr = gpr if oss else sgr
     total_gpr = (gpr + sgr * (not oss))
@@ -290,7 +295,7 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
         opt_cores = tuple(range(low_opt_core, high_opt_core))
         opt_cpus = get_master_cpus(opt_cores, hto)
         opt_affinity = dict(cpus=opt_cpus, cuda_idx=opt_gpu,
-            torch_threads=len(opt_cores))
+            torch_threads=len(opt_cores), set_affinity=bool(saf))
         opt_affinities.append(opt_affinity)
         all_cpus += opt_cpus
     wrkr_per_smp = smp_cpr // cpw
@@ -315,6 +320,7 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
             worker_torch_threads=cpw,
             cuda_idx=smp_gpu,
             alternating=bool(alt),  # Just to pass through a check.
+            set_affinity=bool(saf),
         )
         smp_affinities.append(smp_affinity)
         all_cpus += master_cpus
@@ -340,12 +346,14 @@ def build_async_affinity(run_slot, gpu, cpu, gpr=1, sgr=0, oss=0, cpw=1,
             worker_torch_threads=cpw,
             cuda_idx=None,
             alternating=bool(alt),  # Just to pass through a check.
+            set_affinity=bool(saf),
         )
         all_cpus += master_cpus
     affinity = AttrDict(
         all_cpus=all_cpus,  # For exp launcher to use taskset.
         optimizer=opt_affinities,
         sampler=smp_affinities,
+        set_affinity=bool(saf),
     )
 
     return affinity

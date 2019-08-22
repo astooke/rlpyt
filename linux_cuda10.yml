@@ -3,7 +3,7 @@ channels:
 - pytorch
 dependencies:
 - python=3.7
-- pytorch=1.1
+- pytorch=1.2
 - cudatoolkit=10.
 - numpy
 - psutil

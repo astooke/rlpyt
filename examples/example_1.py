@@ -4,6 +4,13 @@ Runs one instance of the Atari environment and optimizes using DQN algorithm.
 Can use a GPU for the agent (applies to both sample and train). No parallelism
 employed, so everything happens in one python process; can be easier to debug.
 
+The kwarg snapshot_mode="last" to logger context will save the latest model at
+every log point (see inside the logger for other options).
+
+In viskit, whatever (nested) key-value pairs appear in config will become plottable
+keys for showing several experiments.  If you need to add more after an experiment, 
+use rlpyt.utils.logging.context.add_exp_param().
+
 """
 
 from rlpyt.samplers.serial.sampler import SerialSampler
@@ -39,7 +46,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None):
     config = dict(game=game)
     name = "dqn_" + game
     log_dir = "example_1"
-    with logger_context(log_dir, run_ID, name, config):
+    with logger_context(log_dir, run_ID, name, config, snapshot_mode="last"):
         runner.train()
 
 

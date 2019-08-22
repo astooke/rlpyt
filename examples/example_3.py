@@ -4,10 +4,15 @@ Runs multiple instances of the Atari environment and optimizes using A2C
 algorithm. Can choose between configurations for use of CPU/GPU for sampling
 (serial or parallel) and optimization (serial).
 
+Alternating sampler is another option.  For recurrent agents, a different mixin
+is required for alternating sampling (see rlpyt.agents.base.py), feedforward agents
+remain unaffected.
+
 """
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
 from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
+from rlpyt.samplers.parallel.gpu.alternating_sampler import AlternatingSampler
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariFfAgent
@@ -27,6 +32,11 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, sample_mode="serial", 
     elif sample_mode == "gpu":
         Sampler = GpuParallelSampler
         print(f"Using GPU parallel sampler (agent in master), {gpu_cpu} for sampling and optimizing.")
+    elif sample_mode == "alternating":
+        Sampler = AlternatingSampler
+        affinity["workers_cpus"] += affinity["workers_cpus"]  # (Double list)
+        affinity["alternating"] = True  # Sampler will check for this.
+        print(f"Using Alternating GPU parallel sampler, {gpu_cpu} for sampling and optimizing.")
 
     sampler = Sampler(
         EnvCls=AtariEnv,

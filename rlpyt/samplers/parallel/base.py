@@ -168,7 +168,7 @@ class ParallelSamplerBase(BaseSampler):
             traj_infos_queue=self.traj_infos_queue,
             ctrl=self.ctrl,
             max_decorrelation_steps=self.max_decorrelation_steps,
-            torch_threads=affinity.get("worker_torch_threads", None),
+            torch_threads=affinity.get("worker_torch_threads", 1),
             global_B=global_B,
         )
         if self.eval_n_envs > 0:
@@ -194,7 +194,8 @@ class ParallelSamplerBase(BaseSampler):
                 rank=rank,
                 env_ranks=env_ranks,
                 seed=seed + rank,
-                cpus=affinity["workers_cpus"][rank],
+                cpus=(affinity["workers_cpus"][rank]
+                    if affinity.get("set_affinity", True) else None),
                 n_envs=n_envs,
                 samples_np=self.samples_np[:, slice_B],
                 sync=self.sync,  # Only for eval, on CPU.

@@ -1,16 +1,16 @@
 
 """
-Runs one experiment using multiple GPUs. In the MultiGPU_Sync configuration,
-the entire template of sampler and optimizer on a GPU and sampler CPUs is
-replicated across the machine, with a separate python process for each GPU. So
-each parallel runner gathers its own samples for optimization.  The models are
-parallelized using Torch's DistributedDataParallel, which all-reduces every
-gradient computed, pipelined with backpropagation; all GPUs maintain identical
-copies of the model throughout.  The same technique can be applied to any
-algorithm, PG, QPG, DQN for multi-GPU training synchronous with sampling.
+Runs one experiment using multiple GPUs. In the SyncRl runner, the entire
+template of optimizer and sampler GPU and CPUs is replicated across the
+machine, with a separate python process for each GPU. So each parallel runner
+gathers its own samples for optimization.  The models are parallelized using
+Torch's DistributedDataParallel, which all-reduces every gradient computed,
+pipelined with backpropagation; all GPUs maintain identical copies of the
+model throughout.  The same technique can be applied to any algorithm, PG,
+QPG, DQN for multi-GPU training synchronous with sampling.
 
 Currently, the batch size specified to the sampler/algo is used on each process,
-so batch sizes grow with the number of parallel runners (might change this).
+so total batch size grows with the number of parallel runners.
 
 Try different affinity inputs to see where the jobs run on the machine.
 

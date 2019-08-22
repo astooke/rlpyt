@@ -7,6 +7,8 @@ experiment on its own hardware without interference.  Can queue up more
 experiments than fit on the machine, and they will run in order over time.  
 
 To understand rules and settings for affinities, try using 
+affinity = affinity.make_affinity(..)
+OR
 code = affinity.encode_affinity(..)
 slot_code = affinity.prepend_run_slot(code, slot)
 affinity = affinity.affinity_from_code(slot_code)
@@ -25,9 +27,10 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 affinity_code = encode_affinity(
     n_cpu_core=2,
     n_gpu=0,
-    # hyperthread_offset=8,
-    # n_socket=1,
+    # hyperthread_offset=8,  # if auto-detect doesn't work, number of CPU cores
+    # n_socket=1,  # if auto-detect doesn't work, can force (or force to 1)
     cpu_per_run=1,
+    set_affinity=True,  # it can help to restrict workers to individual CPUs
 )
 # Or try an automatic one, but results may vary:
 # affinity_code = quick_affinity_code(n_parallel=None, use_gpu=True)

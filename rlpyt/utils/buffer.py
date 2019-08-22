@@ -9,6 +9,8 @@ from rlpyt.utils.collections import namedarraytuple_like
 
 
 def buffer_from_example(example, leading_dims, share_memory=False):
+    if example is None:
+        return
     try:
         buffer_type = namedarraytuple_like(example)
     except TypeError:  # example was not a namedtuple or namedarraytuple

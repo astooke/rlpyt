@@ -34,7 +34,8 @@ class MinibatchRlBase(BaseRunner):
     def startup(self):
         p = psutil.Process()
         try:
-            if self.affinity.get("master_cpus", None) is not None:
+            if (self.affinity.get("master_cpus", None) is not None and
+                    self.affinity.get("set_affinity", True)):
                 p.cpu_affinity(self.affinity["master_cpus"])
             cpu_affin = p.cpu_affinity()
         except AttributeError:
@@ -149,7 +150,7 @@ class MinibatchRlBase(BaseRunner):
         logger.record_tabular('CumSteps', cum_steps)
         logger.record_tabular('CumCompletedTrajs', self._cum_completed_trajs)
         logger.record_tabular('CumUpdates', self.algo.update_counter)
-        logger.record_tabular('SamplesPerSecond', samples_per_second)
+        logger.record_tabular('StepsPerSecond', samples_per_second)
         logger.record_tabular('UpdatesPerSecond', updates_per_second)
         logger.record_tabular('ReplayRatio', replay_ratio)
         logger.record_tabular('CumReplayRatio', cum_replay_ratio)

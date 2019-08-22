@@ -119,7 +119,8 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
         pass args to env worker processes, forked from here."""
         self.rank = rank
         p = psutil.Process()
-        p.cpu_affinity(affinity["master_cpus"])
+        if affinity.get("set_affinity", True):
+            p.cpu_affinity(affinity["master_cpus"])
         # torch.set_num_threads(affinity["master_torch_threads"])
         torch.set_num_threads(1)  # Possibly needed to avoid MKL hang.
         self.launch_workers(double_buffer_slice, affinity, seed, n_envs_list)

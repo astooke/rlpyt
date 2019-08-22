@@ -1,21 +1,19 @@
 
+"""
+DQN in async mode with CPU parallel sampler.
+"""
+
+
 from rlpyt.utils.launching.affinity import make_affinity
-# from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
-# from rlpyt.samplers.async_.async_serial_sampler import AsyncSerialSampler
 from rlpyt.samplers.async_.cpu_sampler import AsyncCpuSampler
-# from rlpyt.samplers.cpu.collectors import ResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
-# from rlpyt.agents.pg.atari import AtariFfAgent
-# from rlpyt.runners.multigpu_sync import MultiGpuRl
 from rlpyt.runners.async_rl import AsyncRlEval
 from rlpyt.utils.logging.context import logger_context
 
 
 def build_and_train(game="pong", run_ID=0):
-    # Seems like we should be able to skip the intermediate step of the code,
-    # but so far have just always run that way.
     # Change these inputs to match local machine and desired parallelism.
     affinity = make_affinity(
         run_slot=0,

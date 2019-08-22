@@ -1,25 +1,16 @@
 
 """
 Runs multiple instances of the Atari environment and optimizes using A2C
-algorithm and a recurrent agent. Uses GPU parallel sampler, with option for
+algorithm and a feed-forward agent. Uses GPU parallel sampler, with option for
 whether to reset environments in middle of sampling batch.
 
-Standard recurrent agents cannot train with a reset in the middle of a
-sequence, so all data after the environment 'done' signal will be ignored (see
-variable 'valid' in algo).  So it may be preferable to pause those environments
-and wait to reset them for the beginning of the next iteration.
-
-If the environment takes a long time to reset relative to step, this may also
-give a slight speed boost, as resets will happen in the workers while the master
-is optimizing.  Feedforward agents are compatible with this arrangement by same
-use of 'valid' mask.
 
 """
 import sys
 
 from rlpyt.utils.launching.affinity import affinity_from_code
-from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
-from rlpyt.samplers.gpu.collectors import WaitResetCollector
+from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
+from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariFfAgent
@@ -41,10 +32,10 @@ def build_and_train(slot_affinity_code, log_dir, run_ID):
     global config
     config = update_config(config, variant)
 
-    sampler = GpuParallelSampler(
+    sampler = GpuSampler(
         EnvCls=AtariEnv,
         env_kwargs=config["env"],
-        CollectorCls=WaitResetCollector,
+        CollectorCls=GpuWaitResetCollector,
         batch_T=5,
         # batch_B=16,  # Get from config.
         max_decorrelation_steps=400,

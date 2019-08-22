@@ -8,7 +8,8 @@ from rlpyt.utils.logging import logger
 from rlpyt.utils.seed import set_seed
 
 
-def initialize_worker(rank, seed=None, cpu=None, torch_threads=None, group=None):
+def initialize_worker(rank, seed=None, cpu=None, torch_threads=None,
+        set_affinity=True):
     log_str = f"Sampler rank {rank} initialized"
     cpu = [cpu] if isinstance(cpu, int) else cpu
     p = psutil.Process()
@@ -19,8 +20,8 @@ def initialize_worker(rank, seed=None, cpu=None, torch_threads=None, group=None)
     except AttributeError:
         cpu_affin = "UNAVAILABLE MacOS"
     log_str += f", CPU affinity {cpu_affin}"
-    torch_threads = (len(cpu) if torch_threads is None and cpu is not None else
-        torch_threads)
+    torch_threads = (1 if torch_threads is None and cpu is not None else
+        torch_threads)  # Default to 1 to avoid possible MKL hang.
     if torch_threads is not None:
         torch.set_num_threads(torch_threads)
     log_str += f", Torch threads {torch.get_num_threads()}"
@@ -34,8 +35,7 @@ def initialize_worker(rank, seed=None, cpu=None, torch_threads=None, group=None)
 def sampling_process(common_kwargs, worker_kwargs):
     """Arguments fed from the Sampler class in master process."""
     c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
-    initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads,
-        w.get("group", None))
+    initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads, c.set_affinity)
     envs = [c.EnvCls(**c.env_kwargs) for _ in range(w.n_envs)]
     collector = c.CollectorCls(
         rank=w.rank,

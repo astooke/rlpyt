@@ -1,31 +1,32 @@
 
+"""
+Runs DQN in asynchronous mode, with separate proceses for sampling and
+optimization.  Serial sampling here.  Inputs and outputs from the affinity
+constructors will be different for this mode.
+"""
+
+
 from rlpyt.utils.launching.affinity import make_affinity
-# from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
 from rlpyt.samplers.async_.async_serial_sampler import AsyncSerialSampler
-# from rlpyt.samplers.cpu.collectors import ResetCollector
 from rlpyt.samplers.async_.collectors import DbCpuResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
-# from rlpyt.agents.pg.atari import AtariFfAgent
-# from rlpyt.runners.multigpu_sync import MultiGpuRl
 from rlpyt.runners.async_rl import AsyncRlEval
 from rlpyt.utils.logging.context import logger_context
 
 
 def build_and_train(game="pong", run_ID=0):
-    # Seems like we should be able to skip the intermediate step of the code,
-    # but so far have just always run that way.
     # Change these inputs to match local machine and desired parallelism.
     affinity = make_affinity(
         run_slot=0,
         n_cpu_core=2,  # Use 16 cores across all experiments.
         n_gpu=1,  # Use 8 gpus across all experiments.
         sample_gpu_per_run=0,
-        async_sample=True,
+        async_sample=True,  # Different affinity structure fo async.
         # hyperthread_offset=24,  # If machine has 24 cores.
         # n_socket=2,  # Presume CPU socket affinity to lower/upper half GPUs.
-        # gpu_per_run=2,  # How many GPUs to parallelize one run across.
+        # gpu_per_run=2,  # How many optimizer GPUs to parallelize one run.
         # cpu_per_run=1,
     )
 
