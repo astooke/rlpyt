@@ -59,6 +59,7 @@ class R2D1(DQN):
             pri_eta=0.9,
             default_priority=None,
             input_priorities=True,
+            input_priority_shift=None,
             value_scale_eps=1e-3,  # 1e-3 (Steven).
             updates_per_sync=1,  # For async mode only.
             ):
@@ -66,6 +67,8 @@ class R2D1(DQN):
             optim_kwargs = dict(eps=1e-3)  # Assumes Adam.
         if default_priority is None:
             default_priority = delta_clip or 1.
+        if input_priority_shift is None:
+            input_priority_shift = warmup_T // store_rnn_state_interval
         save__init__args(locals())
         self._batch_size = (self.batch_T + self.warmup_T) * self.batch_B
 
