@@ -199,7 +199,7 @@ class R2D1(DQN):
         # )
 
         y = self.value_scale(return_n +
-            (1 - done_n) * self.inv_value_scale(q_max[self.n_step_return:]))
+            (1 - done_n.float()) * self.inv_value_scale(q_max[self.n_step_return:]))
         delta = abs(q_at_a[:-self.n_step_return] - y)
         # NOTE: by default, with R2D1, use squared-error loss, delta_clip=None.
         if self.delta_clip is not None:  # Huber loss.
