@@ -197,14 +197,14 @@ class R2D1(DQN):
         #     (self.discount * (1 - samples.env.done[:-1].float()) *  # probably done.float()
         #         self.inv_value_scale(q_max[1:]))
         # )
-
+        nm1 = max(1, self.n_step_return - 1)  # At least 1 bc don't have next Q.
         y = self.value_scale(return_n +
-            (1 - done_n.float()) * self.inv_value_scale(q_max[self.n_step_return:]))
-        delta = abs(q_at_a[:-self.n_step_return] - y)
+            (1 - done_n.float()) * self.inv_value_scale(q_max[nm1:]))
+        delta = abs(q_at_a[:-nm1] - y)
         # NOTE: by default, with R2D1, use squared-error loss, delta_clip=None.
         if self.delta_clip is not None:  # Huber loss.
             delta = torch.clamp(delta, 0, self.delta_clip)
-        valid = valid_from_done(samples.env.done[:-self.n_step_return])
+        valid = valid_from_done(samples.env.done[:-nm1])
         max_d = torch.max(delta * valid, dim=0).values
         mean_d = valid_mean(delta, valid, dim=0)  # Still high if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
