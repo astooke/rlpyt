@@ -74,7 +74,7 @@ def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
     if is_torch:
         done_dtype = done.dtype
         done_n = done_n.type(reward.dtype)
-        done = done.dtype(reward.dtype)
+        done = done.type(reward.dtype)
     if n_step > 1:
         if do_truncated:
             for n in range(1, n_step):
