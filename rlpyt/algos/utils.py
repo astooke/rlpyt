@@ -34,25 +34,56 @@ def generalized_advantage_estimation(reward, value, done, bootstrap_value,
     return advantage, return_
 
 
+# def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
+#         done_n_dest=None):
+#     """Time-major inputs, optional other dimension: [T], [T,B], etc."""
+#     rlen = reward.shape[0] - (n_step - 1)
+#     return_ = return_dest if return_dest is not None else zeros(
+#         (rlen,) + reward.shape[1:], dtype=reward.dtype)
+#     done_n = done_n_dest if done_n_dest is not None else zeros(
+#         (rlen,) + reward.shape[1:], dtype=done.dtype)
+#     return_[:] = reward[:rlen]  # 1-step return is current reward.
+#     done_n[:] = done[:rlen]  # True at time t if done any time by t + n - 1
+#     is_torch = isinstance(done, torch.Tensor)
+#     if is_torch:
+#         done_dtype = done.dtype
+#         done_n = done_n.type(reward.dtype)
+#         done = done.dtype(reward.dtype)
+#     if n_step > 1:
+#         for n in range(1, n_step):
+#             return_ += (discount ** n) * reward[n:n + rlen] * (1 - done_n)
+#             done_n = np.maximum(done_n, done[n:n + rlen])  # Supports tensors.
+#     if is_torch:
+#         done_n = done_n.type(done_dtype)
+#     return return_, done_n
+
+
 def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
-        done_n_dest=None):
+        done_n_dest=None, do_truncated=False):
     """Time-major inputs, optional other dimension: [T], [T,B], etc."""
-    rl = reward.shape[0] - (n_step - 1)
+    rlen = reward.shape[0]
+    if not do_truncated:
+        rlen -= (n_step - 1)
     return_ = return_dest if return_dest is not None else zeros(
-        (rl,) + reward.shape[1:], dtype=reward.dtype)
+        (rlen,) + reward.shape[1:], dtype=reward.dtype)
     done_n = done_n_dest if done_n_dest is not None else zeros(
-        (rl,) + reward.shape[1:], dtype=done.dtype)
-    return_[:] = reward[:rl]  # 1-step return is current reward.
-    done_n[:] = done[:rl]  # True at time t if done any time by t + n - 1
+        (rlen,) + reward.shape[1:], dtype=done.dtype)
+    return_[:] = reward[:rlen]  # 1-step return is current reward.
+    done_n[:] = done[:rlen]  # True at time t if done any time by t + n - 1
     is_torch = isinstance(done, torch.Tensor)
     if is_torch:
         done_dtype = done.dtype
         done_n = done_n.type(reward.dtype)
         done = done.dtype(reward.dtype)
     if n_step > 1:
-        for n in range(1, n_step):
-            return_ += (discount ** n) * reward[n:n + rl] * (1 - done_n)
-            done_n = np.maximum(done_n, done[n:n + rl])  # Supports tensors.
+        if do_truncated:
+            for n in range(1, n_step):
+                return_[:-n] += (discount ** n) * reward[n:n + rlen] * (1 - done_n[:-n])
+                done_n[:-n] = np.maximum(done_n[:-n], done[n:n + rlen])
+        else:
+            for n in range(1, n_step):
+                return_ += (discount ** n) * reward[n:n + rlen] * (1 - done_n)
+                done_n = np.maximum(done_n, done[n:n + rlen])  # Supports tensors.
     if is_torch:
         done_n = done_n.type(done_dtype)
     return return_, done_n

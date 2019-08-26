@@ -8,8 +8,7 @@ from rlpyt.utils.logging import logger
 from rlpyt.utils.seed import set_seed
 
 
-def initialize_worker(rank, seed=None, cpu=None, torch_threads=None,
-        set_affinity=True):
+def initialize_worker(rank, seed=None, cpu=None, torch_threads=None):
     log_str = f"Sampler rank {rank} initialized"
     cpu = [cpu] if isinstance(cpu, int) else cpu
     p = psutil.Process()
@@ -35,7 +34,7 @@ def initialize_worker(rank, seed=None, cpu=None, torch_threads=None,
 def sampling_process(common_kwargs, worker_kwargs):
     """Arguments fed from the Sampler class in master process."""
     c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
-    initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads, c.set_affinity)
+    initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads)
     envs = [c.EnvCls(**c.env_kwargs) for _ in range(w.n_envs)]
     collector = c.CollectorCls(
         rank=w.rank,

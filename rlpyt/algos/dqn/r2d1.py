@@ -11,7 +11,7 @@ from rlpyt.replays.sequence.frame import (UniformSequenceReplayFrameBuffer,
     PrioritizedSequenceReplayFrameBuffer, AsyncUniformSequenceReplayFrameBuffer,
     AsyncPrioritizedSequenceReplayFrameBuffer)
 from rlpyt.utils.tensor import select_at_indexes, valid_mean
-from rlpyt.algos.utils import valid_from_done
+from rlpyt.algos.utils import valid_from_done, discount_return_n_step
 from rlpyt.utils.buffer import buffer_to, buffer_method, torchify_buffer
 
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "tdAbsErr", "priority"])
@@ -171,6 +171,9 @@ class R2D1(DQN):
         The samples duration T might be less than the training segment, so
         this is an approximation of an approximation, but hopefully will
         capture the right behavior.
+        UPDATE 20190826: Trying using n-step returns.  For now using samples
+        with full n-step return available...later could also use partial
+        returns for samples at end of batch.  35/40 ain't bad tho.
         Might not carry/use internal state here, because might get executed
         by alternating memory copiers in async mode; do all with only the 
         samples avialable from input."""
@@ -179,16 +182,26 @@ class R2D1(DQN):
         action = samples.agent.action
         q_max = torch.max(q, dim=-1).values
         q_at_a = select_at_indexes(action, q)
-        y = self.value_scale(
-            samples.env.reward[:-1] +
-            (self.discount * (1 - samples.env.done[:-1].float()) *  # probably done.float()
-                self.inv_value_scale(q_max[1:]))
+        return_n, done_n = discount_return_n_step(
+            reward=samples.env.reward,
+            done=samples.env.done,
+            n_step=self.n_step_return,
+            discount=self.discount,
+            do_truncated=False,  # Only samples with full n-step return.
         )
-        delta = abs(q_at_a[:-1] - y)
+        # y = self.value_scale(
+        #     samples.env.reward[:-1] +
+        #     (self.discount * (1 - samples.env.done[:-1].float()) *  # probably done.float()
+        #         self.inv_value_scale(q_max[1:]))
+        # )
+
+        y = self.value_scale(return_n +
+            (1 - done_n) * self.inv_value_scale(q_max[self.n_step_return:]))
+        delta = abs(q_at_a[:-self.n_step_return] - y)
         # NOTE: by default, with R2D1, use squared-error loss, delta_clip=None.
         if self.delta_clip is not None:  # Huber loss.
             delta = torch.clamp(delta, 0, self.delta_clip)
-        valid = valid_from_done(samples.env.done[:-1])
+        valid = valid_from_done(samples.env.done[:-self.n_step_return])
         max_d = torch.max(delta * valid, dim=0).values
         mean_d = valid_mean(delta, valid, dim=0)  # Still high if less valid.
         priorities = self.pri_eta * max_d + (1 - self.pri_eta) * mean_d  # [B]
