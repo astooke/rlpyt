@@ -101,8 +101,8 @@ class SAC(RlAlgorithm):
             lr=self.learning_rate, **self.optim_kwargs)
         self.v_optimizer = self.OptimCls(self.agent.v_parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
-        if self.initial_pi_optim_state_dict is not None:
-            self.pi_optimizer.load_state_dict(self.initial_pi_optim_state_dict)
+        if self.initial_optim_state_dict is not None:
+            self.pi_optimizer.load_state_dict(self.initial_optim_state_dict)
         if self.initial_q1_optim_state_dict is not None:
             self.q1_optimizer.load_state_dict(self.initial_q1_optim_state_dict)
         if self.initial_q2_optim_state_dict is not None:
