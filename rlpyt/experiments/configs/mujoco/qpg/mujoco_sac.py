@@ -18,7 +18,7 @@ config = dict(
         learning_rate=3e-4,
         reparameterize=True,
         policy_output_regularization=0.001,
-        reward_scale=5
+        reward_scale=5,
     ),
     env=dict(id="Hopper-v3"),
     # eval_env=dict(id="Hopper-v3"),  # Train script uses "env".
