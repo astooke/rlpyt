@@ -141,7 +141,7 @@ class SAC(RlAlgorithm):
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             self.q1_optimizer.zero_grad()
             self.q2_optimizer.zero_grad()
-            q_losses, q_values, agent_inputs = self.q_loss(samples_from_replay)
+            q_losses, q_values, agent_inputs, valid = self.q_loss(samples_from_replay)
             for loss in q_losses:
                 loss.backward()
             q1_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.q1_parameters(),
@@ -152,7 +152,7 @@ class SAC(RlAlgorithm):
             self.q2_optimizer.step()
             self.pi_optimizer.zero_grad()
             self.v_optimizer.zero_grad()
-            pi_v_losses, pi_v_values = self.pi_v_loss(agent_inputs)
+            pi_v_losses, pi_v_values = self.pi_v_loss(agent_inputs, valid)
             for loss in pi_v_losses:
                 loss.backward()
             pi_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.pi_parameters(),
@@ -199,9 +199,9 @@ class SAC(RlAlgorithm):
 
         losses = (q1_loss, q2_loss)
         values = tuple(val.detach() for val in (q1, q2))
-        return losses, values, agent_inputs
+        return losses, values, agent_inputs, valid
 
-    def pi_v_loss(self, agent_inputs):
+    def pi_v_loss(self, agent_inputs, valid):
         v = self.agent.v(*agent_inputs)
         new_action, log_pi, (pi_mean, pi_log_std) = self.agent.pi(*agent_inputs)
         if not self.reparameterize:
