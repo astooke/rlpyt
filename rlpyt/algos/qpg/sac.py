@@ -36,7 +36,7 @@ class SAC(RlAlgorithm):
             replay_size=int(1e6),
             replay_ratio=256,  # data_consumption / data_generation
             target_update_tau=0.005,  # tau=1 for hard update.
-            target_update_interval=1,  # interval=1000 for hard update.
+            target_update_interval=1,  # 1000 for hard update, 1 for soft.
             learning_rate=3e-4,
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
@@ -218,8 +218,8 @@ class SAC(RlAlgorithm):
             pi_factor = (v - v_target).detach()  # No grad.
             pi_losses = log_pi * pi_factor
         if self.policy_output_regularization > 0:
-            pi_losses += torch.sum(self.policy_output_regularization * 0.5 *
-                pi_mean ** 2 + pi_log_std ** 2, dim=-1)
+            pi_losses += self.policy_output_regularization * torch.sum(
+                0.5 * pi_mean ** 2 + 0.5 * pi_log_std ** 2, dim=-1)
         pi_loss = valid_mean(pi_losses, valid)
 
         losses = (v_loss, pi_loss)
