@@ -39,7 +39,7 @@ class SacAgent(BaseAgent):
             initial_q2_model_state_dict=None,
             initial_v_model_state_dict=None,
             action_squash=1,  # Max magnitude (or None).
-            pretrain_std=5.,  # High value to make near uniform sampling.
+            pretrain_std=0.75,  # With squash 0.75 is near uniform.
             ):
         if model_kwargs is None:
             model_kwargs = dict(hidden_sizes=[256, 256])
