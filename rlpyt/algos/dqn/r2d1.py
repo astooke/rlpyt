@@ -99,7 +99,7 @@ class R2D1(DQN):
                 beta=self.pri_beta_init,
                 default_priority=self.default_priority,
                 input_priorities=self.input_priorities,  # True/False.
-                input_priority_shift=self.warmup_T // self.store_rnn_state_interval,
+                input_priority_shift=self.input_priority_shift,
             ))
             ReplayCls = (AsyncPrioritizedSequenceReplayFrameBuffer if async_
                 else PrioritizedSequenceReplayFrameBuffer)

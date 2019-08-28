@@ -135,8 +135,8 @@ class BaseAgent:
     def sync_shared_memory(self):
         """Call in sampler master (non-async), after initialize(share_memory=True)."""
         if self.shared_model is not self.model:  # (self.model gets trained)
-            # TODO: might need strip_ddp_state_dict.
-            self.shared_model.load_state_dict(self.model.state_dict())
+            self.shared_model.load_state_dict(strip_ddp_state_dict(
+                self.model.state_dict()))
 
     def send_shared_memory(self):
         """Used in async mode."""
