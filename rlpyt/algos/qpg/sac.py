@@ -47,7 +47,7 @@ class SAC(RlAlgorithm):
             action_prior="uniform",  # or "gaussian"
             reward_scale=1,
             reparameterize=True,
-            clip_grad_norm=1e6,
+            clip_grad_norm=1e9,
             policy_output_regularization=0.001,
             n_step_return=1,
             updates_per_sync=1,  # For async mode only.
@@ -213,7 +213,7 @@ class SAC(RlAlgorithm):
         v_loss = 0.5 * valid_mean((v - v_target) ** 2, valid)
 
         if self.reparameterize:
-            pi_losses = log_pi - log_target1  # min_log_target
+            pi_losses = log_pi - min_log_target  # log_target1  # min_log_target
         else:
             pi_factor = (v - v_target).detach()  # No grad.
             pi_losses = log_pi * pi_factor
