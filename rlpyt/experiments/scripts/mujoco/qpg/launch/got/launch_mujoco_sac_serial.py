@@ -14,7 +14,7 @@ affinity_code = encode_affinity(
 )
 runs_per_setting = 2
 default_config_key = "sac_1M_serial"
-experiment_title = "sac_mujoco"
+experiment_title = "sac_mujoco_v2"
 variant_levels = list()
 
 # env_ids = ["Hopper-v2"]  # , "Swimmer-v3"]
