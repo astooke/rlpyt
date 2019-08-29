@@ -18,7 +18,8 @@ experiment_title = "sac_mujoco"
 variant_levels = list()
 
 # env_ids = ["Hopper-v2"]  # , "Swimmer-v3"]
-env_ids = ["Ant-v3", "HalfCheetah-v3"]
+# env_ids = ["Ant-v3", "HalfCheetah-v3"]
+env_ids = ["Ant-v2", "HalfCheetah-v2"]
 values = list(zip(env_ids))
 dir_names = ["env_{}".format(*v) for v in values]
 keys = [("env", "id")]

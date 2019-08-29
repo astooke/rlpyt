@@ -38,7 +38,7 @@ class SacAgent(BaseAgent):
             initial_q1_model_state_dict=None,
             initial_q2_model_state_dict=None,
             initial_v_model_state_dict=None,
-            action_squash=1,  # Max magnitude (or None).
+            action_squash=1.,  # Max magnitude (or None).
             pretrain_std=0.75,  # With squash 0.75 is near uniform.
             ):
         if model_kwargs is None:

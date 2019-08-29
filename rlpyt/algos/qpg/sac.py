@@ -139,30 +139,36 @@ class SAC(RlAlgorithm):
             return opt_info
         for _ in range(self.updates_per_optimize):
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
-            q_losses, q_values, agent_inputs, valid = self.q_loss(samples_from_replay)
-            pi_v_losses, pi_v_values = self.pi_v_loss(agent_inputs, valid)
+            (q1_loss, q2_loss), q_values, agent_inputs, valid = self.q_loss(
+                samples_from_replay)
+            (v_loss, pi_loss), pi_v_values = self.pi_v_loss(agent_inputs, valid)
+
             self.q1_optimizer.zero_grad()
-            self.q2_optimizer.zero_grad()
-            for loss in q_losses:
-                loss.backward()
+            q1_loss.backward()
             q1_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.q1_parameters(),
                 self.clip_grad_norm)
+            self.q1_optimizer.step()
+
+            self.q2_optimizer.zero_grad()
+            q2_loss.backward()
             q2_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.q2_parameters(),
                 self.clip_grad_norm)
-            self.q1_optimizer.step()
             self.q2_optimizer.step()
-            self.pi_optimizer.zero_grad()
+
             self.v_optimizer.zero_grad()
-            for loss in pi_v_losses:
-                loss.backward()
-            pi_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.pi_parameters(),
-                self.clip_grad_norm)
+            v_loss.backward()
             v_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.v_parameters(),
                 self.clip_grad_norm)
-            self.pi_optimizer.step()
             self.v_optimizer.step()
+
+            self.pi_optimizer.zero_grad()
+            pi_loss.backward()
+            pi_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.pi_parameters(),
+                self.clip_grad_norm)
+            self.pi_optimizer.step()
+
             grad_norms = (q1_grad_norm, q2_grad_norm, v_grad_norm, pi_grad_norm)
-            losses = q_losses + pi_v_losses
+            losses = (q1_loss, q2_loss, pi_loss, v_loss)
             values = q_values + pi_v_values
             self.append_opt_info_(opt_info, losses, grad_norms, values)
             self.update_counter += 1
