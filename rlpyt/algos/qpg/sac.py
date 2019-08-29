@@ -139,9 +139,10 @@ class SAC(RlAlgorithm):
             return opt_info
         for _ in range(self.updates_per_optimize):
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
+            q_losses, q_values, agent_inputs, valid = self.q_loss(samples_from_replay)
+            pi_v_losses, pi_v_values = self.pi_v_loss(agent_inputs, valid)
             self.q1_optimizer.zero_grad()
             self.q2_optimizer.zero_grad()
-            q_losses, q_values, agent_inputs, valid = self.q_loss(samples_from_replay)
             for loss in q_losses:
                 loss.backward()
             q1_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.q1_parameters(),
@@ -152,7 +153,6 @@ class SAC(RlAlgorithm):
             self.q2_optimizer.step()
             self.pi_optimizer.zero_grad()
             self.v_optimizer.zero_grad()
-            pi_v_losses, pi_v_values = self.pi_v_loss(agent_inputs, valid)
             for loss in pi_v_losses:
                 loss.backward()
             pi_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.pi_parameters(),
