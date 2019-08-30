@@ -177,7 +177,7 @@ class SAC(RlAlgorithm):
 
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
-        agent_inputs, target_inputs, acion = buffer_to(
+        agent_inputs, target_inputs, action = buffer_to(
             (samples.agent_inputs, samples.target_inputs, samples.action))
         q1, q2 = self.agent.q(*agent_inputs, action)
         with torch.no_grad():
