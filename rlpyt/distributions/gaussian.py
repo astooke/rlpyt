@@ -155,7 +155,7 @@ class Gaussian(Distribution):
         #     noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
         # sample = mean + noise
         # Needed for reparameterization trick:
-        dist = torch.distriutions.Normal(mean, std)
+        dist = torch.distributions.Normal(mean, std)
         sample = dist.rsample()
         if self.clip is not None:
             sample = torch.clamp(sample, -self.clip, self.clip)
