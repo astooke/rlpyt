@@ -159,8 +159,7 @@ class SAC(RlAlgorithm):
             self.q2_optimizer.step()
 
             grad_norms = (q1_grad_norm, q2_grad_norm, v_grad_norm, pi_grad_norm)
-            losses = (q1_loss, q2_loss, pi_loss, v_loss)
-            values = q_values + pi_v_values
+
             self.append_opt_info_(opt_info, losses, grad_norms, values)
             self.update_counter += 1
             if self.update_counter % self.target_update_interval == 0:
