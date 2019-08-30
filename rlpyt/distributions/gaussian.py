@@ -43,7 +43,6 @@ class Gaussian(Distribution):
         self.min_log_std = math.log(min_std) if min_std is not None else None
         self.max_log_std = math.log(max_std) if max_std is not None else None
         self.squash = squash
-        self._standard_normal = torch.distributions.Normal(0, 1)
         assert (clip is None or squash is None), "Choose one."
 
     @property
@@ -181,7 +180,8 @@ class Gaussian(Distribution):
             # std = self.std.repeat(*shape, 1).to(mean.device)
             std = self.std.to(mean.device)
         # For reparameterization trick: mean + std * N(0, 1)
-        noise = std * self._standard_normal.sample(mean.shape)  # std will broadcast.
+        # (Also this gets noise on same device as mean.)
+        noise = std * torch.normal(torch.zeros_like(mean), torch.ones_like(mean))
         # noise = torch.normal(mean=0, std=std)
         if self.noise_clip is not None:
             noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
