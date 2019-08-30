@@ -137,7 +137,7 @@ class Gaussian(Distribution):
                 max=self.max_log_std)
         std = torch.exp(log_std)
         normal = torch.distributions.Normal(mean, std)
-        sample = dist.rsample()
+        sample = normal.rsample()
         logli = normal.log_prob(sample)
         if self.squash is not None:
             sample = self.squash * torch.tanh(sample)
