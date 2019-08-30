@@ -43,6 +43,7 @@ class Gaussian(Distribution):
         self.min_log_std = math.log(min_std) if min_std is not None else None
         self.max_log_std = math.log(max_std) if max_std is not None else None
         self.squash = squash
+        self._standard_normal = torch.distribution.Normal(0, 1)
         assert (clip is None or squash is None), "Choose one."
 
     @property
@@ -86,8 +87,9 @@ class Gaussian(Distribution):
                 log_std = torch.clamp(log_std, min=self.min_log_std,
                     max=self.max_log_std)
         else:
-            shape = dist_info.mean.shape[:-1]
-            log_std = torch.log(self.std).repeat(*shape, 1)
+            # shape = dist_info.mean.shape[:-1]
+            # log_std = torch.log(self.std).repeat(*shape, 1)
+            log_std = torch.log(self.std)  # Shape broadcast in following formula.
         return torch.sum(log_std + math.log(math.sqrt(2 * math.pi * math.e)),
             dim=-1)
 
@@ -129,22 +131,32 @@ class Gaussian(Distribution):
         return torch.exp(logli_new - logli_old)
 
     def sample_loglikelihood(self, dist_info):
-        """Use in SAC with squash correction, since log_likelihood() expects raw_action."""
-        mean = dist_info.mean
-        log_std = dist_info.log_std
-        if self.min_log_std is not None or self.max_log_std is not None:
-            log_std = torch.clamp(log_std, min=self.min_log_std,
-                max=self.max_log_std)
-        std = torch.exp(log_std)
-        normal = torch.distributions.Normal(mean, std)
-        sample = normal.rsample()
-        logli = normal.log_prob(sample)
-        if self.squash is not None:
-            sample = self.squash * torch.tanh(sample)
-            logli -= torch.sum(
-                torch.log(self.squash * (1 - torch.tanh(sample) ** 2) + EPS),
-                dim=-1)
+        squash = self.squash
+        self.squash = None  # Temporarily turn OFF, raw sample into log_likelihood.
+        sample = self.sample(dist_info)
+        self.squash = squash  # Turn it back ON, squash correction in log_likelihood.
+        logli = self.log_likelihood(sample, dist_info)
+        if squash is not None:
+            sample = squash * torch.tanh(sample)
         return sample, logli
+
+    # def sample_loglikelihood(self, dist_info):
+    #     """Use in SAC with squash correction, since log_likelihood() expects raw_action."""
+    #     mean = dist_info.mean
+    #     log_std = dist_info.log_std
+    #     if self.min_log_std is not None or self.max_log_std is not None:
+    #         log_std = torch.clamp(log_std, min=self.min_log_std,
+    #             max=self.max_log_std)
+    #     std = torch.exp(log_std)
+    #     normal = torch.distributions.Normal(mean, std)
+    #     sample = normal.rsample()
+    #     logli = normal.log_prob(sample)
+    #     if self.squash is not None:
+    #         sample = self.squash * torch.tanh(sample)
+    #         logli -= torch.sum(
+    #             torch.log(self.squash * (1 - torch.tanh(sample) ** 2) + EPS),
+    #             dim=-1)
+    #     return sample, logli
 
 
         # squash = self.squash
@@ -165,15 +177,18 @@ class Gaussian(Distribution):
                     max=self.max_log_std)
             std = torch.exp(log_std)
         else:
-            shape = mean.shape[:-1]
-            std = self.std.repeat(*shape, 1).to(mean.device)
+            # shape = mean.shape[:-1]
+            # std = self.std.repeat(*shape, 1).to(mean.device)
+            std = self.std.to(mean.device)
+        # For reparameterization trick: mean + std * N(0, 1)
+        noise = std * self._standard_normal.sample(mean.shape)  # std will broadcast.
         # noise = torch.normal(mean=0, std=std)
-        # if self.noise_clip is not None:
-        #     noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
-        # sample = mean + noise
-        # Needed for reparameterization trick:
-        dist = torch.distributions.Normal(mean, std)
-        sample = dist.rsample()
+        if self.noise_clip is not None:
+            noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
+        sample = mean + noise
+        # Other way to do reparameterization trick:
+        # dist = torch.distributions.Normal(mean, std)
+        # sample = dist.rsample()
         if self.clip is not None:
             sample = torch.clamp(sample, -self.clip, self.clip)
         elif self.squash is not None:
@@ -195,7 +210,8 @@ class Gaussian(Distribution):
         if std is not None:
             if not isinstance(std, torch.Tensor):
                 std = torch.tensor(std).float()  # Can be size == 1 or dim.
-            if std.numel() == 1:
-                std = std * torch.ones(self.dim).float()  # Make it size dim.
-            assert std.numel() == self.dim
+            # Used to have, but shape of std should broadcast everywhere needed:
+            # if std.numel() == 1:
+            #     std = std * torch.ones(self.dim).float()  # Make it size dim.
+            assert std.numel() in (self.dim, 1)
         self.std = std

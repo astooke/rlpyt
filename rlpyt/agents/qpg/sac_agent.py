@@ -32,10 +32,7 @@ class SacAgent(BaseAgent):
             model_kwargs=None,  # Pi model.
             q_model_kwargs=None,
             v_model_kwargs=None,
-            initial_model_state_dict=None,  # Pi model.
-            initial_q1_model_state_dict=None,
-            initial_q2_model_state_dict=None,
-            initial_v_model_state_dict=None,
+            initial_model_state_dict=None,  # All models.
             action_squash=1.,  # Max magnitude (or None).
             pretrain_std=0.75,  # With squash 0.75 is near uniform.
             ):
@@ -52,20 +49,19 @@ class SacAgent(BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
+        _initial_model_state_dict = self.initial_model_state_dict
+        self.initial_model_state_dict = None  # Don't let base agent try to load.
         super().initialize(env_spaces, share_memory,
             global_B=global_B, env_ranks=env_ranks)
+        self.initial_model_state_dict = _initial_model_state_dict
         self.q1_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
         self.q2_model = self.QModelCls(**self.env_model_kwargs, **self.q_model_kwargs)
         self.v_model = self.VModelCls(**self.env_model_kwargs, **self.v_model_kwargs)
-        if self.initial_q1_model_state_dict is not None:
-            self.q1_model.load_state_dict(self.initial_q1_model_state_dict)
-        if self.initial_q2_model_state_dict is not None:
-            self.q2_model.load_state_dict(self.initial_q2_model_state_dict)
-        if self.initial_v_model_state_dict is not None:
-            self.v_model.load_state_dict(self.initial_v_model_state_dict)
         self.target_v_model = self.VModelCls(**self.env_model_kwargs,
             **self.v_model_kwargs)
         self.target_v_model.load_state_dict(self.v_model.state_dict())
+        if self.initial_model_state_dict is not None:
+            self.load_state_dict(self.initial_model_state_dict)
         assert len(env_spaces.action.shape) == 1
         self.distribution = Gaussian(
             dim=env_spaces.action.shape[0],

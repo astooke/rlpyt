@@ -61,6 +61,7 @@ class DDPG(RlAlgorithm):
             f"{self.replay_ratio}, computed {self.updates_per_optimize} "
             f"updates per iteration.")
         self.min_itr_learn = int(self.min_steps_learn // sampler_bs)
+        # Agent give min itr learn.?
         self.initialize_replay_buffer(examples, batch_spec)
         self.optim_initialize(rank)
 
