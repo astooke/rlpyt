@@ -43,7 +43,7 @@ class Gaussian(Distribution):
         self.min_log_std = math.log(min_std) if min_std is not None else None
         self.max_log_std = math.log(max_std) if max_std is not None else None
         self.squash = squash
-        self._standard_normal = torch.distribution.Normal(0, 1)
+        self._standard_normal = torch.distributions.Normal(0, 1)
         assert (clip is None or squash is None), "Choose one."
 
     @property
