@@ -24,8 +24,6 @@ Models = namedtuple("Models", ["pi", "q1", "q2", "v"])
 
 class SacAgent(BaseAgent):
 
-    shared_pi_model = None
-
     def __init__(
             self,
             ModelCls=PiMlpModel,  # Pi model.
@@ -47,8 +45,9 @@ class SacAgent(BaseAgent):
             q_model_kwargs = dict(hidden_sizes=[256, 256])
         if v_model_kwargs is None:
             v_model_kwargs = dict(hidden_sizes=[256, 256])
+        super().__init__(ModelCls=ModelCls, model_kwargs=model_kwargs,
+            initial_model_state_dict=initial_model_state_dict)
         save__init__args(locals())
-        super().__init__()  # For async setup.
         self.min_itr_learn = 0  # Get from algo.
 
     def initialize(self, env_spaces, share_memory=False,

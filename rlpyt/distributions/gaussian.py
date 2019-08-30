@@ -150,10 +150,13 @@ class Gaussian(Distribution):
         else:
             shape = mean.shape[:-1]
             std = self.std.repeat(*shape, 1).to(mean.device)
-        noise = torch.normal(mean=0, std=std)
-        if self.noise_clip is not None:
-            noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
-        sample = mean + noise
+        # noise = torch.normal(mean=0, std=std)
+        # if self.noise_clip is not None:
+        #     noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
+        # sample = mean + noise
+        # Needed for reparameterization trick:
+        dist = torch.distriutions.Normal(mean, std)
+        sample = dist.rsample()
         if self.clip is not None:
             sample = torch.clamp(sample, -self.clip, self.clip)
         elif self.squash is not None:
