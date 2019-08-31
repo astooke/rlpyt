@@ -12,9 +12,9 @@ affinity_code = encode_affinity(
     cpu_per_run=1,
     contexts_per_gpu=1,
 )
-runs_per_setting = 2
+runs_per_setting = 4
 default_config_key = "sac_1M_serial"
-experiment_title = "sac_mujoco_v2"
+experiment_title = "sac_mujoco_v2_long"
 variant_levels = list()
 
 # env_ids = ["Hopper-v2"]  # , "Swimmer-v3"]
@@ -23,6 +23,12 @@ env_ids = ["Ant-v2", "HalfCheetah-v2"]
 values = list(zip(env_ids))
 dir_names = ["env_{}".format(*v) for v in values]
 keys = [("env", "id")]
+variant_levels.append(VariantLevel(keys, values, dir_names))
+
+n_steps = [3e6]
+values = list(zip(n_steps))
+dir_names = ["3M_steps"]
+keys = [("runner", "n_steps")]
 variant_levels.append(VariantLevel(keys, values, dir_names))
 
 variants, log_dirs = make_variants(*variant_levels)
