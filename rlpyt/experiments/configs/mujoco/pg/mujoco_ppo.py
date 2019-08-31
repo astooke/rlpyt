@@ -35,6 +35,11 @@ configs["ppo_1M_serial"] = config
 
 config = copy.deepcopy(configs["ppo_1M_serial"])
 
+config = copy.deepcopy(configs["ppo_1M_serial"])
+config["sampler"]["batch_B"] = 8
+config["sampler"]["batch_T"] = 256
+configs["ppo_1M_cpu"] = config
+
 config["algo"]["minibatches"] = 1
 config["algo"]["epochs"] = 32
 configs["ppo_32ep_1mb"] = config
