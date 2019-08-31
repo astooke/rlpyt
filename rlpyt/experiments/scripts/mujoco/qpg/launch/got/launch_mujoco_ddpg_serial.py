@@ -3,7 +3,9 @@ from rlpyt.utils.launching.affinity import encode_affinity
 from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
-script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_sac_serial.py"
+default_config_key = "ddpg_from_td3_1M_serial"
+script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_ddpg_serial.py"
+experiment_title = "ddpg_mujoco_v3"
 affinity_code = encode_affinity(
     n_cpu_core=4,
     n_gpu=4,
@@ -13,8 +15,6 @@ affinity_code = encode_affinity(
     contexts_per_gpu=1,
 )
 runs_per_setting = 5
-default_config_key = "sac_1M_serial"
-experiment_title = "sac_mujoco_v3"
 variant_levels_1M = list()
 variant_levels_3M = list()
 
