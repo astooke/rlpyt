@@ -5,26 +5,49 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 script = "rlpyt/experiments/scripts/mujoco/pg/train/mujoco_ff_ppo_serial.py"
 affinity_code = encode_affinity(
-    n_cpu_cores=16,
+    n_cpu_core=8,
     n_gpu=8,
-    contexts_per_gpu=2,
+    contexts_per_gpu=1,
     hyperthread_offset=24,
     n_socket=2,
     # cpu_per_run=2,
 )
-runs_per_setting = 4
+runs_per_setting = 5
 default_config_key = "ppo_1M_serial"
-experiment_title = "ppo_mujoco_serial"
-variant_levels = list()
+experiment_title = "ppo_mujoco_v3_serial"
+variant_levels_1M = list()
+variant_levels_3M = list()
 
-env_ids = ["Hopper-v3", "Swimmer-v3", "HalfCheetah-v3",
-    "Walker2d-v3", "Ant-v3", "Humanoid-v3"]
+n_steps = [1e6]
+values = list(zip(n_steps))
+dir_names = ["1M"]
+keys = [("runner", "n_steps")]
+variant_levels_1M.append(VariantLevel(keys, values, dir_names))
+
+n_steps = [3e6]
+values = list(zip(n_steps))
+dir_names = ["3M"]
+keys = [("runner", "n_steps")]
+variant_levels_3M.append(VariantLevel(keys, values, dir_names))
+
+
+env_ids = ["Hopper-v3", "Walker2d-v3"]
 values = list(zip(env_ids))
-dir_names = ["env_{}".format(*v) for v in values]
+dir_names = ["{}".format(*v) for v in values]
 keys = [("env", "id")]
-variant_levels.append(VariantLevel(keys, values, dir_names))
+variant_levels_1M.append(VariantLevel(keys, values, dir_names))
 
-variants, log_dirs = make_variants(*variant_levels)
+env_ids = ["Ant-v3", "HalfCheetah-v3"]
+values = list(zip(env_ids))
+dir_names = ["{}".format(*v) for v in values]
+keys = [("env", "id")]
+variant_levels_3M.append(VariantLevel(keys, values, dir_names))
+
+
+variants_1M, log_dirs_1M = make_variants(*variant_levels_1M)
+variants_3M, log_dirs_3M = make_variants(*variant_levels_3M)
+variants = variants_1M + variants_3M
+log_dirs = log_dirs_1M + log_dirs_3M
 
 run_experiments(
     script=script,
@@ -35,3 +58,4 @@ run_experiments(
     log_dirs=log_dirs,
     common_args=(default_config_key,),
 )
+
