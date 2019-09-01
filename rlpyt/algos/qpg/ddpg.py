@@ -36,7 +36,7 @@ class DDPG(RlAlgorithm):
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             initial_optim_state_dict=None,
-            clip_grad_norm=1e6,
+            clip_grad_norm=1e8,
             q_target_clip=1e6,
             n_step_return=1,
             updates_per_sync=1,  # For async mode only.
