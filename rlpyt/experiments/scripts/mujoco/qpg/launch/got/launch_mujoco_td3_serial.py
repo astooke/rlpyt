@@ -15,7 +15,7 @@ affinity_code = encode_affinity(
     cpu_per_run=1,
     contexts_per_gpu=1,
 )
-runs_per_setting = 5
+runs_per_setting = 2
 variant_levels_1M = list()
 variant_levels_3M = list()
 
