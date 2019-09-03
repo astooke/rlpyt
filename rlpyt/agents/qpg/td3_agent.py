@@ -14,7 +14,7 @@ class Td3Agent(DdpgAgent):
 
     def __init__(
             self,
-            pretrain_std=0.75,  # To make actions roughly uniform.
+            pretrain_std=0.5,  # To make actions roughly uniform.
             target_noise_std=0.2,
             target_noise_clip=0.5,
             initial_q2_model_state_dict=None,

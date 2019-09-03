@@ -19,10 +19,10 @@ class TD3(DDPG):
             q_learning_rate=1e-3,
             **kwargs
             ):
-        _batch_size = batch_size
-        del batch_size  # Property.
-        save__init__args(locals())
         super().__init__(**kwargs)
+        self._batch_size = batch_size
+        del batch_size  # Property.
+        save__init__args(locals(), overwrite=True)
 
     def initialize(self, *args, **kwargs):
         super().initialize(*args, **kwargs)
