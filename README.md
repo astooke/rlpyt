@@ -12,7 +12,7 @@ Modular, optimized implementations of common deep RL algorithms in PyTorch, with
 * Use CPU or GPU for training and/or batched action selection during environment sampling.
 * Sampling and optimization synchronous or asynchronous (via replay buffer).
 * Full support for recurrent agents.
-  * All agents receive `observation, prev_action, prev_reward`.  
+  * All agents receive `observation, prev_action, prev_reward`.
   * Training data always organized with leading indexes as `[Time, Batch]`.
 * Online or offline evaluation of agent diagnostics during training.
 * Launching utilities for stacking/queueing sets of experiments in parallel on given **local** hardware resources (e.g. run 40 experiments on an 8-GPU machine with 1 experiment per GPU at a time).
@@ -47,8 +47,8 @@ for k, v in src.items():
  dest[slice_or_indexes] = src
  ```
  Importantly, this syntax looks the same whether `dest` and `src` are indiviual numpy arrays or arbitrarily-structured collections of arrays (the structures of `dest` and `src` must match, or `src` can be a single value, or `None` is an empty placeholder).  Rlpyt uses this data structure extensively--different elements of training data are organized with the same leading dimensions, making it easy to interact with desired time- or batch-dimensions.
- 
-This is also intended to support environments with multi-modal observations or actions.  For example, rather than flattening joint-angle and camera-image observations into one observation vector, the environment can store them as-is into a `namedarraytuple` for the observation, and in the forward method of the model, `observation.joint` and `observation.image` can be fed into the desired layers.  Intermediate infrastructure code doesn’t change. 
+
+This is also intended to support environments with multi-modal observations or actions.  For example, rather than flattening joint-angle and camera-image observations into one observation vector, the environment can store them as-is into a `namedarraytuple` for the observation, and in the forward method of the model, `observation.joint` and `observation.image` can be fed into the desired layers.  Intermediate infrastructure code doesn’t change.
 
 ## Future Developments.
 
@@ -90,7 +90,9 @@ alias rlpyt="source activate rlpyt; cd path_to_rlpyt"
 
 ## Extended Notes
 
-For more discussion, please see the white paper on Arxiv [link TBD].  If you use this repository in your work or otherwise wish to cite it, please make reference to the white paper.
+For more discussion, please see the [white paper on Arxiv](https://arxiv.org/abs/1909.01500).  If you use this repository in your work or otherwise wish to cite it, please make reference to the white paper.
+
+
 
 ### Code Organization
 
@@ -108,7 +110,7 @@ The class types perform the following roles:
   * **Algorithm** - Uses gathered samples to train the `agent` (e.g. defines a loss function and performs gradient descent).
     * **Optimizer** - Training update rule (e.g. Adam), attached to the `algorithm`.
     * **OptimizationInfo** - Diagnostics logged on a per-training batch basis.
-    
+
 ### Historical, Scaling, Interfaces
 
 This code is a revision and extension of [accel_rl](https://github.com/astooke/accel_rl), which explored scaling RL in the Atari domain using Theano.  Scaling results were recorded here: [A. Stooke & P. Abbeel, "Accelerated Methods for Deep Reinforcement Learning"](https://arxiv.org/abs/1803.02811).  For an insightful study of batch-size scaling across deep learning including RL, see [S. McCandlish, et. al "An Empirical Model of Large-Batch Trianing"](https://arxiv.org/abs/1812.06162).
