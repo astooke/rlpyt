@@ -113,7 +113,7 @@ The class types perform the following roles:
 
 ### Historical, Scaling, Interfaces
 
-This code is a revision and extension of [accel_rl](https://github.com/astooke/accel_rl), which explored scaling RL in the Atari domain using Theano.  Scaling results were recorded here: [A. Stooke & P. Abbeel, "Accelerated Methods for Deep Reinforcement Learning"](https://arxiv.org/abs/1803.02811).  For an insightful study of batch-size scaling across deep learning including RL, see [S. McCandlish, et. al "An Empirical Model of Large-Batch Trianing"](https://arxiv.org/abs/1812.06162).
+This code is a revision and extension of [accel_rl](https://github.com/astooke/accel_rl), which explored scaling RL in the Atari domain using Theano.  Scaling results were recorded here: [A. Stooke & P. Abbeel, "Accelerated Methods for Deep Reinforcement Learning"](https://arxiv.org/abs/1803.02811).  For an insightful study of batch-size scaling across deep learning including RL, see [S. McCandlish, et. al "An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162).
 
 Accel_rl was inspired by [rllab](https://github.com/rll/rllab) (the `logger` here is nearly a direct copy).  Rlpyt follows the rllab interfaces: agents output `action, agent_info`, environments output `observation, reward, done, env_info`.  In general in rlpyt, agent inputs/outputs are torch tensors, and environment inputs/ouputs are numpy arrays, with conversions handled automatically.
 
