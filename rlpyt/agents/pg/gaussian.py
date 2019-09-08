@@ -21,7 +21,7 @@ class GaussianPgAgent(BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
-        super().initialize(env_spaces, share_memory, 
+        super().initialize(env_spaces, share_memory,
             global_B=global_B, env_ranks=env_ranks)
         assert len(env_spaces.action.shape) == 1
         assert len(np.unique(env_spaces.action.high)) == 1
@@ -64,7 +64,7 @@ class RecurrentGaussianPgAgentBase(BaseAgent):
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
         super().initialize(env_spaces, share_memory)
-        assert len(env_spaces.action.shape == 1)
+        assert len(env_spaces.action.shape) == 1
         self.distribution = Gaussian(
             dim=env_spaces.action.shape[0],
             # min_std=MIN_STD,
