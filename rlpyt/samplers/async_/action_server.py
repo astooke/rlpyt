@@ -34,9 +34,9 @@ class AsyncActionServer(ActionServer):
                 break
         for b in obs_ready:
             b.acquire()  # Workers always do extra release; drain it.
-            assert not b.acquire(block=False)  # Debug check.  
+            assert not b.acquire(block=False)  # Debug check.
         for w in act_ready:
-            assert not w.acquire(block=False)  # Debug check. 
+            assert not w.acquire(block=False)  # Debug check.
 
 
 class AsyncAlternatingActionServer(AlternatingActionServer):
@@ -91,7 +91,7 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
     """Not tested, possibly faulty corner cases for synchronization."""
 
     def serve_actions_evaluation(self, itr):
-        obs_ready = self.sync.obs_ready
+        obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
         step_np, step_np_pair = self.eval_step_buffer_np, self.eval_step_buffer_np_pair
