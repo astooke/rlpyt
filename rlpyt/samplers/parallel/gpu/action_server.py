@@ -230,7 +230,7 @@ class NoOverlapAlternatingActionServer:
                 b.acquire()
                 # assert not b.acquire(block=False)  # Debug check.
             if alt == 0:
-                for w in act_waitrs_pair[1]:
+                for w in act_ready_pair[1]:
                     # assert not w.acquire(block=False)  # Debug check.
                     w.release()
             if "bootstrap_value" in self.samples_np.agent:
