@@ -8,6 +8,8 @@ from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.logging import logger
 from rlpyt.replays.non_sequence.uniform import (UniformReplayBuffer,
     AsyncUniformReplayBuffer)
+from rlpyt.replays.non_sequence.time_limit import (TlUniformReplayBuffer,
+    AsyncTlUniformReplayBuffer)
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.distributions.gaussian import Gaussian
@@ -20,8 +22,8 @@ OptInfo = namedtuple("OptInfo",
     ["q1Loss", "q2Loss", "vLoss", "piLoss",
     "q1GradNorm", "q2GradNorm", "vGradNorm", "piGradNorm",
     "q1", "q2", "v", "piMu", "piLogStd", "qMeanDiff"])
-SamplesToBuffer = namedarraytuple("SamplesToRepay",
-    ["observation", "action", "reward", "done"])
+SamplesToBuffer = namedarraytuple("SamplesToBuffer",
+    ["observation", "action", "reward", "done", "timeout"])
 
 
 class SAC(RlAlgorithm):
@@ -48,6 +50,7 @@ class SAC(RlAlgorithm):
             policy_output_regularization=0.001,
             n_step_return=1,
             updates_per_sync=1,  # For async mode only.
+            bootstrap_timelimit=True,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
@@ -117,8 +120,12 @@ class SAC(RlAlgorithm):
             B=batch_spec.B,
             n_step_return=self.n_step_return,
         )
-        ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
+        if not self.bootstrap_timelimit:
+            ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
+        else:
+            ReplayCls = AsyncTlUniformReplayBuffer if async_ else TlUniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
+
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr  # Async uses sampler_itr.
@@ -144,7 +151,7 @@ class SAC(RlAlgorithm):
             pi_grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.pi_parameters(),
                 self.clip_grad_norm)
             self.pi_optimizer.step()
-            
+
             # Step Q's last because pi_loss.backward() uses them?
             self.q1_optimizer.zero_grad()
             q1_loss.backward()
@@ -172,6 +179,7 @@ class SAC(RlAlgorithm):
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
+            timeout=getattr(samples.env.env_info, "timeout", None),
         )
 
     def loss(self, samples):
@@ -185,9 +193,14 @@ class SAC(RlAlgorithm):
         y = (self.reward_scale * samples.return_ +
             (1 - samples.done_n.float()) * disc * target_v)
         if self.mid_batch_reset and not self.agent.recurrent:
-            valid = None  # OR: torch.ones_like(samples.done, dtype=torch.float)
+            valid = torch.ones_like(samples.done, dtype=torch.float)
         else:
             valid = valid_from_done(samples.done)
+
+        if self.bootstrap_timelimit:
+            # To avoid non-use of bootstrap when environment is 'done' due to
+            # time-limit, turn off training on these samples.
+            valid *= (1 - samples.timeout_n.float())
 
         q1_loss = 0.5 * valid_mean((y - q1) ** 2, valid)
         q2_loss = 0.5 * valid_mean((y - q2) ** 2, valid)

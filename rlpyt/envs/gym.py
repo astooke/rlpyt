@@ -2,6 +2,7 @@
 import numpy as np
 import gym
 from gym import Wrapper
+from gym.wrappers.time_limit import TimeLimit
 from collections import namedtuple
 
 from rlpyt.envs.base import EnvSpaces, EnvStep
@@ -16,6 +17,14 @@ class GymEnvWrapper(Wrapper):
         super().__init__(env)
         o = self.env.reset()
         o, r, d, info = self.env.step(self.env.action_space.sample())
+        env_ = self.env
+        time_limit = isinstance(self.env, TimeLimit)
+        while not time_limit and hasattr(env_, "env"):
+            env_ = env_.env
+            time_limit = isinstance(self.env.TimeLimit)
+        if time_limit:
+            info["timeout"] = False  # gym's TimeLimit.truncated invalid name.
+        self._time_limit = time_limit
         self.action_space = GymSpaceWrapper(
             space=self.env.action_space,
             name="act",
@@ -34,6 +43,11 @@ class GymEnvWrapper(Wrapper):
         a = self.action_space.revert(action)
         o, r, d, info = self.env.step(a)
         obs = self.observation_space.convert(o)
+        if self._time_limit:
+            if "TimeLimit.truncated" in info:
+                info["timeout"] = info.pop("TimeLimit.truncated")
+            else:
+                info["timeout"] = False
         info = info_to_nt(info)
         return EnvStep(obs, r, d, info)
 
@@ -49,6 +63,11 @@ class GymEnvWrapper(Wrapper):
 
 
 def build_info_tuples(info, name="info"):
+    # Define namedtuples at module level for pickle.
+    # Only place rlpyt uses pickle is in the sampler, when getting the
+    # first examples, to avoid MKL threading issues...can probably turn
+    # that off, (look for subprocess=True --> False), and then might
+    # be able to define these directly within the class.
     ntc = globals().get(name)  # Define at module level for pickle.
     if ntc is None:
         globals()[name] = namedtuple(name, list(info.keys()))
@@ -77,18 +96,19 @@ def info_to_nt(value, name="info"):
 # make keys and values keep the same structure and shape at all time steps.)
 # Here, a dict of kwargs to be fed to `sometimes_info` should be passed as an
 # env_kwarg into the `make` function, which should be used as the EnvCls.
-def sometimes_info(*args, **kwargs):
-    # e.g. Feed the env_id.
-    # Return a dictionary (possibly nested) of keys: default_values
-    # for this env.
-    return {}
+# def sometimes_info(*args, **kwargs):
+#     # e.g. Feed the env_id.
+#     # Return a dictionary (possibly nested) of keys: default_values
+#     # for this env.
+#     return {}
 
 
 class EnvInfoWrapper(Wrapper):
 
-    def __init__(self, env, sometimes_info_kwargs):
+    def __init__(self, env, info_example):
         super().__init__(env)
-        self._sometimes_info = sometimes_info(**sometimes_info_kwargs)
+        # self._sometimes_info = sometimes_info(**sometimes_info_kwargs)
+        self._sometimes_info = info_example
 
     def step(self, action):
         o, r, d, info = super().step(action)
@@ -105,9 +125,9 @@ def infill_info(info, sometimes_info):
     return info
 
 
-def make(*args, sometimes_info_kwargs=None, **kwargs):
-    if sometimes_info_kwargs is None:
+def make(*args, info_example=None, **kwargs):
+    if info_example is None:
         return GymEnvWrapper(gym.make(*args, **kwargs))
     else:
         return GymEnvWrapper(EnvInfoWrapper(
-            gym.make(*args, **kwargs), sometimes_info_kwargs))
+            gym.make(*args, **kwargs), info_example))
