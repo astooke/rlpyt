@@ -105,7 +105,10 @@ class DDPG(RlAlgorithm):
             B=batch_spec.B,
             n_step_return=self.n_step_return,
         )
-        ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
+        if not self.bootstrap_timelimit:
+            ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
+        else:
+            ReplayCls = AsyncTlUniformReplayBuffer if async_ else TlUniformReplayBuffer
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
