@@ -122,7 +122,7 @@ class DDPG(RlAlgorithm):
         for _ in range(self.updates_per_optimize):
             samples_from_replay = self.replay_buffer.sample_batch(self.batch_size)
             if self.mid_batch_reset and not self.agent.recurrent:
-                valid = torch.ones_like(samples.done, dtype=torch.float)
+                valid = torch.ones_like(samples_from_replay.done, dtype=torch.float)
             else:
                 valid = valid_from_done(samples_from_replay.done)
             if self.bootstrap_timelimit:
