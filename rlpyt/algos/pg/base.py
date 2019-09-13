@@ -59,7 +59,7 @@ class PolicyGradientAlgo(RlAlgorithm):
         if self.bootstrap_timelimit:
             # Turn OFF training on 'done' samples due to timeout, because no valid
             # next_state for bootstrap_value(next_state).
-            valid *= (1 - samples.env.env_info.timeout)
+            valid *= (1 - samples.env.env_info.timeout.float())
 
         if self.normalize_advantage:
             if valid is not None:
