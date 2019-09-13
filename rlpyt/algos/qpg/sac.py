@@ -113,6 +113,7 @@ class SAC(RlAlgorithm):
             action=examples["action"],
             reward=examples["reward"],
             done=examples["done"],
+            timeout=getattr(examples["env_info"], "timeout", None),
         )
         replay_kwargs = dict(
             example=example_to_buffer,
