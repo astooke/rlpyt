@@ -7,7 +7,7 @@ from rlpyt.replays.non_sequence.uniform import UniformReplay
 from rlpyt.replays.non_sequence.prioritized import PrioritizedReplay
 from rlpyt.replays.async_ import AsyncReplayBufferMixin
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.utils.buffer import torchify_buffer
+from rlpyt.utils.buffer import torchify_buffer, buffer_from_example
 
 
 SamplesFromReplayTL = namedarraytuple("SamplesFromReplayTL",
@@ -16,6 +16,15 @@ SamplesFromReplayTL = namedarraytuple("SamplesFromReplayTL",
 
 class NStepTimeLimitBuffer(NStepReturnBuffer):
     """For use in e.g. SAC when bootstrapping when 'done' due to timeout."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.n_step_return > 1:
+            self.samples_timeout_n = buffer_from_example(
+                self.samples.timeout[0, 0], (self.T, self.B),
+                share_memory=self.async_)
+        else:
+            self.samples_timeout_n = self.samples.timeout
 
     def extract_batch(self, T_idxs, B_idxs):
         batch = super().extract_batch(T_idxs, B_idxs)
