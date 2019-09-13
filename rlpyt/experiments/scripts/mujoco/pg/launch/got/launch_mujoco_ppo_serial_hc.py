@@ -14,7 +14,7 @@ affinity_code = encode_affinity(
 )
 runs_per_setting = 4
 default_config_key = "ppo_1M_serial"
-experiment_title = "ppo_mujoco_v3_serial_hc"
+experiment_title = "ppo_mujoco_v3_serial_hc_tl"
 # variant_levels_1M = list()
 variant_levels_3M = list()
 
@@ -23,6 +23,12 @@ variant_levels_3M = list()
 # dir_names = ["1M"]
 # keys = [("runner", "n_steps")]
 # variant_levels_1M.append(VariantLevel(keys, values, dir_names))
+
+bootstrap_tls = [True]
+values = list(zip(bootstrap_tls))
+dir_names = ["bootstrap_timelimit"]
+keys = [("algo", "bootstrap_timelimit")]
+variant_levels_3M.append(VariantLevel(keys, values, dir_names))
 
 n_steps = [3e6]
 values = list(zip(n_steps))

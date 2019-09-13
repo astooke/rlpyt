@@ -16,6 +16,7 @@ config = dict(
         ratio_clip=0.2,
         normalize_advantage=True,
         linear_lr_schedule=True,
+        bootstrap_timelimit=False,
     ),
     env=dict(id="Hopper-v3"),
     model=dict(),
