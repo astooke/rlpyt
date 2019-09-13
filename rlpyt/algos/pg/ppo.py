@@ -31,6 +31,7 @@ class PPO(PolicyGradientAlgo):
             ratio_clip=0.1,
             linear_lr_schedule=True,
             normalize_advantage=False,
+            bootstrap_timelimit=False,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()

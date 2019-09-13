@@ -23,6 +23,7 @@ class A2C(PolicyGradientAlgo):
             initial_optim_state_dict=None,
             gae_lambda=1,
             normalize_advantage=False,
+            bootstrap_timelimit=False,
             ):
         if optim_kwargs is None:
             optim_kwargs = dict()
