@@ -106,7 +106,7 @@ class SacAgent(BaseAgent):
             action), device=self.device)
         target_q1 = self.target_q1_model(*model_inputs)
         target_q2 = self.target_q2_model(*model_inputs)
-        return target_q1.cpu(), targe_q2.cpu()
+        return target_q1.cpu(), target_q2.cpu()
 
     def pi(self, observation, prev_action, prev_reward):
         model_inputs = buffer_to((observation, prev_action, prev_reward),
