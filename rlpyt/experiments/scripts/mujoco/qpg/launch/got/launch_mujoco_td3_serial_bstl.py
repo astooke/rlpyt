@@ -3,19 +3,19 @@ from rlpyt.utils.launching.affinity import encode_affinity
 from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
-default_config_key = "td3_1M_serial"
+default_config_key = "td3_serial_bstl"
 script = "rlpyt/experiments/scripts/mujoco/qpg/train/mujoco_td3_serial.py"
-experiment_title = "td3_mujoco_v3"
+experiment_title = "td3_mujoco_v3_bstl"
 
 affinity_code = encode_affinity(
-    n_cpu_core=4,
+    n_cpu_core=8,
     n_gpu=4,
     hyperthread_offset=20,
     n_socket=1,
     cpu_per_run=1,
-    contexts_per_gpu=1,
+    contexts_per_gpu=2,
 )
-runs_per_setting = 2
+runs_per_setting = 4
 variant_levels_1M = list()
 variant_levels_3M = list()
 
@@ -31,8 +31,6 @@ dir_names = ["1M"]
 keys = [("runner", "n_steps")]
 variant_levels_1M.append(VariantLevel(keys, values, dir_names))
 
-# env_ids = ["Hopper-v2"]  # , "Swimmer-v3"]
-# env_ids = ["Ant-v3", "HalfCheetah-v3"]
 
 env_ids = ["Walker2d-v3", "Hopper-v3"]
 values = list(zip(env_ids))
