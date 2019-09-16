@@ -96,6 +96,9 @@ def valid_from_done(done):
     return valid
 
 
+# Tested timelimit-GAE with PPO on HalfCheetah-v3: no discernible effect.
+# Removed from PG base algo. (around 2019-09-16)
+
 def discount_return_tl(reward, done, bootstrap_value, discount, timeout, value,
         return_dest=None):
     """Like discount_return(), above, except uses bootstrapping where 'done' is due

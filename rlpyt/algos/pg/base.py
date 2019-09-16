@@ -34,32 +34,18 @@ class PolicyGradientAlgo(RlAlgorithm):
         reward, done, value, bv = (samples.env.reward, samples.env.done,
             samples.agent.agent_info.value, samples.agent.bootstrap_value)
         done = done.type(reward.dtype)
-        if self.bootstrap_timelimit:
-            timeout = samples.env.env_info.timeout
-            if self.gae_lambda == 1:
-                return_ = discount_return_tl(reward, done, bv, self.discount,
-                    timeout=timeout, value=value)
-                advantage = return_ - value
-            else:
-                advantage, return_ = generalized_advantage_estimation_tl(
-                    reward, value, done, bv, self.discount, self.gae_lambda,
-                    timeout=timeout)
+
+        if self.gae_lambda == 1:  # GAE reduces to empirical discounted.
+            return_ = discount_return(reward, done, bv, self.discount)
+            advantage = return_ - value
         else:
-            if self.gae_lambda == 1:  # GAE reduces to empirical discounted.
-                return_ = discount_return(reward, done, bv, self.discount)
-                advantage = return_ - value
-            else:
-                advantage, return_ = generalized_advantage_estimation(
-                    reward, value, done, bv, self.discount, self.gae_lambda)
+            advantage, return_ = generalized_advantage_estimation(
+                reward, value, done, bv, self.discount, self.gae_lambda)
 
         if not self.mid_batch_reset or self.agent.recurrent:
             valid = valid_from_done(done)  # Recurrent: no reset during training.
         else:
-            valid = torch.ones_like(done) if self.bootstrap_timelimit else None
-        if self.bootstrap_timelimit:
-            # Turn OFF training on 'done' samples due to timeout, because no valid
-            # next_state for bootstrap_value(next_state).
-            valid *= (1 - samples.env.env_info.timeout.float())
+            valid = None  # OR torch.ones_like(done)
 
         if self.normalize_advantage:
             if valid is not None:
