@@ -122,10 +122,10 @@ class SAC(RlAlgorithm):
             done=examples["done"],
         )
         if not self.bootstrap_timelimit:
-            example_to_buffer = SamplesToBufferTl(*example_to_buffer,
-                timeout=examples["env_info"].timeout)
             ReplayCls = AsyncUniformReplayBuffer if async_ else UniformReplayBuffer
         else:
+            example_to_buffer = SamplesToBufferTl(*example_to_buffer,
+                timeout=examples["env_info"].timeout)
             ReplayCls = AsyncTlUniformReplayBuffer if async_ else TlUniformReplayBuffer
         replay_kwargs = dict(
             example=example_to_buffer,
