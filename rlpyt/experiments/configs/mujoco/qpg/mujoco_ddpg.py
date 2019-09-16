@@ -37,7 +37,13 @@ config = dict(
 
 configs["ddpg_from_td3_1M_serial"] = config
 
+config = copy.deepcopy(configs["ddpg_from_td3_1M_serial"])
+config["algo"]["bootstrap_timelimit"] = True
+configs["ddpgs_from_td3_serial_bstl"] = config
+
 config = copy.deepcopy(config)
 config["sampler"]["batch_T"] = 5
 config["algo"]["updates_per_sync"] = 1
 configs["async_serial"] = config
+
+
