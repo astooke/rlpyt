@@ -183,16 +183,16 @@ class SAC(RlAlgorithm):
         return opt_info
 
     def samples_to_buffer(self, samples):
-        samples = SamplesToBuffer(
+        samples_to_buffer = SamplesToBuffer(
             observation=samples.env.observation,
             action=samples.agent.action,
             reward=samples.env.reward,
             done=samples.env.done,
         )
         if self.bootstrap_timelimit:
-            samples = SamplesToBufferTl(*samples,
+            samples_to_buffer = SamplesToBufferTl(*samples_to_buffer,
                 timeout=samples.env.env_info.timeout)
-        return samples
+        return samples_to_buffer
 
     def loss(self, samples):
         """Samples have leading batch dimension [B,..] (but not time)."""
