@@ -191,7 +191,7 @@ class SAC(RlAlgorithm):
         )
         if self.bootstrap_timelimit:
             samples = SamplesToBufferTl(*samples,
-                timeout=sapmles.env_env_info.timeout)
+                timeout=samples.env_env_info.timeout)
         return samples
 
     def loss(self, samples):
