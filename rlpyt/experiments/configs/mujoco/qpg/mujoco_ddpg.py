@@ -39,7 +39,7 @@ configs["ddpg_from_td3_1M_serial"] = config
 
 config = copy.deepcopy(configs["ddpg_from_td3_1M_serial"])
 config["algo"]["bootstrap_timelimit"] = True
-configs["ddpgs_from_td3_serial_bstl"] = config
+configs["ddpg_from_td3_serial_bstl"] = config
 
 config = copy.deepcopy(config)
 config["sampler"]["batch_T"] = 5
