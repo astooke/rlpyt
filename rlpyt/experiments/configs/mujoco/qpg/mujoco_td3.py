@@ -38,7 +38,9 @@ config = dict(
 
 configs["td3_1M_serial"] = config
 
-config = copy.deepcopy(config)
+config = copy.deepcopy(configs["td3_1M_serial"])
+config["algo"]["bootstrap_timelimit"] = True
+configs["td3_serial_bstl"] = config
 
 config = copy.deepcopy(config)
 config["sampler"]["batch_T"] = 5

@@ -40,6 +40,10 @@ config = dict(
 
 configs["sac_1M_serial"] = config
 
+config = copy.deepcopy(configs["sac_1M_serial"])
+config["algo"]["bootstrap_timelimit"] = True
+configs["sac_serial_bstl"] = config
+
 config = copy.deepcopy(config)
 config["sampler"]["batch_T"] = 5
 config["sampler"]["batch_B"] = 3
