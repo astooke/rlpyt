@@ -76,7 +76,7 @@ class BaseNStepReturnBuffer(BaseReplayBuffer):
                 discount=self.discount, return_dest=return_dest,
                 done_n_dest=done_n_dest)
         else:  # Wrap (copies); Let it (wrongly) wrap at first call.
-            idxs = np.arange(t - nm1, t + T) % T
+            idxs = np.arange(t - nm1, t + T) % self.T
             reward = s.reward[idxs]
             done = s.done[idxs]
             dest_idxs = idxs[:-nm1]
