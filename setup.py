@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name='rlpyt',
-    version='0.1.0dev',
+    version='0.1.1dev',
     packages=find_packages(),
     license='MIT License',
     long_description=open('README.md').read(),
