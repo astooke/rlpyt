@@ -127,6 +127,7 @@ class CpuWaitResetCollector(DecorrelatingStartCollector):
             self.agent.reset_one(idx=b)
         self.need_reset[:] = False
 
+
 class CpuEvalCollector(BaseEvalCollector):
 
     def collect_evaluation(self, itr):
@@ -135,6 +136,8 @@ class CpuEvalCollector(BaseEvalCollector):
         for env in self.envs:
             observations.append(env.reset())
         observation = buffer_from_example(observations[0], len(self.envs))
+        for b, o in enumerate(observations):
+            observation[b] = o
         action = buffer_from_example(self.envs[0].action_space.null_value(),
             len(self.envs))
         reward = np.zeros(len(self.envs), dtype="float32")
