@@ -1,12 +1,10 @@
 
-import torch
+# import torch
 from collections import namedtuple
 
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.algos.utils import (discount_return, generalized_advantage_estimation,
     valid_from_done)
-from rlpyt.algos.utils import (discount_return_tl,
-    generalized_advantage_estimation_tl)
 
 # Convention: traj_info fields CamelCase, opt_info fields lowerCamelCase
 OptInfo = namedtuple("OptInfo", ["loss", "gradNorm", "entropy", "perplexity"])
