@@ -21,7 +21,7 @@ class GymEnvWrapper(Wrapper):
         time_limit = isinstance(self.env, TimeLimit)
         while not time_limit and hasattr(env_, "env"):
             env_ = env_.env
-            time_limit = isinstance(self.env.TimeLimit)
+            time_limit = isinstance(self.env, TimeLimit)
         if time_limit:
             info["timeout"] = False  # gym's TimeLimit.truncated invalid name.
         self._time_limit = time_limit
