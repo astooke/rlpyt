@@ -100,4 +100,8 @@ class DecorrelatingStartCollector(BaseCollector):
             observation[b] = o
             prev_action[b] = a
             prev_reward[b] = r
+        if hasattr(self, "step_buffer_np"):  # For action-server samplers.
+            self.step_buffer_np.observation[:] = observation
+            self.step_buffer_np.action[:] = prev_action
+            self.step_buffer_np.reward[:] = prev_reward
         return AgentInputs(observation, prev_action, prev_reward), traj_infos
