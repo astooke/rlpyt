@@ -5,7 +5,7 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 script = "rlpyt/experiments/scripts/mujoco/pg/train/mujoco_ff_ppo_cpu.py"
 affinity_code = encode_affinity(
-    n_cpu_cores=2,
+    n_cpu_core=2,
     n_gpu=0,
     hyperthread_offset=2,
     n_socket=1,

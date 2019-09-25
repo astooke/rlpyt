@@ -6,7 +6,7 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 script = "rlpyt/experiments/scripts/atari/pg/train/atari_lstm_a2c_cpu.py"
 # default_config_key = "0"
 affinity_code = encode_affinity(  # Let it be kwargs?
-    n_cpu_cores=6,
+    n_cpu_core=6,
     n_gpu=2,
     hyperthread_offset=8,
     n_socket=1,

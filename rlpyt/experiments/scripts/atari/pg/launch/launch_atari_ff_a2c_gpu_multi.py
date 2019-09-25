@@ -5,7 +5,7 @@ from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 script = "rlpyt/experiments/scripts/atari/pg/train/atari_ff_a2c_gpu_multi.py"
 affinity_code = encode_affinity(
-    n_cpu_cores=8,
+    n_cpu_core=8,
     n_gpu=2,
     hyperthread_offset=8,
     n_socket=1,
