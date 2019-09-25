@@ -15,7 +15,7 @@ is optimizing.  Feedforward agents are compatible with this arrangement by same
 use of 'valid' mask.
 
 """
-from rlpyt.samplers.parallel.gpu.sampler import GpuParallelSampler
+from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.collectors import (GpuResetCollector,
     GpuWaitResetCollector)
 from rlpyt.envs.atari.atari_env import AtariEnv
@@ -30,7 +30,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, mid_batch_reset=False,
     Collector = GpuResetCollector if mid_batch_reset else GpuWaitResetCollector
     print(f"To satisfy mid_batch_reset=={mid_batch_reset}, using {Collector}.")
 
-    sampler = GpuParallelSampler(
+    sampler = GpuSampler(
         EnvCls=AtariEnv,
         env_kwargs=dict(game=game, num_img_obs=1),  # Learn on individual frames.
         CollectorCls=Collector,

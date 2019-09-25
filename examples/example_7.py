@@ -16,7 +16,7 @@ Try different affinity inputs to see where the jobs run on the machine.
 
 """
 from rlpyt.utils.launching.affinity import make_affinity
-from rlpyt.samplers.parallel.gpu.sampler import GpuParallelSampler
+from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv
 from rlpyt.algos.pg.a2c import A2C
@@ -39,7 +39,7 @@ def build_and_train(game="pong", run_ID=0):
         # cpu_per_run=1,
     )
 
-    sampler = GpuParallelSampler(
+    sampler = GpuSampler(
         EnvCls=AtariEnv,
         env_kwargs=dict(game=game),
         CollectorCls=GpuWaitResetCollector,

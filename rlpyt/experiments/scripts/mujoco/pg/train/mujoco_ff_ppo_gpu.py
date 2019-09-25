@@ -2,7 +2,7 @@
 import sys
 
 from rlpyt.utils.launching.affinity import affinity_from_code
-from rlpyt.samplers.gpu.parallel_sampler import GpuParallelSampler
+from rlpyt.samplers.gpu.parallel_sampler import GpuSampler
 from rlpyt.samplers.gpu.collectors import ResetCollector
 from rlpyt.envs.gym import make as gym_make
 from rlpyt.algos.pg.ppo import PPO
@@ -20,7 +20,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     variant = load_variant(log_dir)
     config = update_config(config, variant)
 
-    sampler = GpuParallelSampler(
+    sampler = GpuSampler(
         EnvCls=gym_make,
         env_kwargs=config["env"],
         CollectorCls=ResetCollector,
