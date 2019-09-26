@@ -127,7 +127,7 @@ class R2D1(DQN):
                 samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
                     prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
             if self.input_priorities:
-                priorities = self.compute_priorities(samples)
+                priorities = self.compute_input_priorities(samples)
                 samples_to_buffer = PrioritiesSamplesToBuffer(
                     priorities=priorities, samples=samples)
             self.replay_buffer.append_samples(samples_to_buffer)
@@ -178,7 +178,7 @@ class R2D1(DQN):
         with full n-step return available...later could also use partial
         returns for samples at end of batch.  35/40 ain't bad tho.
         Might not carry/use internal state here, because might get executed
-        by alternating memory copiers in async mode; do all with only the 
+        by alternating memory copiers in async mode; do all with only the
         samples avialable from input."""
         samples = torchify_buffer(samples)
         q = samples.agent.agent_info.q
