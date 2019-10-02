@@ -100,7 +100,8 @@ class DecorrelatingStartCollector(BaseCollector):
             observation[b] = o
             prev_action[b] = a
             prev_reward[b] = r
-        if hasattr(self, "step_buffer_np"):  # For action-server samplers.
+        # For action-server samplers.
+        if hasattr(self, "step_buffer_np") and self.step_buffer_np is not None:
             self.step_buffer_np.observation[:] = observation
             self.step_buffer_np.action[:] = prev_action
             self.step_buffer_np.reward[:] = prev_reward
