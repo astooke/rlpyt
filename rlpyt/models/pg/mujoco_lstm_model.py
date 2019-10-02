@@ -49,10 +49,10 @@ class MujocoLstmModel(torch.nn.Module):
             ], dim=2)
         init_rnn_state = None if init_rnn_state is None else tuple(init_rnn_state)
         lstm_out, (hn, cn) = self.lstm(lstm_input, init_rnn_state)
-        outputs = self.head(lstm_out)
+        outputs = self.head(lstm_out.view(T * B, -1))
         mu = outputs[:, :self._action_size]
         log_std = outputs[:, self._action_size:-1]
-        v = outputs[:, -1].squeeze(-1)
+        v = outputs[:, -1]
 
         # Restore leading dimensions: [T,B], [B], or [], as input.
         mu, log_std, v = restore_leading_dims((mu, log_std, v), lead_dim, T, B)
