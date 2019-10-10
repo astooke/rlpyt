@@ -52,7 +52,7 @@ class MinibatchRlBase(BaseRunner):
         self.rank = rank = getattr(self, "rank", 0)
         self.world_size = world_size = getattr(self, "world_size", 1)
         examples = self.sampler.initialize(
-            agent=self.agent,  # Agent gets intialized in sampler.
+            agent=self.agent,  # Agent gets initialized in sampler.
             affinity=self.affinity,
             seed=self.seed + 1,
             bootstrap_value=getattr(self.algo, "bootstrap_value", False),
