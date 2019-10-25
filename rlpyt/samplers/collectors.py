@@ -83,23 +83,22 @@ class DecorrelatingStartCollector(BaseCollector):
         if self.rank == 0:
             logger.log("Sampler decorrelating envs, max steps: "
                 f"{max_decorrelation_steps}")
-        if max_decorrelation_steps == 0:
-            return AgentInputs(observation, prev_action, prev_reward), traj_infos
-        for b, env in enumerate(self.envs):
-            n_steps = 1 + int(np.random.rand() * max_decorrelation_steps)
-            for _ in range(n_steps):
-                a = env.action_space.sample()
-                o, r, d, info = env.step(a)
-                traj_infos[b].step(o, a, r, d, None, info)
-                if getattr(info, "traj_done", d):
-                    o = env.reset()
-                    traj_infos[b] = self.TrajInfoCls()
-                if d:
-                    a = env.action_space.null_value()
-                    r = 0
-            observation[b] = o
-            prev_action[b] = a
-            prev_reward[b] = r
+        if max_decorrelation_steps != 0:
+            for b, env in enumerate(self.envs):
+                n_steps = 1 + int(np.random.rand() * max_decorrelation_steps)
+                for _ in range(n_steps):
+                    a = env.action_space.sample()
+                    o, r, d, info = env.step(a)
+                    traj_infos[b].step(o, a, r, d, None, info)
+                    if getattr(info, "traj_done", d):
+                        o = env.reset()
+                        traj_infos[b] = self.TrajInfoCls()
+                    if d:
+                        a = env.action_space.null_value()
+                        r = 0
+                observation[b] = o
+                prev_action[b] = a
+                prev_reward[b] = r
         # For action-server samplers.
         if hasattr(self, "step_buffer_np") and self.step_buffer_np is not None:
             self.step_buffer_np.observation[:] = observation
