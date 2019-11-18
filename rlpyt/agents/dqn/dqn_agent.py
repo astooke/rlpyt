@@ -9,7 +9,7 @@ from rlpyt.distributions.epsilon_greedy import EpsilonGreedy
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.logging import logger
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.models.utils import strip_ddp_state_dict
+from rlpyt.models.utils import update_state_dict
 
 
 AgentInfo = namedarraytuple("AgentInfo", "q")
@@ -62,6 +62,6 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         target_q = self.target_model(*model_inputs)
         return target_q.cpu()
 
-    def update_target(self):
-        self.target_model.load_state_dict(
-            strip_ddp_state_dict(self.model.state_dict()))
+    def update_target(self, tau=1):
+        update_state_dict(self.target_model, self.model.state_dict(), tau)
+
