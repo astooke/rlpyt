@@ -31,6 +31,7 @@ class DQN(RlAlgorithm):
             delta_clip=1.,
             replay_size=int(1e6),
             replay_ratio=8,  # data_consumption / data_generation.
+            target_update_tau=1,
             target_update_interval=312,  # 312 * 32 = 1e4 env steps.
             n_step_return=1,
             learning_rate=2.5e-4,
@@ -156,7 +157,7 @@ class DQN(RlAlgorithm):
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())  # Downsample.
             self.update_counter += 1
             if self.update_counter % self.target_update_interval == 0:
-                self.agent.update_target()
+                self.agent.update_target(self.target_update_tau)
         self.update_itr_hyperparams(itr)
         return opt_info
 
