@@ -29,8 +29,8 @@ class MinibatchRlBase(BaseRunner):
         n_steps = int(n_steps)
         log_interval_steps = int(log_interval_steps)
         affinity = dict() if affinity is None else affinity
-        min_itr_learn = getattr(self.algo, 'min_itr_learn', 0)
         save__init__args(locals())
+        self.min_itr_learn = getattr(self.algo, 'min_itr_learn', 0)
 
     def startup(self):
         p = psutil.Process()
