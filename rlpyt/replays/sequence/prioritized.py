@@ -26,14 +26,14 @@ class PrioritizedSequenceReplay:
         self.init_priority_tree()
 
     def init_priority_tree(self):
-        off_backward = math.ceil((1 + self.off_backward + self.batch_T) /
-            self.rnn_state_interval)  # +1 in case interval aligned? TODO: check
+        rsi = max(1, self.rnn_state_interval)
+        off_backward = math.ceil((1 + self.off_backward + self.batch_T) / rsi)  # +1 in case interval aligned? TODO: check
         SumTreeCls = AsyncSumTree if self.async_ else SumTree
         self.priority_tree = SumTreeCls(
-            T=self.T // self.rnn_state_interval,
+            T=self.T // rsi,
             B=self.B,
             off_backward=off_backward,
-            off_forward=math.ceil(self.off_forward / self.rnn_state_interval),
+            off_forward=math.ceil(self.off_forward / rsi),
             default_value=self.default_priority ** self.alpha,
             enable_input_priorities=self.input_priorities,
             input_priority_shift=self.input_priority_shift,
@@ -65,10 +65,10 @@ class PrioritizedSequenceReplay:
         return T, idxs
 
     def sample_batch(self, batch_B):
-        (tree_T_idxs, B_idxs), priorities = self.priority_tree.sample(
+        (T_idxs, B_idxs), priorities = self.priority_tree.sample(
             batch_B, unique=self.unique)
         if self.rnn_state_interval > 1:
-            T_idxs = tree_T_idxs * self.rnn_state_interval
+            T_idxs = T_idxs * self.rnn_state_interval
         batch = self.extract_batch(T_idxs, B_idxs, self.batch_T)
         is_weights = (1. / priorities) ** self.beta
         is_weights /= max(is_weights)  # Normalize.

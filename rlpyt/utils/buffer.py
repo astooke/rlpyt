@@ -53,7 +53,7 @@ def numpify_buffer(buffer_):
     if buffer_ is None:
         return
     if isinstance(buffer_, torch.Tensor):
-        return buffer_.numpy()
+        return buffer_.cpu().numpy()
     elif isinstance(buffer_, np.ndarray):
         return buffer_
     contents = tuple(numpify_buffer(b) for b in buffer_)
