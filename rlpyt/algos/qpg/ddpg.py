@@ -179,7 +179,7 @@ class DDPG(RlAlgorithm):
 
     def optim_state_dict(self):
         return dict(q=self.q_optimizer.state_dict(),
-            mu=self.mu_optimizer.state_dict)
+            mu=self.mu_optimizer.state_dict())
 
     def load_optim_state_dict(self, state_dict):
         self.q_optimizer.load_state_dict(state_dict["q"])
