@@ -457,8 +457,8 @@ def record_tabular_misc_stat(key, values, placement='back'):
         record_tabular(prefix + "/Min" + suffix, np.min(values))
         record_tabular(prefix + "/Max" + suffix, np.max(values))
     else:
-        record_tabular(prefix + "Average" + suffix, np.nan)
-        record_tabular(prefix + "Std" + suffix, np.nan)
-        record_tabular(prefix + "Median" + suffix, np.nan)
-        record_tabular(prefix + "Min" + suffix, np.nan)
-        record_tabular(prefix + "Max" + suffix, np.nan)
+        record_tabular(prefix + "/Average" + suffix, np.nan)
+        record_tabular(prefix + "/Std" + suffix, np.nan)
+        record_tabular(prefix + "/Median" + suffix, np.nan)
+        record_tabular(prefix + "/Min" + suffix, np.nan)
+        record_tabular(prefix + "/Max" + suffix, np.nan)
