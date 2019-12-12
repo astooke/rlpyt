@@ -17,6 +17,7 @@ The sections are organized as...
    :maxdepth: 1
    :caption: Contents:
 
+   pages/base.rst
    pages/runner.rst
 
 
