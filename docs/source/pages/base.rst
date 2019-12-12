@@ -14,12 +14,14 @@ Runner
    :members: train
 
 
-The runner orchestrates all the other components to run the training loop.  During startup it initializes the sampler, algorithm, and agent.  It exposes a ``train()`` method which conducts an entire RL training run.  The implemented runners all alternate between gathering experience using the ``sampler.obtain_samples()`` method and training the agent using the ``algo.optimize_agent()`` method.  The runner also manages logging to record agent performance during training.  Different runner classes may be used depending on hardware configuration (e.g. multi-GPU) and agent evaluation mode (i.e. offline vs online).
 
 
 Algorithm
 ---------
-The algorithm performs all processing of gathered samples for the purpose of training the agent, through the ``optimize_agent()`` method.  The ``optim_state_dict()`` and ``load_optim_state_dict()`` methods should return/load optimizer state, e.g. RMSProp or Adam parameters.
+
+.. autoclass:: rlpyt.algos.base.RlAlgorithm
+    :members: initialize, async_initialize, optim_initialize, optimize_agent, optim_state_dict, load_optim_state_dict
+
 
 
 Agent

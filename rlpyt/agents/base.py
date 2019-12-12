@@ -15,11 +15,34 @@ AgentStep = namedarraytuple("AgentStep", ["action", "agent_info"])
 
 
 class BaseAgent:
+    """
+    The agent performs many functions, including: action-selection during
+    sampling, returning policy-related values to use in training (e.g. action
+    probabilities), storing recurrent state during sampling, managing model
+    device, and performing model parameter communication between processes.
+    The agent is both interfaces: sampler<-->neural network<-->algorithm.
+    Typically, each algorithm and environment combination will require at
+    least some of its own agent functionality.
 
+    The base agent automatically carries out some of these roles.  It assumes
+    there is one neural network model.  Agents using multiple models might
+    need to extend certain funcionality to include those models, according to
+    whether they are trained.
+    """
+    
     recurrent = False
     alternating = False
 
     def __init__(self, ModelCls=None, model_kwargs=None, initial_model_state_dict=None):
+        """
+        Arguments are saved but no model initialization occurs.
+
+        Args:
+            ModelCls: The model class to be used.
+            model_kwargs (optional): Any keyword arguments to pass when instantiating the model.
+            initial_model_state_dict (optional): Initial model parameter values.
+        """
+
         save__init__args(locals())
         self.model = None  # type: torch.nn.Module
         self.shared_model = None
