@@ -29,7 +29,9 @@ class ScaleGrad(torch.autograd.Function):
         return grad_output * ctx.scale, None
 
 
-scale_grad = ScaleGrad.apply
+# scale_grad = ScaleGrad.apply
+# Supply a dummy for documentation to render.
+scale_grad = getattr(ScaleGrad, "apply", None)
 
 
 def update_state_dict(model, state_dict, tau=1, strip_ddp=True):
