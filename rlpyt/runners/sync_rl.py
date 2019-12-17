@@ -16,6 +16,39 @@ from rlpyt.utils.synchronize import drain_queue, find_port
 
 
 class SyncRlMixin:
+    """
+    Mixin class to extend runner functionality to multi-GPU case.  Creates a
+    full replica of the sampler-algorithm-agent stack in a separate Python
+    process for each GPU.  Initializes ``torch.distributed`` to support
+    data-parallel training of the agent.  The main communication point among
+    processes is to all-reduce gradients during backpropagation, which is
+    handled implicitly within PyTorch.  There is one agent, with the same
+    parameters copied in all processes.  No data samples are communicated in
+    the implemented runners.
+
+    On GPU, uses the `NCCL` backend to communicate directly among GPUs. Can also
+    be used without GPU, as multi-CPU (MPI-like, but using the `gloo` backend).
+
+    The parallelism in the sampler is independent from the parallelism
+    here--each process will initialize its own sampler, and any one can be
+    used (serial, cpu-parallel, gpu-parallel).
+
+    The name "Sync" refers to the fact that the sampler and algorithm still
+    operate synchronously within each process (i.e. they alternate, running
+    one at a time).  
+
+    Note:
+       Weak scaling is implemented for batch sizes.  The batch size input
+       argument to the sampler and to the algorithm classes are used in each
+       process, so the actual batch sizes are `(world_size * batch_size)`.
+       The world size is readily available from ``torch.distributed``, so can
+       change this if desired.
+
+    Note: 
+       The ``affinities`` input is expected to be a list, with a seprate
+       affinity dict for each process. The number of processes is taken from
+       the length of the affinities list.
+    """
 
     def startup(self):
         self.launch_workers()
@@ -25,6 +58,13 @@ class SyncRlMixin:
         return n_itr
 
     def launch_workers(self):
+        """
+        As part of startup, fork a separate Python process for each additional
+        GPU; the master process runs on the first GPU.  Initialize
+        ``torch.distributed`` so the ``DistributedDataParallel`` wrapper can
+        work--also makes ``torch.distributed`` avaiable for other
+        communication.
+        """
         self.affinities = self.affinity
         self.affinity = self.affinities[0]
         self.world_size = world_size = len(self.affinities)
@@ -71,6 +111,10 @@ class SyncRlMixin:
 
 
 class SyncRl(SyncRlMixin, MinibatchRl):
+    """
+    Multi-process RL with online agent performance tracking.  Trajectory info is
+    collected from all processes and is included in logging.
+    """
 
     @property
     def WorkerCls(self):
@@ -82,6 +126,10 @@ class SyncRl(SyncRlMixin, MinibatchRl):
 
 
 class SyncRlEval(SyncRlMixin, MinibatchRlEval):
+    """
+    Multi-process RL with offline agent performance evaluation.  Only the
+    master process runs agent evaluation.
+    """
 
     @property
     def WorkerCls(self):

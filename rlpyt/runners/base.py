@@ -9,6 +9,7 @@ class BaseRunner:
 
     def train(self):
         """
-        Entry point to conduct an entire RL training run.
+        Entry point to conduct an entire RL training run, to be called in a
+        launch script after instantiating all components: algo, agent, sampler.
         """
         raise NotImplementedError

@@ -19,6 +19,47 @@ THROTTLE_WAIT = 0.05
 
 
 class AsyncRlBase(BaseRunner):
+    """
+    Runs sampling and optimization asynchronously in separate Python
+    processes.  May be useful to achieve higher hardware utilization, e.g.
+    CPUs fully busy simulating the environment while GPU fully busy training
+    the agent (there's no reason to use this CPU-only).  This setup is
+    significantly more complicated than the synchronous (single- or multi-GPU)
+    runners, requires use of the asynchronous sampler, and may require special
+    methods in the algorithm.
+
+    Further parallelization within the sampler and optimizer are independent.
+    The asynchronous sampler can be serial, cpu-parallel, gpu-parallel, or
+    multi-gpu-parallel.  The optimizer can be single- or multi-gpu.
+
+    The algorithm must initialize a replay buffer on OS shared memory.  The
+    asynchronous sampler will allocate minibatch buffers on OS shared memory,
+    and yet another Python process is run to copy the completed minibatches
+    over to the algorithm's replay buffer.  While that memory copy is
+    underway, the sampler immediately begins gathering the next minibatch.
+
+    Care should be taken to balance the rate at which the algorithm runs against
+    the rate of the sampler, as this can affect learning performance.  In the existing
+    implementations, the sampler runs at full speed, and the algorithm may be throttled
+    not to exceed the specified relative rate.  This is set by the algorithm's ``replay_ratio``,
+    which becomes the upper bound on the amount of training samples used in ratio with
+    the amount of samples generated.  (In synchronous mode, the replay ratio is enforced 
+    more precisely by running a fixed batch size and number of updates per iteration.)
+
+    The master process runs the (first) training GPU and performs all logging.
+
+    Within the optimizer, one agent exists.  If multi-GPU, the same parameter
+    values are copied across all GPUs, and PyTorch's DistributedDataParallel
+    is used to all-reduce gradients (as in the synchronous multi-GPU runners).
+    Within the sampler, one agent exists.  If new agent parameters are
+    available from the optimizer between sampler minibatches, then those
+    values are copied into the sampler before gathering the next minibatch.
+
+    Note: 
+        The ``affinity`` argument should be a structure with ``sampler`` and
+        ``optimizer`` attributes holding the respective hardware allocations.
+        Optimizer and sampler parallelization is determined from this.
+    """
 
     _eval = False
 
@@ -37,6 +78,12 @@ class AsyncRlBase(BaseRunner):
         save__init__args(locals())
 
     def train(self):
+        """
+        Run the optimizer in a loop.  Check whether enough new samples have
+        been generated, and throttle down if necessary at each iteration.  Log
+        at an interval in the number of sampler iterations, not optimizer
+        iterations.
+        """
         throttle_itr, delta_throttle_itr = self.startup()
         throttle_time = 0.
         sampler_itr = itr = 0
@@ -84,6 +131,11 @@ class AsyncRlBase(BaseRunner):
         self.shutdown()
 
     def startup(self):
+        """
+        Calls ``sampler.async_initialize()`` to get a double buffer for minibatches,
+        followed by ``algo.async_initialize()`` to get a replay buffer on shared memory,
+        then launches all workers (sampler, optimizer, memory copier).
+        """
         if self.seed is None:
             self.seed = make_seed()
         set_seed(self.seed)
@@ -109,6 +161,11 @@ class AsyncRlBase(BaseRunner):
         return throttle_itr, delta_throttle_itr
 
     def optim_startup(self):
+        """
+        Sets the hardware affinity, moves the agent's model parameters onto
+        device and initialize data-parallel agent, if applicable.  Computes
+        optimizer throttling settings.
+        """
         main_affinity = self.affinity.optimizer[0]
         p = psutil.Process()
         if main_affinity.get("set_affinity", True):
@@ -145,6 +202,10 @@ class AsyncRlBase(BaseRunner):
         return n_itr
 
     def build_ctrl(self, world_size):
+        """
+        Builds several parallel communication mechanisms for controlling the
+        workflow across processes.
+        """
         opt_throttle = (mp.Barrier(world_size) if world_size > 1 else
             None)
         return AttrDict(
@@ -158,6 +219,10 @@ class AsyncRlBase(BaseRunner):
         )
 
     def launch_optimizer_workers(self, n_itr):
+        """
+        If multi-GPU optimization, launches an optimizer worker for each GPU
+        and initializes ``torch.distributed.``
+        """
         if self.world_size == 1:
             return
         offset = self.affinity.optimizer[0].get("master_cpus", [0])[0]
@@ -186,6 +251,11 @@ class AsyncRlBase(BaseRunner):
         self.optimizer_procs = procs
 
     def launch_memcpy(self, sample_buffers, replay_buffer):
+        """
+        Fork a Python process for each of the sampler double buffers.  (It may
+        be overkill to use two separate processes here, may be able to simplify
+        to one and still get good performance.)
+        """
         procs = list()
         for i in range(len(sample_buffers)):  # (2 for double-buffer.)
             ctrl = AttrDict(
@@ -327,6 +397,9 @@ class AsyncRlBase(BaseRunner):
 
 
 class AsyncRl(AsyncRlBase):
+    """
+    Asynchronous RL with online agent performance tracking.
+    """
 
     def __init__(self, *args, log_traj_window=100, **kwargs):
         super().__init__(*args, **kwargs)
@@ -356,6 +429,9 @@ class AsyncRl(AsyncRlBase):
 
 
 class AsyncRlEval(AsyncRlBase):
+    """
+    Asynchronous RL with offline agent performance evaluation.
+    """
 
     _eval = True
 
@@ -433,6 +509,13 @@ class AsyncOptWorker:
 
 
 def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
+    """
+    Target function for the process which will run the sampler, in the case of
+    online performance logging.  Toggles the sampler's double-buffer for each
+    iteration, waits for the memory copier to finish before writing into that
+    buffer, and signals the memory copier when the sampler is done writing a
+    minibatch.
+    """
     sampler.initialize(affinity)
     db_idx = 0
     for itr in range(n_itr):
@@ -453,6 +536,9 @@ def run_async_sampler(sampler, affinity, ctrl, traj_infos_queue, n_itr):
 
 def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
         n_itr, eval_itrs):
+    """
+    Target function running the sampler with offline performance evaluation.
+    """
     sampler.initialize(affinity)
     db_idx = 0
     for itr in range(n_itr + 1):  # +1 to get last eval :)
@@ -481,13 +567,33 @@ def run_async_sampler_eval(sampler, affinity, ctrl, traj_infos_queue,
 
 
 def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
-    # Needed on some systems to avoid mysterious hang.
-    # (Experienced hang on Ubuntu Server 16.04 machines (but not Desktop) when
-    # appending samples to make replay buffer full, but only for batch_B > 84
-    # (dqn + r2d1 atari), regardless of replay size or batch_T.  Would seem to
-    # progress through all code in replay.append_samples() but simply would
-    # not return from it.  Some tipping point for MKL threading?)
+    """
+    Target function for the process which will copy the sampler's minibatch buffer
+    into the algorithm's main replay buffer.
+
+    Args:
+        sample_buffer: The (single) minibatch buffer from the sampler, on shared memory.
+        samples_to_buffer:  A function/method from the algorithm to process samples from the minibatch buffer into the replay buffer (e.g. select which fields, compute some prioritization).
+        replay_buffer: Algorithm's main replay buffer, on shared memory.
+        ctrl: Structure for communicating when the minibatch is ready to copy/done copying.
+    Warning:
+        Although this function may use the algorithm's ``samples_to_buffer()``
+        method, here it is running in a separate process, so will not be aware
+        of changes in the algorithm from the optimizer process.  Furthermore,
+        it may not be able to store state across iterations--in the
+        implemented setup, two separate memory copier processes are used, so
+        each one only sees every other minibatch.  (Could easily change to
+        single copier if desired, and probably without peformance loss.)
+
+    """
+    # Needed on some systems to avoid mysterious hang:
     torch.set_num_threads(1)
+    # (Without torch.set_num_threads, experienced hang on Ubuntu Server 16.04
+    # machines (but not Desktop) when appending samples to make replay buffer
+    # full, but only for batch_B > 84 (dqn + r2d1 atari), regardless of replay
+    # size or batch_T.  Would seem to progress through all code in
+    # replay.append_samples() but simply would not return from it.  Some
+    # tipping point for MKL threading?)
     while True:
         ctrl.sample_ready.acquire()
         # assert not ctrl.sample_ready.acquire(block=False)  # Debug check.
@@ -496,3 +602,8 @@ def memory_copier(sample_buffer, samples_to_buffer, replay_buffer, ctrl):
         replay_buffer.append_samples(samples_to_buffer(sample_buffer))
         ctrl.sample_copied.release()
     logger.log("Memory copier shutting down.")
+
+
+def placeholder(x):
+
+    pass

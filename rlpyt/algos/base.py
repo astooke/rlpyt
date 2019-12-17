@@ -2,9 +2,9 @@
 
 class RlAlgorithm:
     """
-    Performs any processing of gathered samples to train the agent, for
-    example constructing TD-errors and performing gradient descent on the
-    agent's model parameters.
+    Trains the agent using gathered samples, for example by constructing
+    TD-errors and performing gradient descent on the agent's model parameters.
+    Includes pre-processing of samples e.g. discounting returns.
     """
 
     opt_info_fields = ()
@@ -14,7 +14,7 @@ class RlAlgorithm:
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
             world_size=1, rank=0):
         """
-        Called in the ``runner`` to do any setup before starting to train.
+        Typically called in the runner during startup.
         
         Args:
             agent: The learning agent instance.
@@ -36,12 +36,21 @@ class RlAlgorithm:
 
     def optim_initialize(self, rank=0):
         """Called in async runner which requires two stages of initialization;
-        might also be used in ``initialize().`` to avoid redundant code."""
+        might also be used in ``initialize()`` to avoid redundant code."""
         raise NotImplementedError
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
-        """Train the agent for some number of parameter updates, e.g. either
-        using new samples or a replay buffer; called in the runner's training loop."""
+        """
+        Train the agent for some number of parameter updates, e.g. either
+        using new samples or a replay buffer.
+
+        Typically called in the runner's training loop.
+
+        Args:
+            itr (int): Iteration of the training loop.
+            samples: New samples from the sampler (for ``None`` case, see async runner).
+            sampler_itr:  For case other than ``None``, see async runner.
+        """
         raise NotImplementedError
 
     def optim_state_dict(self):

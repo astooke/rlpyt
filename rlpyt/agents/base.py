@@ -26,8 +26,8 @@ class BaseAgent:
 
     The base agent automatically carries out some of these roles.  It assumes
     there is one neural network model.  Agents using multiple models might
-    need to extend certain funcionality to include those models, according to
-    whether they are trained.
+    need to extend certain funcionality to include those models, depending on
+    how they are used.
     """
     
     recurrent = False
@@ -57,17 +57,35 @@ class BaseAgent:
         self._recv_count = 0
 
     def __call__(self, observation, prev_action, prev_reward):
-        """Returns values from model forward pass on training data."""
+        """Returns values from model forward pass on training data (i.e. used
+        in algorithm)."""
         raise NotImplementedError
 
     def initialize(self, env_spaces, share_memory=False, **kwargs):
-        """In this default setup, self.model is treated as the model needed
-        for action selection, so it is the only one shared with workers."""
+        """
+        Instantiates the neural net model(s) according to the environment
+        interfaces.  
+
+        Uses shared memory as needed--e.g. in CpuSampler, workers have a copy
+        of the agent for action-selection.  The workers automatically hold
+        up-to-date parameters in ``model``, because they exist in shared
+        memory, constructed here before worker processes fork. Agents with
+        additional model components (beyond ``self.model``) for
+        action-selection should extend this method to share those, as well.
+
+        Typically called in the sampler during startup.
+
+        Args:
+            env_spaces: passed to ``make_env_to_model_kwargs()``, typically namedtuple of 'observation' and 'action'.
+            share_memory (bool): whether to use shared memory for model parameters.
+        """
         self.env_model_kwargs = self.make_env_to_model_kwargs(env_spaces)
         self.model = self.ModelCls(**self.env_model_kwargs,
             **self.model_kwargs)
         if share_memory:
             self.model.share_memory()
+            # Store the shared_model (CPU) under a separate name, in case the
+            # model gets moved to GPU later:
             self.shared_model = self.model
         if self.initial_model_state_dict is not None:
             self.model.load_state_dict(self.initial_model_state_dict)
@@ -75,10 +93,18 @@ class BaseAgent:
         self.share_memory = share_memory
 
     def make_env_to_model_kwargs(self, env_spaces):
+        """Generate any keyword args to the model which depend on environment interfaces."""
         return {}
 
     def to_device(self, cuda_idx=None):
-        """Overwite/extend for format other than 'self.model' for network(s)."""
+        """Moves the model to the specified cuda device, if not ``None``.  If
+        sharing memory, instantiates a new model to preserve the shared (CPU)
+        model.  Agents with additional model components (beyond
+        ``self.model``) for action-selection or for use during training should
+        extend this method to move those to the device, as well.
+
+        Typically called in the runner during startup.
+        """
         if cuda_idx is None:
             return
         if self.shared_model is not None:
@@ -90,8 +116,15 @@ class BaseAgent:
         logger.log(f"Initialized agent model on device: {self.device}.")
 
     def data_parallel(self):
-        """Overwrite/extend for format other than 'self.model' for network(s)
-        which will have gradients through them."""
+        """Wraps the model with PyTorch's DistributedDataParallel.  The
+        intention is for rlpyt to create a separate Python process to drive
+        each GPU (or CPU-group for CPU-only, MPI-like configuration). Agents
+        with additional model components (beyond ``self.model``) which will
+        have gradients computed through them should extend this method to wrap
+        those, as well.
+
+        Typically called in the runner during startup.
+        """
         if self.device.type == "cpu":
             self.model = DDPC(self.model)
             logger.log("Initialized DistributedDataParallelCPU agent model.")
@@ -102,8 +135,18 @@ class BaseAgent:
                 f"device {self.device}.")
 
     def async_cpu(self, share_memory=True):
-        """Shared model among sampler processes separate from shared model
-        in optimizer process, so sampler can copy under lock."""
+        """Used in async runner only; creates a new model instance to be used
+        in the sampler, separate from the model shared with the optimizer
+        process.  The sampler can operate asynchronously, and choose when to
+        copy the optimizer's (shared) model parameters into its model (under
+        read-write lock). The sampler model may be stored in shared memory,
+        as well, to instantly share values with sampler workers.  Agents with
+        additional model components (beyond ``self.model``) should extend this
+        method to do the same with those, if using in asynchronous mode.
+
+        Typically called in the runner during startup.
+
+        TODO: double-check wording if this happens in sampler and optimizer."""
         if self.device.type != "cpu":
             return
         assert self.shared_model is not None
@@ -116,11 +159,13 @@ class BaseAgent:
         logger.log("Initialized async CPU agent model.")
 
     def collector_initialize(self, global_B=1, env_ranks=None):
-        """If need to initialize within CPU sampler (e.g. vector eps greedy)"""
+        """If needed to initialize within CPU sampler (e.g. vector epsilon-greedy,
+        see EpsilonGreedyAgent for details)."""
         pass
 
     @torch.no_grad()  # Hint: apply this decorator on overriding method.
     def step(self, observation, prev_action, prev_reward):
+        """Returns selected actions for environment instances in sampler."""
         raise NotImplementedError  # return type: AgentStep
 
     def reset(self):
@@ -134,14 +179,15 @@ class BaseAgent:
         return self.model.parameters()
 
     def state_dict(self):
-        """Parameters for saving."""
+        """Returns model parameters for saving."""
         return self.model.state_dict()
 
     def load_state_dict(self, state_dict):
+        """Load model parameters, should expect format returned from ``state_dict()``."""
         self.model.load_state_dict(state_dict)
 
     def train_mode(self, itr):
-        """Go into training mode."""
+        """Go into training mode (e.g. see PyTorch's ``Module.train()``)."""
         self.model.train()
         self._mode = "train"
 
@@ -151,18 +197,30 @@ class BaseAgent:
         self._mode = "sample"
 
     def eval_mode(self, itr):
-        """Go into evaluation mode."""
+        """Go into evaluation mode.  Example use could be to adjust epsilon-greedy."""
         self.model.eval()
         self._mode = "eval"
 
     def sync_shared_memory(self):
-        """Call in sampler master (non-async), after initialize(share_memory=True)."""
+        """Copies model parameters into shared_model, e.g. to make new values
+        available to sampler workers.  If running CPU-only, these will be the
+        same object--no copy necessary.  If model is on GPU, copy to CPU is
+        performed. (Requires ``initialize(share_memory=True)`` called
+        previously.  Not used in async mode.
+
+        Typically called in the XXX during YY.
+        """
         if self.shared_model is not self.model:  # (self.model gets trained)
             self.shared_model.load_state_dict(strip_ddp_state_dict(
                 self.model.state_dict()))
 
     def send_shared_memory(self):
-        """Used in async mode."""
+        """Used in async mode only, in optimizer process; copies parameters
+        from trained model (maybe GPU) to shared model, which the sampler can
+        access. Does so under write-lock, and increments send-count which sampler
+        can check.
+
+        Typically called in the XXX during YY."""
         if self.shared_model is not self.model:
             with self._rw_lock.write_lock:
                 self.shared_model.load_state_dict(
@@ -170,7 +228,12 @@ class BaseAgent:
                 self._send_count.value += 1
 
     def recv_shared_memory(self):
-        """Used in async mode."""
+        """Used in async mode, in sampler process; copies parameters from
+        model shared with optimizer into local model, if shared model has been
+        updated.  Does so under read-lock.  (Local model might also be shared
+        with sampler workers).
+
+        Typically called in the XXX during YY."""
         if self.shared_model is not self.model:
             with self._rw_lock:
                 if self._recv_count < self._send_count.value:
@@ -186,8 +249,11 @@ AgentInputsRnn = namedarraytuple("AgentInputsRnn",  # Training only.
 
 
 class RecurrentAgentMixin:
-    """Manages recurrent state during sampling, so sampler remains agnostic."""
-
+    """
+    Mixin class to manage recurrent state during sampling (so the sampler
+    remains agnostic).  To be used like ``class
+    MyRecurrentAgent(RecurrentAgentMixin, MyAgent):``.
+    """
     recurrent = True
 
     def __init__(self, *args, **kwargs):
@@ -196,14 +262,20 @@ class RecurrentAgentMixin:
         self._sample_rnn_state = None  # Store during eval.
 
     def reset(self):
-        self._prev_rnn_state = None  # Gets passed as None; module makes zeros.
+        """Sets the recurrent state to ``None``, which built-in PyTorch
+        modules conver to zeros."""
+        self._prev_rnn_state = None
 
     def reset_one(self, idx):
-        # Assume rnn_state is cudnn-compatible shape: [N,B,H]
+        """Sets the recurrent state corresponding to one environment instance
+        to zero.  Assumes rnn state is in cudnn-compatible shape: [N,B,H],
+        where B corresponds to environment index."""
         if self._prev_rnn_state is not None:
             self._prev_rnn_state[:, idx] = 0  # Automatic recursion in namedarraytuple.
 
     def advance_rnn_state(self, new_rnn_state):
+        """Sets the recurrent state to the newly computed one (i.e. recurrent agents should
+        call this at the end of their ``step()``). """
         self._prev_rnn_state = new_rnn_state
 
     @property
@@ -211,17 +283,20 @@ class RecurrentAgentMixin:
         return self._prev_rnn_state
 
     def train_mode(self, itr):
+        """If coming from sample mode, store the rnn state elsewhere and clear it."""
         if self._mode == "sample":
             self._sample_rnn_state = self._prev_rnn_state
         self._prev_rnn_state = None
         super().train_mode(itr)
 
     def sample_mode(self, itr):
+        """If coming from non-sample modes, restore the last sample-mode rnn state."""
         if self._mode != "sample":
             self._prev_rnn_state = self._sample_rnn_state
         super().sample_mode(itr)
 
     def eval_mode(self, itr):
+        """If coming from sample mode, store the rnn state elsewhere and clear it."""
         if self._mode == "sample":
             self._sample_rnn_state = self._prev_rnn_state
         self._prev_rnn_state = None
@@ -229,10 +304,14 @@ class RecurrentAgentMixin:
 
 
 class AlternatingRecurrentAgentMixin:
-    """Maintain an alternating pair of recurrent states to use when stepping.
-    Automatically swap them out when step() is called, so it behaves like regular
-    recurrent agent.  Should use only in alternating samplers (no special class
-    needed for feedforward agents)."""
+    """
+    Maintain an alternating pair of recurrent states to use when stepping in
+    the sampler. Automatically swap them out when ``advance_rnn_state()`` is
+    called, so it otherwise behaves like regular recurrent agent.  Should use
+    only in alternating samplers, where two sets of environment instances take
+    turns stepping (no special class needed for feedforward agents).  Use in
+    place of ``RecurrentAgentMixin``.
+    """
 
     recurrent = True
     alternating = True

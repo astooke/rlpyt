@@ -2,29 +2,35 @@
 Base Classes and Interfaces
 ===========================
 
-This page describes the base classes for several main components: runner, algorithm, agent, and environment, including how they are intended to interact.  More details on specific instances of these components appear in following pages.
+This page describes the base classes for three main components: algorithm, agent, and environment.  These are the most likely to need modification for a new project.  Intended interfaces to the infrastructure code (i.e. runner and sampler) are specified here.  More details on specific instances of these components appear in following pages.
 
-Commonly, these classes will simply store their keyword arguments when instantiated, and actual initialization occurs in methods to be called later.
-
-
-Runner
-------
-
-.. autoclass:: rlpyt.runners.base.BaseRunner
-   :members: train
+Commonly, these classes will simply store their keyword arguments when instantiated, and actual initialization occurs in methods to be called later by the runner or sampler.  
 
 
-
-
-Algorithm
----------
+Algorithms
+----------
 
 .. autoclass:: rlpyt.algos.base.RlAlgorithm
     :members: initialize, async_initialize, optim_initialize, optimize_agent, optim_state_dict, load_optim_state_dict
 
 
+Environments
+------------
 
-Agent
------
-The agent class performs many functions, including: action-selection during sampling, returning policy-relevant values to use in training (e.g. action probabilities), storing recurrent state during sampling, managing model device, and performing model parameter communication between processes.  The agent is the interface between neural network and sampler and between neural network and algorithm.  Typically, each algorithm and environment combination will require its own agent functionality.
+.. autoclass:: rlpyt.envs.base.Env
+    :members: step, reset, action_space, observation_space
 
+
+Agents
+------
+
+.. autoclass:: rlpyt.agents.base.BaseAgent
+    :members: __init__, __call__, initialize, make_env_to_model_kwargs, to_device, data_parallel, async_cpu, step, state_dict, load_state_dict, train_mode, sample_mode, eval_mode, sync_shared_memory, send_shared_memory, recv_shared_memory
+
+Recurrent Agents
+^^^^^^^^^^^^^^^^
+
+.. autoclass:: rlpyt.agents.base.RecurrentAgentMixin
+    :members: reset, reset_one, advance_rnn_state, train_mode, sample_mode, eval_mode
+
+.. autoclass:: rlpyt.agents.base.AlternatingRecurrentAgentMixin

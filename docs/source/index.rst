@@ -14,7 +14,7 @@ The sections are organized as...
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
    pages/base.rst

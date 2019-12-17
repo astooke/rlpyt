@@ -13,6 +13,20 @@ from rlpyt.utils.prog_bar import ProgBarCounter
 
 
 class MinibatchRlBase(BaseRunner):
+    """
+    Implements startup, logging, and agent checkpointing functionality, to be
+    called in the `train()` method of the subclassed runner.  Subclasses will
+    modify/extend many of the methods here.
+
+    Args:
+        algo: The algorithm instance.
+        agent: The learning agent instance.
+        sampler: The sampler instance.
+        n_steps (int): Total number of environment steps to run in training loop.
+        seed (int): Random seed to use, if ``None`` will generate randomly.
+        affinity (dict): Hardware component assignments for sampler and algorithm.
+        log_interval_steps (int): Number of environment steps between logging to csv.
+    """
 
     _eval = False
 
@@ -33,6 +47,11 @@ class MinibatchRlBase(BaseRunner):
         self.min_itr_learn = getattr(self.algo, 'min_itr_learn', 0)
 
     def startup(self):
+        """
+        Sets hardware affinities, initializes the following: 1) sampler (which
+        should initialize the agent), 2) agent device and data-parallel wrapper (if applicable),
+        3) algorithm, 4) logger.
+        """
         p = psutil.Process()
         try:
             if (self.affinity.get("master_cpus", None) is not None and
@@ -79,11 +98,21 @@ class MinibatchRlBase(BaseRunner):
         return n_itr
 
     def get_traj_info_kwargs(self):
+        """
+        Pre-defines any TrajInfo attributes needed from elsewhere e.g.
+        algorithm discount factor.
+        """
         return dict(discount=getattr(self.algo, "discount", 1))
 
     def get_n_itr(self):
+        """
+        Determine number of train loop iterations to run.  Converts logging
+        interval units from environment steps to iterations.
+        """
+        # Log at least as often as requested (round down itrs):
         log_interval_itrs = max(self.log_interval_steps //
             self.itr_batch_size, 1)
+        # FIXME: To run at least as many steps as requested, round up log interval?
         n_itr = math.ceil(self.n_steps / self.log_interval_steps) * log_interval_itrs
         self.log_interval_itrs = log_interval_itrs
         self.n_itr = n_itr
@@ -103,6 +132,10 @@ class MinibatchRlBase(BaseRunner):
         self.sampler.shutdown()
 
     def get_itr_snapshot(self, itr):
+        """
+        Returns all state needed for full checkpoint/snapshot of training run,
+        including agent parameters and optimizer parameters.
+        """
         return dict(
             itr=itr,
             cum_steps=itr * self.sampler.batch_size * self.world_size,
@@ -111,12 +144,20 @@ class MinibatchRlBase(BaseRunner):
         )
 
     def save_itr_snapshot(self, itr):
+        """
+        Calls the logger to save training checkpoint/snapshot (logger itself
+        may or may not save, depending on mode selected).
+        """
         logger.log("saving snapshot...")
         params = self.get_itr_snapshot(itr)
         logger.save_itr_params(itr, params)
         logger.log("saved")
 
     def store_diagnostics(self, itr, traj_infos, opt_info):
+        """
+        Store any diagnostic information from a training iteration that should
+        be kept for the next logging iteration.
+        """
         self._cum_completed_trajs += len(traj_infos)
         for k, v in self._opt_infos.items():
             new_v = getattr(opt_info, k, [])
@@ -124,6 +165,9 @@ class MinibatchRlBase(BaseRunner):
         self.pbar.update((itr + 1) % self.log_interval_itrs)
 
     def log_diagnostics(self, itr, traj_infos=None, eval_time=0):
+        """
+        Write diagnostics (including stored ones) to csv via the logger.
+        """
         if itr > 0:
             self.pbar.stop()
         if itr >= self.min_itr_learn - 1:
@@ -166,6 +210,10 @@ class MinibatchRlBase(BaseRunner):
             self.pbar = ProgBarCounter(self.log_interval_itrs)
 
     def _log_infos(self, traj_infos=None):
+        """
+        Writes trajectory info and optimizer info into csv via the logger.
+        Resets stored optimizer info.
+        """
         if traj_infos is None:
             traj_infos = self._traj_infos
         if traj_infos:
@@ -181,14 +229,25 @@ class MinibatchRlBase(BaseRunner):
 
 
 class MinibatchRl(MinibatchRlBase):
-    """Runs RL on minibatches; tracks performance online using learning
-    trajectories."""
+    """
+    Runs RL on minibatches; tracks performance online using learning
+    trajectories.
+    """
 
     def __init__(self, log_traj_window=100, **kwargs):
+        """
+        Args: 
+            log_traj_window (int): How many trajectories to hold in deque for computing performance statistics.
+        """
         super().__init__(**kwargs)
         self.log_traj_window = int(log_traj_window)
 
     def train(self):
+        """
+        Performs startup, then loops by alternating between
+        ``sampler.obtain_samples()`` and ``algo.optimize_agent()``, logging
+        diagnostics at the specified interval.
+        """
         n_itr = self.startup()
         for itr in range(n_itr):
             with logger.prefix(f"itr #{itr} "):
@@ -222,12 +281,20 @@ class MinibatchRl(MinibatchRlBase):
 
 
 class MinibatchRlEval(MinibatchRlBase):
-    """Runs RL on minibatches; tracks performance offline using evaluation
-    trajectories."""
+    """
+    Runs RL on minibatches; tracks performance offline using evaluation
+    trajectories.
+    """
 
     _eval = True
 
     def train(self):
+        """
+        Performs startup, evaluates the initial agent, then loops by
+        alternating between ``sampler.obtain_samples()`` and
+        ``algo.optimize_agent()``.  Pauses to evaluate the agent at the
+        specified log interval.
+        """
         n_itr = self.startup()
         with logger.prefix(f"itr #0 "):
             eval_traj_infos, eval_time = self.evaluate_agent(0)
@@ -245,6 +312,9 @@ class MinibatchRlEval(MinibatchRlBase):
         self.shutdown()
 
     def evaluate_agent(self, itr):
+        """
+        Record offline evaluation of agent performance, by ``sampler.evaluate_agent()``.
+        """
         if itr > 0:
             self.pbar.stop()
 
