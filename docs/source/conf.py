@@ -59,4 +59,5 @@ master_doc = 'index'
 
 autodoc_member_order = 'bysource'
 
-autodoc_mock_imports = ['torch', 'numpy', 'psutil', 'opencv', 'atari-py', 'pyprind']
+autodoc_mock_imports = ['torch', 'numpy', 'psutil', 'opencv', 'atari-py', 'pyprind',
+    'torch.autograd.Function.apply']
