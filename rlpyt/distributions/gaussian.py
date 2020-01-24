@@ -17,8 +17,8 @@ class Gaussian(Distribution):
     Standard deviation can be provided, as scalar or value per dimension, or it
     will be drawn from the dist_info (possibly learnable), where it is expected
     to have a value per each dimension.
-    Noise and sample clipping optional during sampling, but not accounted for in
-    formulas (e.g. entropy).
+    Noise clipping or sample clipping optional during sampling, but not
+    accounted for in formulas (e.g. entropy).
     Clipping of standard deviation optional and accounted in formulas.
     Squashing of samples to squash * tanh(sample) is optional and accounted for
     in log_likelihood formula but not entropy.
@@ -34,6 +34,7 @@ class Gaussian(Distribution):
             max_std=None,
             squash=None,  # None or > 0
             ):
+        """Saves input arguments."""
         self._dim = dim
         self.set_std(std)
         self.clip = clip
@@ -78,6 +79,9 @@ class Gaussian(Distribution):
         return valid_mean(self.kl(old_dist_info, new_dist_info), valid)
 
     def entropy(self, dist_info):
+        """Uses ``self.std`` unless that is None, then will get log_std from dist_info.  Not
+        implemented for squashing.
+        """
         if self.squash is not None:
             raise NotImplementedError
         if self.std is None:
@@ -102,6 +106,11 @@ class Gaussian(Distribution):
         return valid_mean(self.perplexity(dist_info), valid)
 
     def log_likelihood(self, x, dist_info):
+        """
+        Uses ``self.std`` unless that is None, then uses log_std from dist_info.
+        When squashing: instead of numerically risky arctanh, assume param
+        'x' is pre-squash action, see ``sample_loglikelihood()`` below.
+        """
         mean = dist_info.mean
         if self.std is None:
             log_std = dist_info.log_std
@@ -130,6 +139,12 @@ class Gaussian(Distribution):
         return torch.exp(logli_new - logli_old)
 
     def sample_loglikelihood(self, dist_info):
+        """
+        Special method for use with SAC algorithm, which returns a new sampled 
+        action and its log-likelihood for training use.  Temporarily turns OFF
+        squashing, so that log_likelihood can be computed on non-squashed sample,
+        and then restores squashing and applies it to the sample before output.
+        """
         squash = self.squash
         self.squash = None  # Temporarily turn OFF, raw sample into log_likelihood.
         sample = self.sample(dist_info)
@@ -168,6 +183,11 @@ class Gaussian(Distribution):
         # return sample, logli
 
     def sample(self, dist_info):
+        """
+        Generate random samples using ``torch.normal``, from
+        ``dist_info.mean``. Uses ``self.std`` unless it is ``None``, then uses
+        ``dist_info.log_std``.
+        """
         mean = dist_info.mean
         if self.std is None:
             log_std = dist_info.log_std
@@ -196,17 +216,26 @@ class Gaussian(Distribution):
         return sample
 
     def set_clip(self, clip):
+        """Input value or ``None`` to turn OFF."""
         self.clip = clip  # Can be None.
         assert self.clip is None or self.squash is None
 
     def set_squash(self, squash):
+        """Input multiplicative factor for ``squash * tanh(sample)`` (usually
+        will be 1), or ``None`` to turn OFF."""
         self.squash = squash  # Can be None.
         assert self.clip is None or self.squash is None
 
     def set_noise_clip(self, noise_clip):
+        """Input value or ``None`` to turn OFF."""
         self.noise_clip = noise_clip  # Can be None.
 
     def set_std(self, std):
+        """
+        Input value, which can be same shape as action space, or else broadcastable
+        up to that shape, or ``None`` to turn OFF and use ``dist_info.log_std`` in
+        other methods.
+        """
         if std is not None:
             if not isinstance(std, torch.Tensor):
                 std = torch.tensor(std).float()  # Can be size == 1 or dim.

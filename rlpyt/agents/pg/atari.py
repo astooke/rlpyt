@@ -7,8 +7,13 @@ from rlpyt.models.pg.atari_lstm_model import AtariLstmModel
 
 
 class AtariMixin:
+    """
+    Mixin class defining which environment interface properties
+    are given to the model.
+    """
 
     def make_env_to_model_kwargs(self, env_spaces):
+        """Extract image shape and action size."""
         return dict(image_shape=env_spaces.observation.shape,
                     output_size=env_spaces.action.n)
 

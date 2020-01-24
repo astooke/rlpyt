@@ -17,7 +17,7 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
     """
     Returns a new subclass of a namedtuple which exposes indexing / slicing
     reads and writes applied to all contained objects, which must share
-    indexing (__getitem__) behavior (e.g. numpy arrays).
+    indexing (__getitem__) behavior (e.g. numpy arrays or torch tensors).
 
     (Code follows pattern of collections.namedtuple.)
 
@@ -130,6 +130,9 @@ def namedarraytuple(typename, field_names, return_namedtuple_cls=False,
     if return_namedtuple_cls:
         return result, NtCls
     return result
+
+
+DocExampleNat = namedarraytuple("DocExampleNat", ["field_1", "field_2"])
 
 
 def is_namedtuple_class(obj):

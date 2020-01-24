@@ -15,6 +15,9 @@ EVAL_TRAJ_CHECK = 0.1  # seconds.
 
 
 class ParallelSamplerBase(BaseSampler):
+    """Base class for samplers which use worker processes to run environment
+    steps in parallel, across CPU resources.
+    """
 
     gpu = False
 
@@ -33,6 +36,28 @@ class ParallelSamplerBase(BaseSampler):
             rank=0,
             worker_process=None,
             ):
+        """
+        Creates an example instance of the environment for agent initialization
+        (which may differ by sub-class) and to pre-allocate batch buffers, then deletes
+        the environment instance.  Batch buffers are allocated on shared memory, so
+        that worker processes can read/write directly to them.
+
+        Computes the number of parallel processes based on the ``affinity``
+        argument.  Forks worker processes, which instantiate their own environment
+        and collector objects.  Waits for the worker process to complete all initialization
+        (such as decorrelating environment states) before returning.  Barriers and other
+        parallel indicators are constructed to manage worker processes.
+        
+        .. warning::
+            If doing offline agent evaluation, will use at least one evaluation environment
+            instance per parallel worker, which might increase the total
+            number of evaluation instances over what was requested.  This may
+            result in bias towards shorter episodes if the episode length is
+            variable, and if the max number of evalution steps divided over the
+            number of eval environments (`eval_max_steps /
+            actual_eval_n_envs`), is not large relative to the max episode
+            length.
+        """
         n_envs_list = self._get_n_envs_list(affinity=affinity)
         self.n_worker = n_worker = len(n_envs_list)
         B = self.batch_spec.B
@@ -74,6 +99,12 @@ class ParallelSamplerBase(BaseSampler):
         return examples  # e.g. In case useful to build replay buffer.
 
     def obtain_samples(self, itr):
+        """Signal worker processes to collect samples, and wait until they
+        finish. Workers will write directly to the pre-allocated samples
+        buffer, which this method returns.  Trajectory-info objects from
+        completed trajectories are retrieved from workers through a parallel
+        queue object and are also returned.
+        """
         self.ctrl.itr.value = itr
         self.ctrl.barrier_in.wait()
         # Workers step environments and sample actions here.
@@ -82,6 +113,12 @@ class ParallelSamplerBase(BaseSampler):
         return self.samples_pyt, traj_infos
 
     def evaluate_agent(self, itr):
+        """Signal worker processes to perform agent evaluation.  If a max
+        number of evaluation trajectories was specified, keep watch over the
+        number of trajectories finished and signal an early end if the limit
+        is reached.  Return a list of trajectory-info objects from the
+        completed episodes.
+        """
         self.ctrl.itr.value = itr
         self.ctrl.do_eval.value = True
         self.sync.stop_eval.value = False

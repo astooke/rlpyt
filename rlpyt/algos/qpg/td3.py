@@ -7,6 +7,7 @@ from rlpyt.utils.tensor import valid_mean
 
 
 class TD3(DDPG):
+    """Twin delayed deep deterministic policy gradient algorithm."""
 
     def __init__(
             self,
@@ -19,6 +20,7 @@ class TD3(DDPG):
             q_learning_rate=1e-3,
             **kwargs
             ):
+        """Saved input arguments."""
         super().__init__(**kwargs)
         self._batch_size = batch_size
         del batch_size  # Property.
@@ -34,6 +36,7 @@ class TD3(DDPG):
         return ret
 
     def q_loss(self, samples, valid):
+        """Computes MSE Q-loss for twin Q-values and min of target-Q values."""
         q1, q2 = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
             target_q1, target_q2 = self.agent.target_q_at_mu(

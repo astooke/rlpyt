@@ -15,6 +15,24 @@ StepBuffer = namedarraytuple("StepBuffer",
 
 
 class GpuSamplerBase(ParallelSamplerBase):
+    """Base class for parallel samplers which use worker processes to execute
+    environment steps on CPU resources but the master process to execute agent
+    forward passes for action selection, presumably on GPU.  Use GPU-based
+    collecter classes.
+
+    In addition to the usual batch buffer for data samples, allocates a step
+    buffer over shared memory, which is used for communication with workers.
+    The step buffer includes `observations`, which the workers write and the
+    master reads, and `actions`, which the master write and the workers read.
+    (The step buffer has leading dimension [`batch_B`], for the number of 
+    parallel environments, and each worker gets its own slice along that
+    dimension.)  The step buffer object is held in both numpy array and torch
+    tensor forms over the same memory; e.g. workers write to the numpy array
+    form, and the agent is able to read the torch tensor form.
+
+    (Possibly more information about how the stepping works, but write
+    in action-server or smwr like that.)
+    """
 
     gpu = True
 
@@ -25,6 +43,10 @@ class GpuSamplerBase(ParallelSamplerBase):
             eval_CollectorCls=eval_CollectorCls, **kwargs)
 
     def obtain_samples(self, itr):
+        """Signals worker to begin environment step execution loop, and drops
+        into ``serve_actions()`` method to provide actions to workers based on
+        the new observations at each step.
+        """
         # self.samples_np[:] = 0  # Reset all batch sample values (optional).
         self.agent.sample_mode(itr)
         self.ctrl.barrier_in.wait()
@@ -34,6 +56,10 @@ class GpuSamplerBase(ParallelSamplerBase):
         return self.samples_pyt, traj_infos
 
     def evaluate_agent(self, itr):
+        """Signals workers to begin agent evaluation loop, and drops into
+        ``serve_actions_evaluation()`` to provide actions to workers at each
+        step.
+        """
         self.ctrl.do_eval.value = True
         self.sync.stop_eval.value = False
         self.agent.eval_mode(itr)
@@ -46,6 +72,9 @@ class GpuSamplerBase(ParallelSamplerBase):
         return traj_infos
 
     def _agent_init(self, agent, env, global_B=1, env_ranks=None):
+        """Initializes the agent, having it *not* share memory, because all
+        agent functions (training and sampling) happen in the master process,
+        presumably on GPU."""
         agent.initialize(env.spaces, share_memory=False,  # No share memory.
             global_B=global_B, env_ranks=env_ranks)
         self.agent = agent

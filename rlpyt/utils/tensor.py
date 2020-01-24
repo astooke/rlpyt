@@ -3,7 +3,10 @@ import torch
 
 
 def select_at_indexes(indexes, tensor):
-    """Leading dimensions of tensor must match dimensions of indexes."""
+    """Returns the contents of ``tensor`` at the multi-dimensional integer
+    array ``indexes``. Leading dimensions of ``tensor`` must match the
+    dimensions of ``indexes``.
+    """
     dim = len(indexes.shape)
     assert indexes.shape == tensor.shape[:dim]
     num = indexes.numel()
@@ -13,7 +16,9 @@ def select_at_indexes(indexes, tensor):
 
 
 def to_onehot(indexes, num, dtype=None):
-    """Dimension of size num added to the end of indexes.shape."""
+    """Converts integer values in multi-dimensional tensor ``indexes``
+    to one-hot values of size ``num``; expanded in an additional
+    trailing dimension."""
     if dtype is None:
         dtype = indexes.dtype
     onehot = torch.zeros(indexes.shape + (num,),
@@ -23,7 +28,8 @@ def to_onehot(indexes, num, dtype=None):
 
 
 def from_onehot(onehot, dim=-1, dtype=None):
-    """Selected dimension of onehot is removed by argmax."""
+    """Argmax over trailing dimension of tensor ``onehot``. Optional return
+    dtype specification."""
     indexes = torch.argmax(onehot, dim=dim)
     if dtype is not None:
         indexes = indexes.type(dtype)
@@ -31,6 +37,8 @@ def from_onehot(onehot, dim=-1, dtype=None):
 
 
 def valid_mean(tensor, valid=None, dim=None):
+    """Mean of ``tensor``, accounting for optional mask ``valid``,
+    optionally along a dimension."""
     dim = () if dim is None else dim
     if valid is None:
         return tensor.mean(dim=dim)
@@ -39,7 +47,10 @@ def valid_mean(tensor, valid=None, dim=None):
 
 
 def infer_leading_dims(tensor, dim):
-    """Param 'dim': number of non-leading dimensions in tensor.
+    """Looks for up to two leading dimensions in ``tensor``, before
+    the data dimensions, of which there are assumed to be ``dim`` number.
+    For use at beginning of model's ``forward()`` method, which should 
+    finish with ``restore_leading_dims()`` (see that function for help.)
     Returns:
     lead_dim: int --number of leading dims found.
     T: int --size of first leading dim, if two leading dims, o/w 1.
@@ -58,7 +69,13 @@ def infer_leading_dims(tensor, dim):
 
 
 def restore_leading_dims(tensors, lead_dim, T=1, B=1):
-    """Assume tensors have leading Batch dimension (might need removed)."""
+    """Reshapes ``tensors`` (one or `tuple`, `list`) to to have ``lead_dim``
+    leading dimensions, which will become [], [B], or [T,B].  Assumes input
+    tensors already have a leading Batch dimension, which might need to be
+    removed. (Typically the last layer of model will compute with leading
+    batch dimension.)  For use in model ``forward()`` method, so that output
+    dimensions match input dimensions, and the same model can be used for any
+    such case.  Use with outputs from ``infer_leading_dims()``."""
     is_seq = isinstance(tensors, (tuple, list))
     tensors = tensors if is_seq else (tensors,)
     if lead_dim == 2:  # (Put T dim.)

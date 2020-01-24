@@ -3,7 +3,14 @@ import torch
 
 
 class MlpModel(torch.nn.Module):
-    """Multilayer Perceptron with last layer linear."""
+    """Multilayer Perceptron with last layer linear.
+
+    Args:
+        input_size (int): number of inputs
+        hidden_sizes (list): can be empty list for none (linear model).
+        output_size: linear layer at output, or if ``None``, the last hidden size will be the output size and will have nonlinearity applied
+        nonlinearity: torch nonlinearity Module (not Functional).
+    """
 
     def __init__(
             self,
@@ -28,8 +35,10 @@ class MlpModel(torch.nn.Module):
             else output_size)
 
     def forward(self, input):
+        """Compute the model on the input, assuming input shape [B,input_size]."""
         return self.model(input)
 
     @property
     def output_size(self):
+        """Retuns the output size of the model."""
         return self._output_size

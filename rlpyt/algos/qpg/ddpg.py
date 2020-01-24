@@ -20,6 +20,8 @@ SamplesToBuffer = namedarraytuple("SamplesToBuffer",
 
 
 class DDPG(RlAlgorithm):
+    """Deep deterministic policy gradient algorithm, training from a replay
+    buffer."""
 
     opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
@@ -44,6 +46,7 @@ class DDPG(RlAlgorithm):
             updates_per_sync=1,  # For async mode only.
             bootstrap_timelimit=True,
             ):
+        """Saves input arguments."""
         if optim_kwargs is None:
             optim_kwargs = dict()
         self._batch_size = batch_size
@@ -52,7 +55,10 @@ class DDPG(RlAlgorithm):
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples,
             world_size=1, rank=0):
-        """Used in basic or synchronous multi-GPU runners, not async."""
+        """Stores input arguments and initializes replay buffer and optimizer.
+        Use in non-async runners.  Computes number of gradient updates per
+        optimization iteration as `(replay_ratio * sampler-batch-size /
+        training-batch_size)`."""
         self.agent = agent
         self.n_itr = n_itr
         self.mid_batch_reset = mid_batch_reset
@@ -70,7 +76,8 @@ class DDPG(RlAlgorithm):
 
     def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset,
             examples, world_size=1):
-        """Used in async runner only."""
+        """Used in async runner only; returns replay buffer allocated in shared
+        memory, does not instantiate optimizer. """
         self.agent = agent
         self.n_itr = sampler_n_itr
         self.initialize_replay_buffer(examples, batch_spec, async_=True)
@@ -81,7 +88,7 @@ class DDPG(RlAlgorithm):
         return self.replay_buffer
 
     def optim_initialize(self, rank=0):
-        """Called by async runner."""
+        """Called in initilize or by async runner after forking sampler."""
         self.rank = rank
         self.mu_optimizer = self.OptimCls(self.agent.mu_parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
@@ -92,6 +99,10 @@ class DDPG(RlAlgorithm):
             self.mu_optimizer.load_state_dict(self.initial_optim_state_dict["mu"])
 
     def initialize_replay_buffer(self, examples, batch_spec, async_=False):
+        """
+        Allocates replay buffer using examples and with the fields in `SamplesToBuffer`
+        namedarraytuple.
+        """
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -112,6 +123,12 @@ class DDPG(RlAlgorithm):
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
+        """
+        Extracts the needed fields from input samples and stores them in the 
+        replay buffer.  Then samples from the replay buffer to train the agent
+        by gradient updates (with the number of updates determined by replay
+        ratio, sampler batch size, and training batch size).
+        """
         itr = itr if sampler_itr is None else sampler_itr  # Async uses sampler_itr.
         if samples is not None:
             samples_to_buffer = self.samples_to_buffer(samples)
@@ -152,6 +169,8 @@ class DDPG(RlAlgorithm):
         return opt_info
 
     def samples_to_buffer(self, samples):
+        """Defines how to add data from sampler into the replay buffer. Called
+        in optimize_agent() if samples are provided to that method."""
         return SamplesToBuffer(
             observation=samples.env.observation,
             action=samples.agent.action,
@@ -161,12 +180,14 @@ class DDPG(RlAlgorithm):
         )
 
     def mu_loss(self, samples, valid):
+        """Computes the mu_loss as the Q-value at that action."""
         mu_losses = self.agent.q_at_mu(*samples.agent_inputs)
         mu_loss = valid_mean(mu_losses, valid)  # valid can be None.
         return -mu_loss
 
     def q_loss(self, samples, valid):
-        """Samples have leading batch dimension [B,..] (but not time)."""
+        """Constructs the n-step Q-learning loss using target Q.  Input
+        samples have leading batch dimension [B,..] (but not time)."""
         q = self.agent.q(*samples.agent_inputs, samples.action)
         with torch.no_grad():
             target_q = self.agent.target_q_at_mu(*samples.target_inputs)

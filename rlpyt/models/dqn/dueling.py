@@ -6,6 +6,13 @@ from rlpyt.models.utils import scale_grad
 
 
 class DuelingHeadModel(torch.nn.Module):
+    """Model component for dueling DQN.  For each state Q-value, uses a scalar
+    output for mean (bias), and vector output for relative advantages
+    associated with each action, so the Q-values are computed as: Mean +
+    (Advantages - mean(Advantages)).  Uses a shared bias for all Advantage
+    outputs.Gradient scaling can be applied, affecting preceding layers in the
+    backward pass.
+    """
 
     def __init__(
             self,
@@ -25,17 +32,24 @@ class DuelingHeadModel(torch.nn.Module):
         self._grad_scale = grad_scale
 
     def forward(self, input):
+        """Computes Q-values through value and advantage heads; applies gradient
+        scaling."""
         x = scale_grad(input, self._grad_scale)
         advantage = self.advantage(x)
         value = self.value(x)
         return value + (advantage - advantage.mean(dim=-1, keepdim=True))
 
     def advantage(self, input):
+        """Computes shared-bias advantages."""
         x = self.advantage_hidden(input)
         return self.advantage_out(x) + self.advantage_bias
 
 
 class DistributionalDuelingHeadModel(torch.nn.Module):
+    """Model component for Dueling Distributional (Categorical) DQN, like
+    ``DuelingHeadModel``, but handles `n_atoms` outputs for each state-action
+    Q-value distribution.
+    """
 
     def __init__(
             self,

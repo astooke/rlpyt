@@ -14,12 +14,40 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 
 
 class PrioritizedSequenceReplay:
+    """Prioritized experience replay of sequences using sum-tree prioritization.
+    The size of the sum-tree is based on the number of RNN states stored,
+    since valid sequences must start with an RNN state.  Hence using periodic
+    storage with ``rnn_state_inveral>1`` results in a faster tree using less
+    memory.  Replay buffer priorities are indexed to the start of the whole sequence
+    to be returned, regardless of whether the initial part is used only as RNN warmup.
+
+    Requires ``batch_T`` to be set and fixed at instantiation, so that the
+    priority tree has a fixed scheme for which samples are temporarilty
+    invalid due to the looping cursor (the tree must set and propagate 0-priorities
+    for those samples, so dynamic ``batch_T`` could require additional tree
+    operations for every sampling event).
+
+    Parameter ``input_priority_shift`` is used to assign input priorities to a
+    starting time-step which is shifted from the samples input to
+    ``append_samples()``.  For example, in R2D1, using replay sequences of 120
+    time-steps, with 40 steps for warmup and 80 steps for training, we might
+    run the sampler with 40-step batches, and store the RNN state only at the
+    beginning of each batch: ``rnn_state_interval=40``.  In this scenario, we
+    would use ``input_priority_shift=2``, so that the input priorities which
+    are provided with each batch of samples are assigned to sequence
+    start-states at the beginning of warmup (shifted 2 entries back in the
+    priority tree).  This way, the input priorities can be computed after
+    seeing all 80 training steps.  In the meantime, the partially-written
+    sequences are marked as temporarily invalid for replay anyway, according
+    to buffer cursor position and the fixed ``batch_T`` replay setting.  (If
+    memory and performance optimization are less of a concern, the indexing
+    effort might all be simplified by writing a replay buffer which manages a
+    list of valid trajectories to sample, rather than a monolithic,
+    pre-allocated buffer.)
+    """
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
             input_priorities=False, input_priority_shift=0, **kwargs):
-        """Fix the SampleFromReplay length here, so priority tree can
-        track where not to sample (else would have to temporarily subtract
-        from tree every time sampling)."""
         super().__init__(**kwargs)
         save__init__args(locals())
         assert self.batch_T is not None, "Must assign fixed batch_T for prioritized."
@@ -43,6 +71,10 @@ class PrioritizedSequenceReplay:
         self.beta = beta
 
     def append_samples(self, samples):
+        """Like non-sequence prioritized, except also stores RNN state, and
+        advances the priority tree cursor according to the number of RNN states
+        stored (which might be less than overall number of time-steps).
+        """
         if hasattr(samples, "priorities"):
             priorities = samples.priorities
             samples = samples.samples
@@ -65,6 +97,9 @@ class PrioritizedSequenceReplay:
         return T, idxs
 
     def sample_batch(self, batch_B):
+        """Returns batch with leading dimensions ``[self.batch_T, batch_B]``,
+        with each sequence sampled randomly according to priority.
+        (``self.batch_T`` should not be changed)."""
         (T_idxs, B_idxs), priorities = self.priority_tree.sample(
             batch_B, unique=self.unique)
         if self.rnn_state_interval > 1:

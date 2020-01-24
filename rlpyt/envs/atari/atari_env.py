@@ -18,6 +18,8 @@ EnvInfo = namedtuple("EnvInfo", ["game_score", "traj_done"])
 
 
 class AtariTrajInfo(TrajInfo):
+    """TrajInfo class for use with Atari Env, to store raw game score separate
+    from clipped reward signal."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -29,6 +31,38 @@ class AtariTrajInfo(TrajInfo):
 
 
 class AtariEnv(Env):
+    """An efficient implementation of the classic Atari RL envrionment using the
+    Arcade Learning Environment (ALE).
+
+    Output `env_info` includes:
+        * `game_score`: raw game score, separate from reward clipping.
+        * `traj_done`: special signal which signals game-over or timeout, so that sampler doesn't reset the environment when ``done==True`` but ``traj_done==False``, which can happen when ``episodic_lives==True``.
+
+    Always performs 2-frame max to avoid flickering (this is pretty fast).
+
+    Screen size downsampling is done by cropping two rows and then
+    downsampling by 2x using `cv2`: (210, 160) --> (80, 104).  Downsampling by
+    2x is much faster than the old scheme to (84, 84), and the (80, 104) shape
+    is fairly convenient for convolution filter parameters which don't cut off
+    edges.
+
+    The action space is an `IntBox` for the number of actions.  The observation
+    space is an `IntBox` with ``dtype=uint8`` to save memory; conversion to float
+    should happen inside the agent's model's ``forward()`` method.
+
+    (See the file for implementation details.)
+
+
+    Args:
+        game (str): game name
+        frame_skip (int): frames per step (>=1)
+        num_img_obs (int): number of frames in observation (>=1)
+        clip_reward (bool): if ``True``, clip reward to np.sign(reward)
+        episodic_lives (bool): if ``True``, output ``done=True`` but ``env_info[traj_done]=False`` when a life is lost
+        max_start_noops (int): upper limit for random number of noop actions after reset
+        repeat_action_probability (0-1): probability for sticky actions
+        horizon (int): max number of steps before timeout / ``traj_done=True``
+    """
 
     def __init__(self,
                  game="pong",
@@ -67,7 +101,8 @@ class AtariEnv(Env):
         self._horizon = int(horizon)
         self.reset()
 
-    def reset(self, hard=False):
+    def reset(self):
+        """Performs hard reset of ALE game."""
         self.ale.reset_game()
         self._reset_obs()
         self._life_reset()
@@ -96,6 +131,7 @@ class AtariEnv(Env):
         return EnvStep(self.get_obs(), reward, done, info)
 
     def render(self, wait=10, show_full_obs=False):
+        """Shows game screen via cv2, with option to show all frames in observation."""
         img = self.get_obs()
         if show_full_obs:
             shape = img.shape

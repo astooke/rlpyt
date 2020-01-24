@@ -7,13 +7,22 @@ from rlpyt.utils.synchronize import drain_queue
 
 
 class AsyncSamplerMixin:
+    """
+    Mixin class defining master runner initialization method for all
+    asynchronous samplers.
+    """
 
     ###########################################################################
-    # Master runner method.
+    # Master runner methods.
     ###########################################################################
 
     def async_initialize(self, agent, bootstrap_value=False,
             traj_info_kwargs=None, seed=None):
+        """Instantiate an example environment and use it to initialize the
+        agent (on shared memory).  Pre-allocate a double-buffer for sample
+        batches, and return that buffer along with example data (e.g.
+        `observation`, `action`, etc.)
+        """
         self.seed = make_seed() if seed is None else seed
         # Construct an example of each kind of data that needs to be stored.
         env = self.EnvCls(**self.env_kwargs)
@@ -38,12 +47,21 @@ class AsyncSamplerMixin:
 
 
 class AsyncParallelSamplerMixin(AsyncSamplerMixin):
+    """
+    Mixin class defining methods for the asynchronous sampler main process
+    (which is forked from the overall master process).
+    """
 
     ###########################################################################
-    # Sampler runner methods (forked).
+    # Sampler runner methods (forked once).
     ###########################################################################
 
     def obtain_samples(self, itr, db_idx):
+        """Communicates to workers which batch buffer to use, and signals them
+        to start collection.  Waits until workers finish, and then retrieves
+        completed trajectory-info objects from the workers and returns them in
+        a list.
+        """
         self.ctrl.itr.value = itr
         self.sync.db_idx.value = db_idx  # Double buffer index.
         self.ctrl.barrier_in.wait()

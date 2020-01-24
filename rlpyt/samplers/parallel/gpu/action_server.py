@@ -10,8 +10,35 @@ EVAL_TRAJ_CHECK = 20  # [steps].
 
 
 class ActionServer:
+    """Mixin class with methods for serving actions to worker processes which execute
+    environment steps.
+    """
 
     def serve_actions(self, itr):
+        """Called in master process during ``obtain_samples()``.
+
+        Performs agent action- selection loop in concert with workers
+        executing environment steps.  Uses shared memory buffers to
+        communicate agent/environment data at each time step.  Uses semaphores
+        for synchronization: one per worker to acquire when they finish
+        writing the next step of observations, one per worker to release when
+        master has written the next actions.  Resets the agent one B-index at a time when the
+        corresponding environment resets (i.e. agent's recurrent state, with
+        leading dimension ``batch_B``).
+
+        Also communicates ``agent_info`` to workers, which are responsible
+        for recording all data into the batch buffer.
+
+        If requested, collects additional agent value estimation of final
+        observation for bootstrapping (the one thing written to the batch
+        buffer here).
+
+
+        .. warning::
+            If trying to modify, must be careful to keep correct logic of the semaphores,
+            to make sure they drain properly.  If a semaphore ends up with an extra release,
+            synchronization can be lost silently, leading to wrong and confusing results.
+        """
         obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         step_np, agent_inputs = self.step_buffer_np, self.agent_inputs
 
@@ -46,8 +73,11 @@ class ActionServer:
         for w in act_ready:
             assert not w.acquire(block=False)  # Debug check.
 
-
     def serve_actions_evaluation(self, itr):
+        """Similar to ``serve_actions()``.  If a maximum number of eval trajectories
+        was specified, keeps track of the number completed and terminates evaluation
+        if the max is reached.  Returns a list of completed trajectory-info objects.
+        """
         obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         step_np, step_pyt = self.eval_step_buffer_np, self.eval_step_buffer_pyt
         traj_infos = list()
@@ -91,7 +121,12 @@ class ActionServer:
 
 
 class AlternatingActionServer:
-    """Two environment instance groups may execute partially simultaneously."""
+    """Mixin class for serving actions in the alternating GPU sampler.  The
+    synchronization format in this class allows the two worker groups to
+    execute partially simultaneously; workers wait to step for their new
+    action to be ready but do not wait for the other set of workers to be done
+    stepping.
+    """
 
     def serve_actions(self, itr):
         obs_ready_pair = self.obs_ready_pair
@@ -195,6 +230,15 @@ class AlternatingActionServer:
 
 
 class NoOverlapAlternatingActionServer:
+    """Mixin class for serving actions in the alternating GPU sampler.  The
+    synchronization format in this class disallows the two worker groups from
+    executing simultaneously; workers wait to step for their new action to be
+    ready and also wait for the other set of workers to be done stepping.
+
+    .. warning::
+        Not sure the logic around semaphores is correct for all cases at the end of
+        ``serve_actions_evaluation()`` (see TODO comment).
+    """
 
     def serve_actions(self, itr):
         obs_ready = self.sync.obs_ready

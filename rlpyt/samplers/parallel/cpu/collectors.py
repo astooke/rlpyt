@@ -9,6 +9,16 @@ from rlpyt.utils.buffer import (torchify_buffer, numpify_buffer, buffer_from_exa
 
 
 class CpuResetCollector(DecorrelatingStartCollector):
+    """Collector which executes ``agent.step()`` in the sampling loop (i.e.
+    use in CPU or serial samplers.)
+
+    It immediately resets any environment which finishes an episode.  This is
+    typically indicated by the environment returning ``done=True``.  But this
+    collector defers to the ``done`` signal only after looking for
+    ``env_info["traj_done"]``, so that RL episodes can end without a call to
+    ``env_reset()`` (e.g. used for episodic lives in the Atari env).  The 
+    agent gets reset based solely on ``done``.
+    """
 
     mid_batch_reset = True
 
@@ -56,6 +66,22 @@ class CpuResetCollector(DecorrelatingStartCollector):
 
 
 class CpuWaitResetCollector(DecorrelatingStartCollector):
+    """Collector which executes ``agent.step()`` in the sampling loop.
+
+    It waits to reset any environments with completed episodes until after
+    the end of collecting the batch, i.e. the ``done`` environment is bypassed
+    in remaining timesteps, and zeros are recorded into the batch buffer.
+
+    Waiting to reset can be beneficial for two reasons.  One is for training
+    recurrent agents; PyTorch's built-in LSTM cannot reset in the middle of a
+    training sequence, so any samples in a batch after a reset would be
+    ignored and the beginning of new episodes would be missed in training.
+    The other reason is if the environment's reset function is very slow
+    compared to its step function; it can be faster overall to leave invalid
+    samples after a reset, and perform the environment resets in the workers
+    while the master process is training the agent (this was true for massively
+    parallelized Atari).
+    """
 
     mid_batch_reset = False
 
@@ -129,6 +155,12 @@ class CpuWaitResetCollector(DecorrelatingStartCollector):
 
 
 class CpuEvalCollector(BaseEvalCollector):
+    """Offline agent evaluation collector which calls ``agent.step()`` in 
+    sampling loop.  Immediately resets any environment which finishes a
+    trajectory.  Stops when the max time-steps have been reached, or when
+    signaled by the master process (i.e. if enough trajectories have
+    completed).
+    """
 
     def collect_evaluation(self, itr):
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]

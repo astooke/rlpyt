@@ -3,7 +3,10 @@ import numpy as np
 import torch
 
 
-def iterate_mb_idxs(data_length, minibatch_size, shuffle=False, horizon=1):
+def iterate_mb_idxs(data_length, minibatch_size, shuffle=False):  # , horizon=1)
+    """Yields minibatches of indexes, to use as a for-loop iterator, with
+    option to shuffle.
+    """
     if shuffle:
         indexes = np.arange(data_length)
         np.random.shuffle(indexes)
@@ -15,6 +18,8 @@ def iterate_mb_idxs(data_length, minibatch_size, shuffle=False, horizon=1):
 
 
 def zeros(shape, dtype):
+    """Attempt to return torch tensor of zeros, or if numpy dtype provided,
+    return numpy array or zeros."""
     try:
         return torch.zeros(shape, dtype=dtype)
     except TypeError:
@@ -22,6 +27,8 @@ def zeros(shape, dtype):
 
 
 def empty(shape, dtype):
+    """Attempt to return empty torch tensor, or if numpy dtype provided,
+    return empty numpy array."""
     try:
         return torch.empty(shape, dtype=dtype)
     except TypeError:
@@ -29,7 +36,11 @@ def empty(shape, dtype):
 
 
 def extract_sequences(array_or_tensor, T_idxs, B_idxs, T):
-    """Assumes array_or_tensor has [T,B] leading dims."""
+    """Assumes `array_or_tensor` has [T,B] leading dims.  Returns new
+    array/tensor which contains sequences of length [T] taken from the
+    starting indexes [T_idxs, B_idxs], where T_idxs (and B_idxs) is a list or
+    vector of integers. Handles wrapping automatically. (Return shape: [T,
+    len(B_idxs),...])."""
     shape = (T, len(B_idxs)) + array_or_tensor.shape[2:]
     sequences = empty(shape, dtype=array_or_tensor.dtype)
     for i, (t, b) in enumerate(zip(T_idxs, B_idxs)):

@@ -9,6 +9,14 @@ from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
 
 
 class CategoricalPgAgent(BaseAgent):
+    """
+    Agent for policy gradient algorithm using categorical action distribution.
+    Same as ``GausssianPgAgent`` and related classes, except uses
+    ``Categorical`` distribution, and has a different interface to the model
+    (model here outputs discrete probabilities rather than means and
+    log_stds)...maybe could reorganize those interfaces to reduce to one
+    poligy gradient agent class.
+    """
 
     def __call__(self, observation, prev_action, prev_reward):
         prev_action = self.distribution.to_onehot(prev_action)

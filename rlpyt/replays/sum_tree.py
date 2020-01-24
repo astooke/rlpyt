@@ -8,15 +8,18 @@ from rlpyt.utils.buffer import np_mp_array
 class SumTree:
     """
     Sum tree for matrix of values stored as [T,B], updated in chunks along T
-    dimension.  Priorities represented as first T*B leaves of binary tree.
-    Turns on/off entries in vicinity of cursor position according to
-    "off_backward" (e.g. n_step_return) and "off_forward" (e.g. 1 for
+    dimension, applying to the full B dimension at each update.  Priorities
+    represented as first T*B leaves of binary tree. Turns on/off entries in
+    vicinity of cursor position according to "off_backward" (e.g.
+    n_step_return) and "off_forward" (e.g. 1 for
     prev_action or max(1, frames-1) for frame-wise buffer).
     Provides efficient sampling from non-uniform probability masses.
 
-    NOTE: Tried single precision (float32) tree, and it sometimes returned
-    samples with priority 0.0, because subtraction during tree cascade left
-    random value larger than the remaining sum; suggest keeping float64.
+    NOTE: 
+        Tried single precision (float32) tree, and it sometimes returned
+        samples with priority 0.0, because subtraction during tree cascade
+        left random value larger than the remaining sum; suggest keeping
+        float64.
     """
 
     async_ = False
@@ -58,11 +61,14 @@ class SumTree:
         """Cursor advances by T: set priorities to zero in vicinity of new
         cursor position and turn priorities on for new samples since previous
         cursor position.
-        Optional param priorities can be None for default, or of dimensions
-        [T, B], or [B] or scalar will broadcast. These will be stored at the
-        current cursor position, meaning these priorities correspond to the
-        current values being added to the buffer, even though their priority
-        might temporarily be set to zero until future advances."""
+        Optional param ``priorities`` can be None for default, or of
+        dimensions [T, B], or [B] or scalar will broadcast. (Must have enabled
+        ``input_priorities=True`` when instantiating the tree.)  These will be
+        stored at the current cursor position, meaning these priorities
+        correspond to the current values being added to the buffer, even
+        though their priority might temporarily be set to zero until future
+        advances.
+        """
         if T == 0:
             return
         t, b, f = self.t, self.off_backward, self.off_forward
@@ -93,8 +99,10 @@ class SumTree:
         self.t = (t + T) % self.T
 
     def sample(self, n, unique=False):
-        """Get n samples, with (default) or without replacement."""
-
+        """Get `n` samples, with replacement (default) or without.  Use 
+        ``np.random.rand()`` to generate random values with which to descend
+        the tree to each sampled leaf node. Returns `T_idxs` and `B_idxs`, and sample
+        priorities."""
         self._sampled_unique = unique
         random_values = np.random.rand(int(n*1 if unique else n))
         tree_idxes, scaled_random_values = self.find(random_values)
@@ -120,6 +128,9 @@ class SumTree:
         return (T_idxs, B_idxs), priorities
 
     def update_batch_priorities(self, priorities):
+        """Apply new priorities to tree at the leaf positions where the last
+        batch was returned from the ``sample()`` method.
+        """
         if not self._sampled_unique:  # Must remove duplicates
             self.prev_tree_idxs, unique_idxs = np.unique(self.prev_tree_idxs,
                 return_index=True)
@@ -127,6 +138,7 @@ class SumTree:
         self.reconstruct(self.prev_tree_idxs, priorities)
 
     def print_tree(self, level=None):
+        """Print values for whole tree or at specified level."""
         levels = range(self.tree_levels) if level is None else [level]
         for k in levels:
             for j in range(2 ** k - 1, 2 ** (k + 1) - 1):
@@ -211,7 +223,10 @@ class SumTree:
 
 
 class AsyncSumTree(SumTree):
-    """Assume that writing to tree values is lock protected by replay buffer."""
+    """Allocates the tree into shared memory, and manages asynchronous cursor
+    position, for different read and write processes. Assumes that writing to
+    tree values is lock protected elsewhere, i.e. by the replay buffer.
+    """
 
     async_ = True
 

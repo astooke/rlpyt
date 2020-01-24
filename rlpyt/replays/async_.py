@@ -6,6 +6,13 @@ from rlpyt.utils.synchronize import RWLock
 
 
 class AsyncReplayBufferMixin:
+    """Mixin class which manages the buffer (shared) memory under a read-write
+    lock (multiple-reader, single-writer), for use with the asynchronous
+    runner. Wraps the ``append_samples()``, ``sample_batch()``, and
+    ``update_batch_priorities()`` methods. Maintains a universal buffer
+    cursor, communicated asynchronously.  Supports multiple buffer-writer
+    processes and multiple replay processes.
+    """
 
     async_ = True
 

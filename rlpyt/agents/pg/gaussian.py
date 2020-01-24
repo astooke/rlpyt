@@ -12,8 +12,12 @@ from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
 
 
 class GaussianPgAgent(BaseAgent):
+    """
+    Agent for policy gradient algorithm using Gaussian action distribution.
+    """
 
     def __call__(self, observation, prev_action, prev_reward):
+        """Performs forward pass on training data, for algorithm."""
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         mu, log_std, value = self.model(*model_inputs)
@@ -21,6 +25,7 @@ class GaussianPgAgent(BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
+        """Extends base method to build Gaussian distribution."""
         super().initialize(env_spaces, share_memory,
             global_B=global_B, env_ranks=env_ranks)
         assert len(env_spaces.action.shape) == 1
@@ -34,6 +39,12 @@ class GaussianPgAgent(BaseAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
+        """
+        Compute policy's action distribution from inputs, and sample an
+        action. Calls the model to produce mean, log_std, and value estimate.
+        Moves inputs to device and returns outputs back to CPU, for the
+        sampler.  (no grad)
+        """
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         mu, log_std, value = self.model(*model_inputs)
@@ -45,6 +56,10 @@ class GaussianPgAgent(BaseAgent):
 
     @torch.no_grad()
     def value(self, observation, prev_action, prev_reward):
+        """
+        Compute the value estimate for the environment state, e.g. for the
+        bootstrap value, V(s_{T+1}), in the sampler.  (no grad)
+        """
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         _mu, _log_std, value = self.model(*model_inputs)
@@ -54,6 +69,8 @@ class GaussianPgAgent(BaseAgent):
 class RecurrentGaussianPgAgentBase(BaseAgent):
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
+        """Performs forward pass on training data, for algorithm (requires
+        recurrent state input)."""
         # Assume init_rnn_state already shaped: [N,B,H]
         model_inputs = buffer_to((observation, prev_action, prev_reward,
             init_rnn_state), device=self.device)
@@ -73,6 +90,13 @@ class RecurrentGaussianPgAgentBase(BaseAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
+        """
+        Compute policy's action distribution from inputs, and sample an
+        action. Calls the model to produce mean, log_std, value estimate, and
+        next recurrent state.  Moves inputs to device and returns outputs back
+        to CPU, for the sampler.  Advances the recurrent state of the agent.
+        (no grad)
+        """
         agent_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         mu, log_std, value, rnn_state = self.model(*agent_inputs, self.prev_rnn_state)
@@ -91,6 +115,11 @@ class RecurrentGaussianPgAgentBase(BaseAgent):
 
     @torch.no_grad()
     def value(self, observation, prev_action, prev_reward):
+        """
+        Compute the value estimate for the environment state using the
+        currently held recurrent state, without advancing the recurrent state,
+        e.g. for the bootstrap value V(s_{T+1}), in the sampler.  (no grad)
+        """
         agent_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         _mu, _log_std, value, _rnn_state = self.model(*agent_inputs, self.prev_rnn_state)

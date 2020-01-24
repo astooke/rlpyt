@@ -7,7 +7,7 @@ from rlpyt.models.mlp import MlpModel
 
 
 class MuMlpModel(torch.nn.Module):
-
+    """MLP neural net for action mean (mu) output for DDPG agent."""
     def __init__(
             self,
             observation_shape,
@@ -15,6 +15,7 @@ class MuMlpModel(torch.nn.Module):
             action_size,
             output_max=1,
             ):
+        """Instantiate neural net according to inputs."""
         super().__init__()
         self._output_max = output_max
         self._obs_ndim = len(observation_shape)
@@ -32,6 +33,7 @@ class MuMlpModel(torch.nn.Module):
 
 
 class PiMlpModel(torch.nn.Module):
+    """Action distrubition MLP model for SAC agent."""
 
     def __init__(
             self,
@@ -58,6 +60,7 @@ class PiMlpModel(torch.nn.Module):
 
 
 class QofMuMlpModel(torch.nn.Module):
+    """Q portion of the model for DDPG, an MLP."""
 
     def __init__(
             self,
@@ -65,6 +68,7 @@ class QofMuMlpModel(torch.nn.Module):
             hidden_sizes,
             action_size,
             ):
+        """Instantiate neural net according to inputs."""
         super().__init__()
         self._obs_ndim = len(observation_shape)
         self.mlp = MlpModel(

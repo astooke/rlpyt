@@ -8,6 +8,8 @@ seed_ = None
 
 
 def set_seed(seed):
+    """Sets random.seed, np.random.seed, torch.manual_seed,
+    torch.cuda.manual_seed."""
     seed %= 4294967294
     global seed_
     seed_ = seed

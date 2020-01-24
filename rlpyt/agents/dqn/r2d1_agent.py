@@ -12,6 +12,7 @@ AgentInfo = namedarraytuple("AgentInfo", ["q", "prev_rnn_state"])
 
 
 class R2d1AgentBase(DqnAgent):
+    """Base agent for recurrent DQN (to add recurrent mixin)."""
 
     def __call__(self, observation, prev_action, prev_reward, init_rnn_state):
         # Assume init_rnn_state already shaped: [N,B,H]
@@ -23,6 +24,8 @@ class R2d1AgentBase(DqnAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
+        """Computes Q-values for states/observations and selects actions by
+        epsilon-greedy (no grad).  Advances RNN state."""
         prev_action = self.distribution.to_onehot(prev_action)
         agent_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
@@ -48,6 +51,7 @@ class R2d1AgentBase(DqnAgent):
 
 
 class R2d1Agent(RecurrentAgentMixin, R2d1AgentBase):
+    """R2D1 agent."""
     pass
 
 

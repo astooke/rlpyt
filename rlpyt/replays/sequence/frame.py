@@ -8,9 +8,18 @@ from rlpyt.replays.async_ import AsyncReplayBufferMixin
 
 
 class SequenceNStepFrameBuffer(FrameBufferMixin, SequenceNStepReturnBuffer):
+    """Includes special method for extracting observation sequences from a frame-wise
+    buffer, where each time-step includes multiple frames.  Each returned sequence
+    will contain many redundant frames (A more efficient way would be to
+    turn the Conv2D into a Conv3D and only return unique frames.)
+    """
 
     def extract_observation(self, T_idxs, B_idxs, T):
-        """Frames are returned OLDEST to NEWEST."""
+        """Observations are re-assembled from frame-wise buffer as [T,B,C,H,W],
+        where C is the frame-history channels, which will have redundancy across the
+        T dimension.  Frames are returned OLDEST to NEWEST along the C dimension.
+
+        Frames are zero-ed after environment resets."""
         observation = np.empty(shape=(T, len(B_idxs), self.n_frames) +  # [T,B,C,H,W]
             self.samples_frames.shape[2:], dtype=self.samples_frames.dtype)
         fm1 = self.n_frames - 1

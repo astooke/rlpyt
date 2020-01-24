@@ -13,6 +13,13 @@ SamplesFromReplayPri = namedarraytuple("SamplesFromReplayPri",
 
 
 class PrioritizedReplay:
+    """Prioritized experience replay using sum-tree prioritization.
+
+    The priority tree must configure at instantiation if priorities will be
+    input with samples in ``append_samples()``, by parameter
+    ``input_priorities=True``, else the default value will be applied to all
+    new samples.
+    """
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
             input_priorities=False, **kwargs):
@@ -36,6 +43,10 @@ class PrioritizedReplay:
         self.beta = beta
 
     def append_samples(self, samples):
+        """Looks for ``samples.priorities``; if not found, uses default priority.  Writes
+        samples using super class's ``append_samples``, and advances matching cursor in
+        priority tree.
+        """
         if hasattr(samples, "priorities"):
             priorities = samples.priorities ** self.alpha
             samples = samples.samples
@@ -46,6 +57,10 @@ class PrioritizedReplay:
         return T, idxs
 
     def sample_batch(self, batch_B):
+        """Calls on the priority tree to generate random samples.  Returns
+        samples data and normalized importance-sampling weights:
+        ``is_weights=priorities ** -beta``
+        """
         (T_idxs, B_idxs), priorities = self.priority_tree.sample(batch_B,
             unique=self.unique)
         batch = self.extract_batch(T_idxs, B_idxs)
@@ -55,6 +70,10 @@ class PrioritizedReplay:
         return SamplesFromReplayPri(*batch, is_weights=is_weights)
 
     def update_batch_priorities(self, priorities):
+        """Takes in new priorities (i.e. from the algorithm after a training
+        step) and sends them to priority tree as ``priorities ** alpha``; the
+        tree internally remembers which indexes were sampled for this batch.
+        """
         priorities = numpify_buffer(priorities)
         self.priority_tree.update_batch_priorities(priorities ** self.alpha)
 

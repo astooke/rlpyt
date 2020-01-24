@@ -15,7 +15,10 @@ SamplesFromReplayTL = namedarraytuple("SamplesFromReplayTL",
 
 
 class NStepTimeLimitBuffer(NStepReturnBuffer):
-    """For use in e.g. SAC when bootstrapping when 'done' due to timeout."""
+    """For use in e.g. SAC when bootstrapping when env `done` due to timeout.
+    Expects input samples to include ``timeout`` field, and returns
+    ``timeout`` and ``timeout_n`` similar to ``done`` and ``done_n``.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

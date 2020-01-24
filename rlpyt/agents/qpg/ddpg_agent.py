@@ -17,6 +17,7 @@ AgentInfo = namedarraytuple("AgentInfo", ["mu"])
 
 
 class DdpgAgent(BaseAgent):
+    """Agent for deep deterministic policy gradient algorithm."""
 
     shared_mu_model = None
 
@@ -31,6 +32,7 @@ class DdpgAgent(BaseAgent):
             action_std=0.1,
             action_noise_clip=None,
             ):
+        """Saves input arguments; default network sizes saved here."""
         if model_kwargs is None:
             model_kwargs = dict(hidden_sizes=[400, 300])
         if q_model_kwargs is None:
@@ -40,6 +42,7 @@ class DdpgAgent(BaseAgent):
 
     def initialize(self, env_spaces, share_memory=False,
             global_B=1, env_ranks=None):
+        """Instantiates mu and q, and target_mu and target_q models."""
         super().initialize(env_spaces, share_memory,
             global_B=global_B, env_ranks=env_ranks)
         self.q_model = self.QModelCls(**self.env_model_kwargs,
@@ -80,12 +83,15 @@ class DdpgAgent(BaseAgent):
         )
 
     def q(self, observation, prev_action, prev_reward, action):
+        """Compute Q-value for input state/observation and action (with grad)."""
         model_inputs = buffer_to((observation, prev_action, prev_reward,
             action), device=self.device)
         q = self.q_model(*model_inputs)
         return q.cpu()
 
     def q_at_mu(self, observation, prev_action, prev_reward):
+        """Compute Q-value for input state/observation, through the mu_model
+        (with grad)."""
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         mu = self.model(*model_inputs)
@@ -93,6 +99,8 @@ class DdpgAgent(BaseAgent):
         return q.cpu()
 
     def target_q_at_mu(self, observation, prev_action, prev_reward):
+        """Compute target Q-value for input state/observation, through the
+        target mu_model."""
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         target_mu = self.target_model(*model_inputs)
@@ -101,6 +109,8 @@ class DdpgAgent(BaseAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
+        """Computes distribution parameters (mu) for state/observation,
+        returns (gaussian) sampled action."""
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         mu = self.model(*model_inputs)

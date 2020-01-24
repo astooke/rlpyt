@@ -18,6 +18,14 @@ from rlpyt.utils.collections import AttrDict
 
 
 class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
+    """Main definitions for asynchronous parallel sampler using GPU(s) for
+    action selection.  The main sampler process (forked from the overall
+    master), forks action-server processes, one per GPU to be used, and
+    the action-server process(es) fork their own parallel CPU workers.
+    This same sampler object is used in the main sampler process and in
+    the action server process(es), but for different methods, labeled by
+    comments in the code (easier way to pass arguments along).
+    """
 
     def __init__(self, *args, CollectorCls=DbGpuResetCollector,
             eval_CollectorCls=GpuEvalCollector, **kwargs):
@@ -29,6 +37,10 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
     ##########################################
 
     def initialize(self, affinity):
+        """Initialization inside the main sampler process.  Builds one level
+        of parallel synchronization objects, and forks action-server processes,
+        one per GPU to be used.
+        """
         torch.set_num_threads(1)  # Needed to avoid MKL hang :( .
         self.world_size = n_server = len(affinity)
         n_envs_lists = self._get_n_envs_lists(affinity)
@@ -115,8 +127,18 @@ class AsyncGpuSamplerBase(AsyncParallelSamplerMixin, ParallelSamplerBase):
 
     def action_server_process(self, rank, env_ranks, double_buffer_slice,
             affinity, seed, n_envs_list):
-        """Runs in forked process, inherits from original process, so can easily
-        pass args to env worker processes, forked from here."""
+        """Target method used for forking action-server process(es) from the
+        main sampler process.  By inheriting the sampler object from the
+        sampler process, can more easily pass args to the environment worker
+        processes, which are forked from here.
+
+        Assigns hardware affinity, and then forks parallel worker processes
+        and moves agent model to device.  Then enters infinite loop: waits for
+        signals from main sampler process to collect training samples or
+        perform evaluation, and then serves actions during collection.  At
+        every loop, calls agent to retrieve new parameter values from the
+        training process, which are communicated through shared CPU memory.
+        """
         self.rank = rank
         p = psutil.Process()
         if affinity.get("set_affinity", True):

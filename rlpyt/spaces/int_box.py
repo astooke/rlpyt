@@ -5,11 +5,12 @@ from rlpyt.spaces.base import Space
 
 
 class IntBox(Space):
-    """A box in J^n, with specificiable bound and dtype."""
+    """A box in `J^n`, with specificiable bound and dtype."""
 
     def __init__(self, low, high, shape=None, dtype="int32", null_value=None):
         """
-        low and high are scalars, applied across all dimensions of shape.
+        Params ``low`` and ``high`` are scalars, applied across all dimensions
+        of shape; valid values will be those in ``range(low, high)``.
         """
         assert np.isscalar(low) and np.isscalar(high)
         self.low = low
@@ -22,6 +23,7 @@ class IntBox(Space):
         self._null_value = null_value
 
     def sample(self):
+        """Return a single sample from ``np.random.randint``."""
         return np.random.randint(low=self.low, high=self.high,
             size=self.shape, dtype=self.dtype)
 
@@ -40,6 +42,7 @@ class IntBox(Space):
 
     @property
     def n(self):
+        """The number of elements in the space."""
         return self.high - self.low
 
     def __repr__(self):

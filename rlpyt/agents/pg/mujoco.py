@@ -7,8 +7,13 @@ from rlpyt.models.pg.mujoco_lstm_model import MujocoLstmModel
 
 
 class MujocoMixin:
+    """
+    Mixin class defining which environment interface properties
+    are given to the model.
+    """
 
     def make_env_to_model_kwargs(self, env_spaces):
+        """Extract observation_shape and action_size."""
         assert len(env_spaces.action.shape) == 1
         return dict(observation_shape=env_spaces.observation.shape,
                     action_size=env_spaces.action.shape[0])

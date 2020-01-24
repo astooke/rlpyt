@@ -7,6 +7,11 @@ from rlpyt.models.mlp import MlpModel
 
 
 class MujocoFfModel(torch.nn.Module):
+    """
+    Model commonly used in Mujoco locomotion agents: an MLP which outputs
+    distribution means, separate parameter for learned log_std, and separate
+    MLP for state-value estimate.
+    """
 
     def __init__(
             self,
@@ -17,6 +22,7 @@ class MujocoFfModel(torch.nn.Module):
             mu_nonlinearity=torch.nn.Tanh,  # Module form.
             init_log_std=0.,
             ):
+        """Instantiate neural net modules according to inputs."""
         super().__init__()
         self._obs_ndim = len(observation_shape)
         input_size = int(np.prod(observation_shape))
@@ -40,9 +46,13 @@ class MujocoFfModel(torch.nn.Module):
         self.log_std = torch.nn.Parameter(init_log_std * torch.ones(action_size))
 
     def forward(self, observation, prev_action, prev_reward):
-        """Feedforward layers process as [T*B,H]. Return same leading dims as
-        input, can be [T,B], [B], or []."""
-
+        """
+        Compute mean, log_std, and value estimate from input state. Infers
+        leading dimensions of input: can be [T,B], [B], or []; provides
+        returns with same leading dims.  Intermediate feedforward layers
+        process as [T*B,H], with T=1,B=1 when not given. Used both in sampler
+        and in algorithm (both via the agent).
+        """
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
         lead_dim, T, B, _ = infer_leading_dims(observation, self._obs_ndim)
 

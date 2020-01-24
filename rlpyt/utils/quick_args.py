@@ -4,11 +4,11 @@ from inspect import getfullargspec
 
 def save__init__args(values, underscore=False, overwrite=False, subclass_only=False):
     """
-    Use in __init__() only; assign all args/kwargs to instance attributes.
+    Use in `__init__()` only; assign all args/kwargs to instance attributes.
     To maintain precedence of args provided to subclasses, call this in the
-    subclass before super().__init__() if save__init__args() also appears in
-    base class, or use overwrite=True.  With subclass_only==True, only args/kwargs
-    listed in current subclass apply.
+    subclass before `super().__init__()` if `save__init__args()` also appears
+    in base class, or use `overwrite=True`.  With `subclass_only==True`, only
+    args/kwargs listed in current subclass apply.
     """
     prefix = "_" if underscore else ""
     self = values['self']

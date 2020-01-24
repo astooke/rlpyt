@@ -37,7 +37,21 @@ class RWLock:
 
 
 def drain_queue(queue_obj, n_sentinel=0, guard_sentinel=False):
-    """Uses `None` obj as sentinel."""
+    """Empty a multiprocessing queue object, with options to protect against
+    the delay between ``queue.put()`` and ``queue.get()``.  Returns a list of
+    the queue contents.
+
+    With ``n_sentinel=0``, simply call ``queue.get(block=False)`` until
+    ``queue.Empty`` exception (which can still happen slightly *after* another
+    process called ``queue.put()``).
+
+    With ``n_sentinel>1``, call ``queue.get()`` until `n_sentinel` ``None``
+    objects have been returned (marking that each ``put()`` process has finished).
+
+    With ``guard_sentinel=True`` (need ``n_sentinel=0``), stops if a ``None``
+    is retrieved, and puts it back into the queue, so it can do a blocking
+    drain later with ``n_sentinel>1``.
+    """
     contents = list()
     if n_sentinel > 0:  # Block until this many None (sentinels) received.
         sentinel_counter = 0
@@ -63,7 +77,8 @@ def drain_queue(queue_obj, n_sentinel=0, guard_sentinel=False):
 
 
 def find_port(offset):
-    # Find a unique open port, to stack multiple multi-GPU runs per machine.
+    """Find a unique open port, for initializing `torch.distributed` in
+    multiple separate multi-GPU runs on one machine."""
     import torch.distributed
     assert offset < 100
     for port in range(29500 + offset, 65000, 100):

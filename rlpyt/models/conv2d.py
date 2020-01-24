@@ -6,6 +6,10 @@ from rlpyt.models.utils import conv2d_output_shape
 
 
 class Conv2dModel(torch.nn.Module):
+    """2-D Convolutional model component, with option for max-pooling vs
+    downsampling for strides > 1.  Requires number of input channels, but
+    not input shape.  Uses ``torch.nn.Conv2d``.
+    """
 
     def __init__(
             self,
@@ -40,9 +44,13 @@ class Conv2dModel(torch.nn.Module):
         self.conv = torch.nn.Sequential(*sequence)
 
     def forward(self, input):
+        """Computes the convolution stack on the input; assumes correct shape
+        already: [B,C,H,W]."""
         return self.conv(input)
 
     def conv_out_size(self, h, w, c=None):
+        """Helper function ot return the output size for a given input shape,
+        without actually performing a forward pass through the model."""
         for child in self.conv.children():
             try:
                 h, w = conv2d_output_shape(h, w, child.kernel_size,
@@ -57,6 +65,10 @@ class Conv2dModel(torch.nn.Module):
 
 
 class Conv2dHeadModel(torch.nn.Module):
+    """Model component composed of a ``Conv2dModel`` component followed by 
+    a fully-connected ``MlpModel`` head.  Requires full input image shape to
+    instantiate the MLP head.
+    """
 
     def __init__(
             self,
@@ -95,8 +107,11 @@ class Conv2dHeadModel(torch.nn.Module):
             self._output_size = conv_out_size
 
     def forward(self, input):
+        """Compute the convolution and fully connected head on the input;
+        assumes correct input shape: [B,C,H,W]."""
         return self.head(self.conv(input).view(input.shape[0], -1))
 
     @property
     def output_size(self):
+        """Returns the final output size after MLP head."""
         return self._output_size

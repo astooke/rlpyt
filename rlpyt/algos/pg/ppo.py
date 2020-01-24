@@ -14,6 +14,12 @@ LossInputs = namedarraytuple("LossInputs",
 
 
 class PPO(PolicyGradientAlgo):
+    """
+    Proximal Policy Optimization algorithm.  Trains the agent by taking
+    multiple epochs of gradient steps on minibatches of the training data at
+    each iteration, with advantages computed by generalized advantage
+    estimation.  Uses clipped likelihood ratios in the policy loss.
+    """
 
     def __init__(
             self,
@@ -32,11 +38,16 @@ class PPO(PolicyGradientAlgo):
             linear_lr_schedule=True,
             normalize_advantage=False,
             ):
+        """Saves input settings."""
         if optim_kwargs is None:
             optim_kwargs = dict()
         save__init__args(locals())
 
     def initialize(self, *args, **kwargs):
+        """
+        Extends base ``initialize()`` to initialize learning rate schedule, if
+        applicable.
+        """
         super().initialize(*args, **kwargs)
         self._batch_size = self.batch_spec.size // self.minibatches  # For logging.
         if self.linear_lr_schedule:
@@ -46,6 +57,12 @@ class PPO(PolicyGradientAlgo):
             self._ratio_clip = self.ratio_clip  # Save base value.
 
     def optimize_agent(self, itr, samples):
+        """
+        Train the agent, for multiple epochs over minibatches taken from the
+        input samples.  Organizes agent inputs from the training data, and
+        moves them to device (e.g. GPU) up front, so that minibatches are
+        formed within device, without further data transfer.
+        """
         recurrent = self.agent.recurrent
         agent_inputs = AgentInputs(  # Move inputs to device once, index there.
             observation=samples.env.observation,
@@ -97,6 +114,14 @@ class PPO(PolicyGradientAlgo):
 
     def loss(self, agent_inputs, action, return_, advantage, valid, old_dist_info,
             init_rnn_state=None):
+        """
+        Compute the training loss: policy_loss + value_loss + entropy_loss
+        Policy loss: min(likelhood-ratio * advantage, clip(likelihood_ratio, 1-eps, 1+eps) * advantage)
+        Value loss:  0.5 * (estimated_value - return) ^ 2
+        Calls the agent to compute forward pass on training data, and uses
+        the ``agent.distribution`` to compute likelihoods and entropies.  Valid
+        for feedforward or recurrent agents.
+        """
         if init_rnn_state is not None:
             # [B,N,H] --> [N,B,H] (for cudnn).
             init_rnn_state = buffer_method(init_rnn_state, "transpose", 0, 1)

@@ -23,6 +23,7 @@ Models = namedtuple("Models", ["pi", "q1", "q2", "v"])
 
 
 class SacAgent(BaseAgent):
+    """Agent for SAC algorithm, including action-squashing, using twin Q-values."""
 
     def __init__(
             self,
@@ -35,6 +36,7 @@ class SacAgent(BaseAgent):
             action_squash=1.,  # Max magnitude (or None).
             pretrain_std=0.75,  # With squash 0.75 is near uniform.
             ):
+        """Saves input arguments; network defaults stored within."""
         if model_kwargs is None:
             model_kwargs = dict(hidden_sizes=[256, 256])
         if q_model_kwargs is None:
@@ -95,6 +97,8 @@ class SacAgent(BaseAgent):
         )
 
     def q(self, observation, prev_action, prev_reward, action):
+        """Compute twin Q-values for state/observation and input action 
+        (with grad)."""
         model_inputs = buffer_to((observation, prev_action, prev_reward,
             action), device=self.device)
         q1 = self.q1_model(*model_inputs)
@@ -102,13 +106,19 @@ class SacAgent(BaseAgent):
         return q1.cpu(), q2.cpu()
 
     def target_q(self, observation, prev_action, prev_reward, action):
-        model_inputs = buffer_to((observation, prev_action, prev_reward,
-            action), device=self.device)
-        target_q1 = self.target_q1_model(*model_inputs)
+        """Compute twin target Q-values for state/observation and input
+        action.""" 
+        model_inputs = buffer_to((observation, prev_action,
+        prev_reward, action), device=self.device)
+        target_q1 =self.target_q1_model(*model_inputs)
         target_q2 = self.target_q2_model(*model_inputs)
         return target_q1.cpu(), target_q2.cpu()
 
     def pi(self, observation, prev_action, prev_reward):
+        """Compute action log-probabilities for state/observation, and
+        sample new action (with grad).  Uses special ``sample_loglikelihood()``
+        method of Gaussian distriution, which handles action squashing
+        through this process."""
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         mean, log_std = self.model(*model_inputs)

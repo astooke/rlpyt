@@ -7,10 +7,13 @@ from rlpyt.samplers.serial.collectors import SerialEvalCollector
 
 
 class SerialSampler(BaseSampler):
-    """Uses same functionality as ParallelSampler but does not fork worker
-    processes; can be easier for debugging (e.g. breakpoint() in master).  Use
-    with collectors which sample actions themselves (e.g. under cpu
-    category)."""
+    """The simplest sampler; no parallelism, everything occurs in same, master
+    Python process.  This can be easier for debugging (e.g. can use
+    ``breakpoint()`` in master process) and might be fast enough for
+    experiment purposes.  Should be used with collectors which generate the
+    agent's actions internally, i.e. CPU-based collectors but not GPU-based
+    ones.
+    """
 
     def __init__(self, *args, CollectorCls=CpuResetCollector,
             eval_CollectorCls=SerialEvalCollector, **kwargs):
@@ -27,6 +30,15 @@ class SerialSampler(BaseSampler):
             rank=0,
             world_size=1,
             ):
+        """Store the input arguments.  Instantiate the specified number of environment
+        instances (``batch_B``).  Initialize the agent, and pre-allocate a memory buffer
+        to hold the samples collected in each batch.  Applies ``traj_info_kwargs`` settings
+        to the `TrajInfoCls` by direct class attribute assignment.  Instantiates the Collector
+        and, if applicable, the evaluation Collector.
+
+        Returns a structure of inidividual examples for data fields such as `observation`,
+        `action`, etc, which can be used to allocate a replay buffer.
+        """
         B = self.batch_spec.B
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
         global_B = B * world_size
@@ -75,6 +87,10 @@ class SerialSampler(BaseSampler):
         return examples
 
     def obtain_samples(self, itr):
+        """Call the collector to execute a batch of agent-environment interactions.
+        Return data in torch tensors, and a list of trajectory-info objects from
+        episodes which ended.
+        """
         # self.samples_np[:] = 0  # Unnecessary and may take time.
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
             self.agent_inputs, self.traj_infos, itr)
@@ -84,4 +100,5 @@ class SerialSampler(BaseSampler):
         return self.samples_pyt, completed_infos
 
     def evaluate_agent(self, itr):
+        """Call the evaluation collector to execute agent-environment interactions."""
         return self.eval_collector.collect_evaluation(itr)

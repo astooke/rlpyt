@@ -11,8 +11,14 @@ SamplesFromReplay = namedarraytuple("SamplesFromReplay",
 
 
 class NStepReturnBuffer(BaseNStepReturnBuffer):
+    """Definition of what fields are replayed from basic n-step return buffer."""
 
     def extract_batch(self, T_idxs, B_idxs):
+        """From buffer locations `[T_idxs,B_idxs]`, extract data needed for
+        training, including target values at `T_idxs + n_step_return`.  Returns
+        namedarraytuple of torch tensors (see file for all fields).  Each tensor
+        has leading batch dimension ``len(T_idxs)==len(B_idxs)``, but individual
+        samples are drawn, so no leading time dimension."""
         s = self.samples
         target_T_idxs = (T_idxs + self.n_step_return) % self.T
         batch = SamplesFromReplay(
@@ -37,5 +43,6 @@ class NStepReturnBuffer(BaseNStepReturnBuffer):
         return torchify_buffer(batch)
 
     def extract_observation(self, T_idxs, B_idxs):
-        """Generalization anticipating frame-based buffer."""
+        """Simply ``observation[T_idxs,B_idxs]``; generalization anticipating
+        frame-based buffer."""
         return self.samples.observation[T_idxs, B_idxs]

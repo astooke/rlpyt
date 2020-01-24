@@ -3,7 +3,10 @@ import numpy as np
 
 
 def select_at_indexes(indexes, array):
-    """Leading dimensions of array must match dimensions of indexes."""
+    """Returns the contents of ``array`` at the multi-dimensional integer
+    array ``indexes``. Leading dimensions of ``array`` must match the
+    dimensions of ``indexes``.
+    """
     dim = len(indexes.shape)
     assert indexes.shape == array.shape[:dim]
     num = int(np.prod(indexes.shape))
@@ -14,6 +17,9 @@ def select_at_indexes(indexes, array):
 
 
 def to_onehot(indexes, dim, dtype=None):
+    """Converts integer values in multi-dimensional array ``indexes``
+    to one-hot values of size ``dim``; expanded in an additional
+    trailing dimension."""
     dtype = indexes.dtype if dtype is None else dtype
     onehot = np.zeros((indexes.size, dim), dtype=dtype)
     onehot[np.arange(indexes.size), indexes.reshape(-1)] = 1
@@ -21,17 +27,26 @@ def to_onehot(indexes, dim, dtype=None):
 
 
 def from_onehot(onehot, dtype=None):
+    """Argmax over trailing dimension of array ``onehot``. Optional return
+    dtype specification."""
     return np.asarray(np.argmax(onehot, axis=-1), dtype=dtype)
 
 
 def valid_mean(array, valid=None, axis=None):
+    """Mean of ``array``, accounting for optional mask ``valid``,
+    optionally along an axis."""
     if valid is None:
         return array.mean(axis=axis)
     return (array * valid).sum(axis=axis) / valid.sum(axis=axis)
 
 
 def infer_leading_dims(array, dim):
-    """Param 'dim': number of data dimensions, check for [B] or [T,B] leading."""
+    """Determine any leading dimensions of ``array``, which can have up to two
+    leading dimensions more than the number of data dimensions, ``dim``.  Used
+    to check for [B] or [T,B] leading.  Returns size of leading dimensions (or
+    1 if they don't exist), the data shape, and whether the leading dimensions
+    where found.
+    """
     assert array.ndim in (dim, dim + 1, dim + 2)
     shape = array.shape[-dim:]
     T = B = 1

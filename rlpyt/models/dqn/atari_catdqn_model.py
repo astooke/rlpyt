@@ -9,6 +9,7 @@ from rlpyt.models.dqn.dueling import DistributionalDuelingHeadModel
 
 
 class DistributionalHeadModel(torch.nn.Module):
+    """An MLP head which reshapes output to [B, output_size, n_atoms]."""
 
     def __init__(self, input_size, layer_sizes, output_size, n_atoms):
         super().__init__()
@@ -21,6 +22,8 @@ class DistributionalHeadModel(torch.nn.Module):
 
 
 class AtariCatDqnModel(torch.nn.Module):
+    """2D conlutional network feeding into MLP with ``n_atoms`` outputs
+    per action, representing a discrete probability distribution of Q-values."""
 
     def __init__(
             self,
@@ -35,6 +38,8 @@ class AtariCatDqnModel(torch.nn.Module):
             strides=None,
             paddings=None,
             ):
+        """Instantiates the neural network according to arguments; network defaults
+        stored within this method."""
         super().__init__()
         self.dueling = dueling
         c, h, w = image_shape
@@ -55,8 +60,8 @@ class AtariCatDqnModel(torch.nn.Module):
                 output_size=output_size, n_atoms=n_atoms)
 
     def forward(self, observation, prev_action, prev_reward):
-        """Feedforward layers process as [T*B,H]. Return same leading dims as
-        input, can be [T,B], [B], or []."""
+        """Returns the probability masses ``num_atoms x num_actions`` for the Q-values
+        for each state/observation, using softmax output nonlinearity."""
         img = observation.type(torch.float)  # Expect torch.uint8 inputs
         img = img.mul_(1. / 255)  # From [0-255] to [0-1], in place.
 

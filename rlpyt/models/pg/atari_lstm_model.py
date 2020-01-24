@@ -11,6 +11,9 @@ RnnState = namedarraytuple("RnnState", ["h", "c"])  # For downstream namedarrayt
 
 
 class AtariLstmModel(torch.nn.Module):
+    """Recurrent model for Atari agents: a convolutional network into an FC layer
+    into an LSTM which outputs action probabilities and state-value estimate.
+    """
 
     def __init__(
             self,
@@ -24,6 +27,7 @@ class AtariLstmModel(torch.nn.Module):
             strides=None,
             paddings=None,
             ):
+        """Instantiate neural net module according to inputs."""
         super().__init__()
         self.conv = Conv2dHeadModel(
             image_shape=image_shape,
@@ -39,9 +43,16 @@ class AtariLstmModel(torch.nn.Module):
         self.value = torch.nn.Linear(lstm_size, 1)
 
     def forward(self, image, prev_action, prev_reward, init_rnn_state):
-        """Feedforward layers process as [T*B,H], recurrent ones as [T,B,H].
-        Return same leading dims as input, can be [T,B], [B], or [].
-        (Same forward used for sampling and training.)"""
+        """
+        Compute action probabilities and value estimate from input state.
+        Infers leading dimensions of input: can be [T,B], [B], or []; provides
+        returns with same leading dims.  Convolution layers process as [T*B,
+        *image_shape], with T=1,B=1 when not given.  Expects uint8 images in
+        [0,255] and converts them to float32 in [0,1] (to minimize image data
+        storage and transfer).  Recurrent layers processed as [T,B,H]. Used in
+        both sampler and in algorithm (both via the agent).  Also returns the
+        next RNN state.
+        """        
         img = image.type(torch.float)  # Expect torch.uint8 inputs
         img = img.mul_(1. / 255)  # From [0-255] to [0-1], in place.
 

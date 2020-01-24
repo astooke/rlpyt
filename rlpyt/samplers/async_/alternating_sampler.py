@@ -6,6 +6,9 @@ from rlpyt.utils.logging import logger
 
 
 class AsyncAlternatingSamplerBase(AsyncGpuSamplerBase):
+    """Defines several methods to extend the asynchronous GPU sampler to use
+    two alternating sets of environment workers.  
+    """
 
     alternating = True
 

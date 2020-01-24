@@ -9,9 +9,14 @@ from rlpyt.replays.async_ import AsyncReplayBufferMixin
 
 
 class NStepFrameBuffer(FrameBufferMixin, NStepReturnBuffer):
+    """Special method for re-assembling observations from frames."""
 
     def extract_observation(self, T_idxs, B_idxs):
-        """Frames are returned OLDEST to NEWEST."""
+        """Assembles multi-frame observations from frame-wise buffer.  Frames
+        are ordered OLDEST to NEWEST along C dim: [B,C,H,W].  Where
+        ``done=True`` is found, the history is not full due to recent
+        environment reset, so these frames are zero-ed.
+        """
         # Begin/end frames duplicated in samples_frames so no wrapping here.
         # return np.stack([self.samples_frames[t:t + self.n_frames, b]
         #     for t, b in zip(T_idxs, B_idxs)], axis=0)  # [B,C,H,W]

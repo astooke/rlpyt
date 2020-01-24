@@ -9,6 +9,10 @@ from rlpyt.agents.base import AgentInputs
 class AsyncActionServer(ActionServer):
 
     def serve_actions_evaluation(self, itr):
+        """Similar to normal action-server, but with different signaling logic
+        for ending evaluation early; receive signal from main sampler process
+        and pass it along to my workers.
+        """
         obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         step_np, step_pyt = self.eval_step_buffer_np, self.eval_step_buffer_pyt
         self.agent.reset()
@@ -42,6 +46,10 @@ class AsyncActionServer(ActionServer):
 class AsyncAlternatingActionServer(AlternatingActionServer):
 
     def serve_actions_evaluation(self, itr):
+        """Similar to normal action-server, but with different signaling logic
+        for ending evaluation early; receive signal from main sampler process
+        and pass it along to my workers.
+        """
         obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair
@@ -91,6 +99,10 @@ class AsyncNoOverlapAlternatingActionServer(NoOverlapAlternatingActionServer):
     """Not tested, possibly faulty corner cases for synchronization."""
 
     def serve_actions_evaluation(self, itr):
+        """Similar to normal action-server, but with different signaling logic
+        for ending evaluation early; receive signal from main sampler process
+        and pass it along to my workers.
+        """
         obs_ready, act_ready = self.sync.obs_ready, self.sync.act_ready
         obs_ready_pair = self.obs_ready_pair
         act_ready_pair = self.act_ready_pair

@@ -63,6 +63,16 @@ class R2D1(DQN):
             value_scale_eps=1e-3,  # 1e-3 (Steven).
             updates_per_sync=1,  # For async mode only.
             ):
+        """Saves input arguments.
+
+        Args:
+            store_rnn_state_interval (int): store RNN state only once this many steps, to reduce memory usage; replay sequences will only begin at the steps with stored recurrent state.
+        
+        Note:
+            Typically ran with ``store_rnn_state_interval`` equal to the sampler's ``batch_T``, 40.  Then every 40 steps
+            can be the beginning of a replay sequence, and will be guaranteed to start with a valid RNN state.  Only reset
+            the RNN state (and env) at the end of the sampler batch, so that the beginnings of episodes are trained on.
+        """
         if optim_kwargs is None:
             optim_kwargs = dict(eps=1e-3)  # Assumes Adam.
         if default_priority is None:
@@ -73,6 +83,8 @@ class R2D1(DQN):
         self._batch_size = (self.batch_T + self.warmup_T) * self.batch_B
 
     def initialize_replay_buffer(self, examples, batch_spec, async_=False):
+        """Similar to DQN but uses replay buffers which return sequences, and
+        stores the agent's recurrent state."""
         example_to_buffer = SamplesToBuffer(
             observation=examples["observation"],
             action=examples["action"],
@@ -110,6 +122,13 @@ class R2D1(DQN):
         return self.replay_buffer
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
+        """
+        Similar to DQN, except allows to compute the priorities of new samples
+        as they enter the replay buffer (input priorities), instead of only once they are
+        used in training (important because the replay-ratio is quite low, about 1,
+        so must avoid un-informative samples).
+        """
+
         # TODO: estimate priorities for samples entering the replay buffer.
         # Steven says: workers did this approximately by using the online
         # network only for td-errors (not the target network).
@@ -166,20 +185,38 @@ class R2D1(DQN):
         return samples_to_buffer
 
     def compute_input_priorities(self, samples):
-        """Just for first input into replay buffer.
-        Simple 1-step return TD-errors using recorded Q-values from online
-        network and value scaling, with the T dimension reduced away (same
-        priority applied to all samples in this batch; whereever the rnn state
-        is kept--hopefully the first step--this priority will apply there).
-        The samples duration T might be less than the training segment, so
-        this is an approximation of an approximation, but hopefully will
-        capture the right behavior.
-        UPDATE 20190826: Trying using n-step returns.  For now using samples
-        with full n-step return available...later could also use partial
-        returns for samples at end of batch.  35/40 ain't bad tho.
-        Might not carry/use internal state here, because might get executed
-        by alternating memory copiers in async mode; do all with only the
-        samples avialable from input."""
+        """Used when putting new samples into the replay buffer.  Computes
+        n-step TD-errors using recorded Q-values from online network and
+        value scaling.  Weights the max and the mean TD-error over each sequence
+        to make a single priority value for that sequence.  
+
+        Note:
+            Although the original R2D2 implementation used the entire
+            80-step sequence to compute the input priorities, we ran R2D1 with 40
+            time-step sample batches, and so computed the priority for each
+            80-step training sequence based on one of the two 40-step halves.
+            Algorithm argument ``input_priority_shift`` determines which 40-step
+            half is used as the priority for the 80-step sequence.  (Since this 
+            method might get executed by alternating memory copiers in async mode,
+            don't carry internal state here, do all computation with only the samples
+            available in input.  Could probably reduce to one memory copier and keep
+            state there, if needed.)
+        """
+
+        # """Just for first input into replay buffer.
+        # Simple 1-step return TD-errors using recorded Q-values from online
+        # network and value scaling, with the T dimension reduced away (same
+        # priority applied to all samples in this batch; whereever the rnn state
+        # is kept--hopefully the first step--this priority will apply there).
+        # The samples duration T might be less than the training segment, so
+        # this is an approximation of an approximation, but hopefully will
+        # capture the right behavior.
+        # UPDATE 20190826: Trying using n-step returns.  For now using samples
+        # with full n-step return available...later could also use partial
+        # returns for samples at end of batch.  35/40 ain't bad tho.
+        # Might not carry/use internal state here, because might get executed
+        # by alternating memory copiers in async mode; do all with only the
+        # samples avialable from input."""
         samples = torchify_buffer(samples)
         q = samples.agent.agent_info.q
         action = samples.agent.action
@@ -213,7 +250,13 @@ class R2D1(DQN):
     def loss(self, samples):
         """Samples have leading Time and Batch dimentions [T,B,..]. Move all
         samples to device first, and then slice for sub-sequences.  Use same
-        init_rnn_state for agent and target; start both at same t."""
+        init_rnn_state for agent and target; start both at same t.  Warmup the
+        RNN state first on the warmup subsequence, then train on the remaining
+        subsequence.
+
+        Returns loss (usually use MSE, not Huber), TD-error absolute values,
+        and new sequence-wise priorities, based on weighted sum of max and mean
+        TD-error over the sequence."""
         all_observation, all_action, all_reward = buffer_to(
             (samples.all_observation, samples.all_action, samples.all_reward),
             device=self.agent.device)
@@ -297,10 +340,12 @@ class R2D1(DQN):
         return loss, valid_td_abs_errors, priorities
 
     def value_scale(self, x):
+        """Value scaling function to handle raw rewards across games (not clipped)."""
         return (torch.sign(x) * (torch.sqrt(abs(x) + 1) - 1) +
             self.value_scale_eps * x)
 
     def inv_value_scale(self, z):
+        """Invert the value scaling."""
         return torch.sign(z) * (((torch.sqrt(1 + 4 * self.value_scale_eps *
             (abs(z) + 1 + self.value_scale_eps)) - 1) /
             (2 * self.value_scale_eps)) ** 2 - 1)

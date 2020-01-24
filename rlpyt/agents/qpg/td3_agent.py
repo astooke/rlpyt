@@ -11,6 +11,7 @@ from rlpyt.utils.logging import logger
 
 
 class Td3Agent(DdpgAgent):
+    """Agent for TD3 algorithm, using two Q-models and two target Q-models."""
 
     def __init__(
             self,
@@ -20,6 +21,7 @@ class Td3Agent(DdpgAgent):
             initial_q2_model_state_dict=None,
             **kwargs
             ):
+        """Saves input arguments."""
         super().__init__(**kwargs)
         save__init__args(locals())
         self.min_itr_learn = 0  # Get from algo.
@@ -57,6 +59,8 @@ class Td3Agent(DdpgAgent):
         self.min_itr_learn = min_itr_learn  # From algo.
 
     def q(self, observation, prev_action, prev_reward, action):
+        """Compute twin Q-values for state/observation and input action 
+        (with grad)."""
         model_inputs = buffer_to((observation, prev_action, prev_reward,
             action), device=self.device)
         q1 = self.q_model(*model_inputs)
@@ -64,6 +68,8 @@ class Td3Agent(DdpgAgent):
         return q1.cpu(), q2.cpu()
 
     def target_q_at_mu(self, observation, prev_action, prev_reward):
+        """Compute twin target Q-values for state/observation, through
+        target mu model."""
         model_inputs = buffer_to((observation, prev_action, prev_reward),
             device=self.device)
         target_mu = self.target_model(*model_inputs)

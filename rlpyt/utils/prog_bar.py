@@ -5,6 +5,10 @@ from rlpyt.utils.logging import logger
 
 
 class ProgBarCounter:
+    """Dynamic display of progress bar in terminal, for example to mark progress
+    (and estimate time to completion) of RL iterations toward the next logging
+    update.  credit: `rllab`.
+    """
 
     def __init__(self, total_count):
         self.total_count = total_count

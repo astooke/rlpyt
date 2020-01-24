@@ -5,15 +5,13 @@ from rlpyt.spaces.base import Space
 
 
 class FloatBox(Space):
-    """A box in R^n, with specifiable bounds and dtype."""
+    """A box in `R^n`, with specifiable bounds and dtype."""
 
     def __init__(self, low, high, shape=None, null_value=0., dtype="float32"):
         """
         Two kinds of valid input:
-            # low and high are scalars, and shape is provided
-            Box(-1.0, 1.0, (3,4))
-            # low and high are arrays of the same shape
-            Box(np.array([-1.0,-2.0]), np.array([2.0,4.0]))
+            * low and high are scalars, and shape is provided: Box(-1.0, 1.0, (3,4))
+            * low and high are arrays of the same shape: Box(np.array([-1.0,-2.0]), np.array([2.0,4.0]))
         """
         self.dtype = np.dtype(dtype)
         assert np.issubdtype(self.dtype, np.floating)
@@ -28,6 +26,7 @@ class FloatBox(Space):
         self._null_value = null_value
 
     def sample(self):
+        """Return a single sample from ``np.random.uniform``."""
         return np.asarray(np.random.uniform(low=self.low, high=self.high,
             size=self.shape), dtype=self.dtype)
 

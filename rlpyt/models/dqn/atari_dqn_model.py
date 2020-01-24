@@ -8,6 +8,10 @@ from rlpyt.models.dqn.dueling import DuelingHeadModel
 
 
 class AtariDqnModel(torch.nn.Module):
+    """Standard convolutional network for DQN.  2-D convolution for multiple
+    video frames per observation, feeding an MLP for Q-value outputs for
+    the action set.
+    """
 
     def __init__(
             self,
@@ -21,6 +25,8 @@ class AtariDqnModel(torch.nn.Module):
             strides=None,
             paddings=None,
             ):
+        """Instantiates the neural network according to arguments; network defaults
+        stored within this method."""
         super().__init__()
         self.dueling = dueling
         c, h, w = image_shape
@@ -39,8 +45,15 @@ class AtariDqnModel(torch.nn.Module):
             self.head = MlpModel(conv_out_size, fc_sizes, output_size)
 
     def forward(self, observation, prev_action, prev_reward):
-        """Feedforward layers process as [T*B,H]. Return same leading dims as
-        input, can be [T,B], [B], or []."""
+        """
+        Compute action Q-value estimates from input state.
+        Infers leading dimensions of input: can be [T,B], [B], or []; provides
+        returns with same leading dims.  Convolution layers process as [T*B,
+        image_shape[0], image_shape[1],...,image_shape[-1]], with T=1,B=1 when not given.  Expects uint8 images in
+        [0,255] and converts them to float32 in [0,1] (to minimize image data
+        storage and transfer).  Used in both sampler and in algorithm (both
+        via the agent).
+        """
         img = observation.type(torch.float)  # Expect torch.uint8 inputs
         img = img.mul_(1. / 255)  # From [0-255] to [0-1], in place.
 

@@ -11,6 +11,9 @@ from rlpyt.utils.collections import AttrDict
 
 
 class AsyncSerialSampler(AsyncSamplerMixin, BaseSampler):
+    """Sampler which runs asynchronously in a python process forked from the
+    master (training) process, but with no further parallelism.
+    """
 
     def __init__(self, *args, CollectorCls=DbCpuResetCollector,
             eval_CollectorCls=SerialEvalCollector, **kwargs):
@@ -22,6 +25,12 @@ class AsyncSerialSampler(AsyncSamplerMixin, BaseSampler):
     ###########################################################################
 
     def initialize(self, affinity):
+        """Initialization inside the main sampler process.  Sets process hardware
+        affinities, creates specified number of environment instances and instantiates
+        the collector with them.  If applicable, does the same for evaluation
+        environment instances.  Moves the agent to device (could be GPU), and 
+        calls on ``agent.async_cpu()`` initialization.  Starts up collector.
+        """
         p = psutil.Process()
         if affinity.get("set_affinity", True):
             p.cpu_affinity(affinity["master_cpus"])
@@ -63,9 +72,14 @@ class AsyncSerialSampler(AsyncSamplerMixin, BaseSampler):
         self.sync = sync
         logger.log("Serial sampler initialized.")
 
-    def obtain_samples(self, itr, j):
+    def obtain_samples(self, itr, db_idx):
+        """First calls the agent to retrieve new parameter values from the
+        training process's agent.  Then passes the double-buffer index to the
+        collector and collects training sample batch.  Returns list of
+        completed trajectory-info objects.
+        """
         self.agent.recv_shared_memory()
-        self.sync.db_idx.value = j  # Tell the collector which buffer.
+        self.sync.db_idx.value = db_idx  # Tell the collector which buffer.
         agent_inputs, traj_infos, completed_infos = self.collector.collect_batch(
             self.agent_inputs, self.traj_infos, itr)
         self.collector.reset_if_needed(agent_inputs)
@@ -74,5 +88,8 @@ class AsyncSerialSampler(AsyncSamplerMixin, BaseSampler):
         return completed_infos
 
     def evaluate_agent(self, itr):
+        """First calls the agent to retrieve new parameter values from
+        the training process's agent.
+        """
         self.agent.recv_shared_memory()
         return self.eval_collector.collect_evaluation(itr)

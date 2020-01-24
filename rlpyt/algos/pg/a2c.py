@@ -10,6 +10,11 @@ from rlpyt.utils.buffer import buffer_method
 
 
 class A2C(PolicyGradientAlgo):
+    """
+    Advantage Actor Critic algorithm (synchronous).  Trains the agent by
+    taking one gradient step on each iteration of samples, with advantages
+    computed by generalized advantage estimation.
+    """
 
     def __init__(
             self,
@@ -24,6 +29,7 @@ class A2C(PolicyGradientAlgo):
             gae_lambda=1,
             normalize_advantage=False,
             ):
+        """Saves the input settings."""
         if optim_kwargs is None:
             optim_kwargs = dict()
         save__init__args(locals())
@@ -33,6 +39,9 @@ class A2C(PolicyGradientAlgo):
         self._batch_size = self.batch_spec.size  # For logging.
 
     def optimize_agent(self, itr, samples):
+        """
+        Train the agent on input samples, by one gradient step.
+        """
         self.optimizer.zero_grad()
         loss, entropy, perplexity = self.loss(samples)
         loss.backward()
@@ -49,6 +58,15 @@ class A2C(PolicyGradientAlgo):
         return opt_info
 
     def loss(self, samples):
+        """
+        Computes the training loss: policy_loss + value_loss + entropy_loss.
+        Policy loss: log-likelihood of actions * advantages
+        Value loss: 0.5 * (estimated_value - return) ^ 2
+        Organizes agent inputs from training samples, calls the agent instance
+        to run forward pass on training data, and uses the
+        ``agent.distribution`` to compute likelihoods and entropies.  Valid
+        for feedforward or recurrent agents.
+        """
         agent_inputs = AgentInputs(
             observation=samples.env.observation,
             prev_action=samples.agent.prev_action,

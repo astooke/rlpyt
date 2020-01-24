@@ -9,6 +9,9 @@ from rlpyt.utils.seed import set_seed
 
 
 def initialize_worker(rank, seed=None, cpu=None, torch_threads=None):
+    """Assign CPU affinity, set random seed, set torch_threads if needed to
+    prevent MKL deadlock.
+    """
     log_str = f"Sampler rank {rank} initialized"
     cpu = [cpu] if isinstance(cpu, int) else cpu
     p = psutil.Process()
@@ -32,7 +35,16 @@ def initialize_worker(rank, seed=None, cpu=None, torch_threads=None):
 
 
 def sampling_process(common_kwargs, worker_kwargs):
-    """Arguments fed from the Sampler class in master process."""
+    """Target function used for forking parallel worker processes in the
+    samplers. After ``initialize_worker()``, it creates the specified number
+    of environment instances and gives them to the collector when
+    instantiating it.  It then calls collector startup methods for
+    environments and agent.  If applicable, instantiates evaluation
+    environment instances and evaluation collector.
+
+    Then enters infinite loop, waiting for signals from master to collect
+    training samples or else run evaluation, until signaled to exit.
+    """
     c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
     initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads)
     envs = [c.EnvCls(**c.env_kwargs) for _ in range(w.n_envs)]

@@ -12,13 +12,21 @@ AgentTrain = namedtuple("AgentTrain", ["dist_info", "value"])
 
 
 class PolicyGradientAlgo(RlAlgorithm):
+    """
+    Base policy gradient / actor-critic algorithm, which includes
+    initialization procedure and processing of data samples to compute
+    advantages.
+    """
 
-    bootstrap_value = True
+    bootstrap_value = True  # Tells the sampler it needs Value(State')
     opt_info_fields = tuple(f for f in OptInfo._fields)  # copy
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset=False,
             examples=None, world_size=1, rank=0):
-        """Params batch_spec and examples unused."""
+        """
+        Build the torch optimizer and store other input attributes. Params
+        ``batch_spec`` and ``examples`` are unused.
+        """
         self.optimizer = self.OptimCls(agent.parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
@@ -29,6 +37,13 @@ class PolicyGradientAlgo(RlAlgorithm):
         self.mid_batch_reset = mid_batch_reset
 
     def process_returns(self, samples):
+        """
+        Compute bootstrapped returns and advantages from a minibatch of
+        samples.  Uses either discounted returns (if ``self.gae_lambda==1``)
+        or generalized advantage estimation.  Mask out invalid samples
+        according to ``mid_batch_reset`` or for recurrent agent.  Optionally,
+        normalize advantages.
+        """
         reward, done, value, bv = (samples.env.reward, samples.env.done,
             samples.agent.agent_info.value, samples.agent.bootstrap_value)
         done = done.type(reward.dtype)

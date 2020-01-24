@@ -10,8 +10,12 @@ EPS = 1e-6  # (NaN-guard)
 
 
 class CategoricalDQN(DQN):
+    """Distributional DQN with fixed probability bins for the Q-value of each
+    action, a.k.a. categorical."""
 
     def __init__(self, V_min=-10, V_max=10, **kwargs):
+        """Standard __init__() plus Q-value limits; the agent configures
+        the number of atoms (bins)."""
         super().__init__(**kwargs)
         self.V_min = V_min
         self.V_max = V_max
@@ -27,7 +31,14 @@ class CategoricalDQN(DQN):
         self.agent.give_V_min_max(self.V_min, self.V_max)
 
     def loss(self, samples):
-        """Samples have leading batch dimension [B,..] (but not time)."""
+        """
+        Computes the Distributional Q-learning loss, based on projecting the
+        discounted rewards + target Q-distribution into the current Q-domain,
+        with cross-entropy loss.  
+
+        Returns loss and KL-divergence-errors for use in prioritization.
+        """
+
         delta_z = (self.V_max - self.V_min) / (self.agent.n_atoms - 1)
         z = torch.linspace(self.V_min, self.V_max, self.agent.n_atoms)
         # Makde 2-D tensor of contracted z_domain for each data point,

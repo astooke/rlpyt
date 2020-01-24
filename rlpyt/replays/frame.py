@@ -15,10 +15,13 @@ class FrameBufferMixin:
     [T,B,C,..] with C the number of frames.  Expects frame order: OLDEST to
     NEWEST.
 
-    Latest n_steps up to cursor invalid as "now" because "next" not
-    yet written.  Cursor invalid as "now" because previous action and
-    reward overwritten.  NEW: Next n_frames-1 invalid as "now" because
-    observation frames overwritten.
+    A special method for replay will be required to piece the frames back
+    together into full observations.
+
+    Latest n_steps up to cursor temporarilty invalid because "next" not yet
+    written.  Cursor timestep invalid because previous action and reward
+    overwritten.  NEW: Next n_frames-1 invalid because observation history
+    frames overwritten.
     """
 
     def __init__(self, example, **kwargs):
@@ -41,6 +44,8 @@ class FrameBufferMixin:
         self.off_forward = max(self.off_forward, n_frames - 1)
 
     def append_samples(self, samples):
+        """Appends all samples except for the `observation` as normal.
+        Only the new frame in each observation is recorded."""
         t, fm1 = self.t, self.n_frames - 1
         buffer_samples = BufferSamples(*(v for k, v in samples.items()
             if k != "observation"))

@@ -10,7 +10,10 @@ RnnState = namedarraytuple("RnnState", ["h", "c"])
 
 
 class MujocoLstmModel(torch.nn.Module):
-
+    """
+    Recurrent model for Mujoco locomotion agents: an MLP into an LSTM which
+    outputs distribution means, log_std, and state-value estimate.
+    """
     def __init__(
             self,
             observation_shape,
@@ -35,6 +38,17 @@ class MujocoLstmModel(torch.nn.Module):
         self.head = torch.nn.Linear(lstm_size, action_size * 2 + 1)
 
     def forward(self, observation, prev_action, prev_reward, init_rnn_state):
+        """
+        Compute mean, log_std, and value estimate from input state. Infer
+        leading dimensions of input: can be [T,B], [B], or []; provides
+        returns with same leading dims.  Intermediate feedforward layers
+        process as [T*B,H], and recurrent layers as [T,B,H], with T=1,B=1 when
+        not given. Used both in sampler and in algorithm (both via the agent).
+        Also returns the next RNN state.
+        """
+
+
+
         """Feedforward layers process as [T*B,H]. Return same leading dims as
         input, can be [T,B], [B], or []."""
 

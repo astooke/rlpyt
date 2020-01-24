@@ -8,7 +8,7 @@ from rlpyt.utils.quick_args import save__init__args
 
 
 class BaseCollector:
-    """Class that steps through environments, possibly in worker process."""
+    """Class that steps environments, possibly in worker process."""
 
     def __init__(
             self,
@@ -26,10 +26,13 @@ class BaseCollector:
         save__init__args(locals())
 
     def start_envs(self):
-        """Calls reset() on every env."""
+        """e.g. calls reset() on every env."""
         raise NotImplementedError
 
     def start_agent(self):
+        """In CPU-collectors, call ``agent.collector_initialize()`` e.g. to set up
+        vector epsilon-greedy, and reset the agent.
+        """
         if getattr(self, "agent", None) is not None:  # Not in GPU collectors.
             self.agent.collector_initialize(
                 global_B=self.global_B,  # Args used e.g. for vector epsilon greedy.
@@ -39,6 +42,7 @@ class BaseCollector:
             self.agent.sample_mode(itr=0)
 
     def collect_batch(self, agent_inputs, traj_infos):
+        """Main data collection loop."""
         raise NotImplementedError
 
     def reset_if_needed(self, agent_inputs):
@@ -47,7 +51,7 @@ class BaseCollector:
 
 
 class BaseEvalCollector:
-    """Does not record intermediate data."""
+    """Collectors for offline agent evalution; not to record intermediate samples."""
 
     def __init__(
             self,
@@ -63,13 +67,21 @@ class BaseEvalCollector:
         save__init__args(locals())
 
     def collect_evaluation(self):
+        """Run agent evaluation in environment and return completed trajectory
+        infos."""
         raise NotImplementedError
 
 
 class DecorrelatingStartCollector(BaseCollector):
+    """Collector which can step all environments through a random number of random
+    actions during startup, to decorrelate the states in training batches.
+    """
 
     def start_envs(self, max_decorrelation_steps=0):
-        """Calls reset() on every env and returns agent_inputs buffer."""
+        """Calls ``reset()`` on every environment instance, then steps each
+        one through a random number of random actions, and returns the
+        resulting agent_inputs buffer (`observation`, `prev_action`,
+        `prev_reward`)."""
         traj_infos = [self.TrajInfoCls() for _ in range(len(self.envs))]
         observations = list()
         for env in self.envs:

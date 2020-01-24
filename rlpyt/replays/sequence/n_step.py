@@ -15,6 +15,14 @@ SamplesToBuffer = None
 
 
 class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
+    """Base n-step return buffer for sequences replays.  Includes storage of
+    agent's recurrent (RNN) state.  
+
+    Use of ``rnn_state_interval>1`` only periodically
+    stores RNN state, to save memory.  The replay mechanism must account for the
+    fact that only time-steps with saved RNN state are valid first states for replay.
+    (``rnn_state_interval<1`` does not store RNN state.)
+    """
 
     def __init__(self, example, size, B, rnn_state_interval, batch_T=None, **kwargs):
         self.rnn_state_interval = rnn_state_interval
@@ -39,6 +47,9 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
             self.rnn_T = self.T // rnn_state_interval
 
     def append_samples(self, samples):
+        """Special handling for RNN state storage, and otherwise uses superclass's
+        ``append_samples()``.
+        """
         t, rsi = self.t, self.rnn_state_interval
         if rsi <= 1:  # All or no rnn states stored.
             return super().append_samples(samples)
@@ -55,9 +66,16 @@ class SequenceNStepReturnBuffer(BaseNStepReturnBuffer):
         return T, idxs
 
     def extract_batch(self, T_idxs, B_idxs, T):
-        """Return full sequence of each field which encompasses all subsequences
-        to be used, so algorithm can make sub-sequences by slicing on device,
-        for reduced memory usage."""
+        """Return full sequence of each field in `agent_inputs` (e.g. `observation`),
+        including all timesteps for the main sequence and for the target sequence in
+        one array; many timesteps will likely overlap, so the algorithm and make
+        sub-sequences by slicing on device, for reduced memory usage.
+
+        Enforces that input `T_idxs` align with RNN state interval.
+
+        Uses helper function ``extract_sequences()`` to retrieve samples of
+        length ``T`` starting at locations ``[T_idxs,B_idxs]``, so returned
+        data batch has leading dimensions ``[T,len(B_idxs)]``."""
         s, rsi = self.samples, self.rnn_state_interval
         if rsi > 1:
             assert np.all(np.asarray(T_idxs) % rsi == 0)

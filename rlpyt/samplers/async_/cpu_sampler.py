@@ -15,6 +15,11 @@ EVAL_TRAJ_CHECK = 0.1  # Seconds.
 
 
 class AsyncCpuSampler(AsyncParallelSamplerMixin, ParallelSamplerBase):
+    """Parallel sampler for agent action-selection on CPU, to use in
+    asynchronous runner.  The master (training) process will have forked
+    the main sampler process, which here will fork sampler workers from
+    itself, and otherwise will run similarly to the ``CpuSampler``.
+    """
 
     def __init__(self, *args, CollectorCls=DbCpuResetCollector,
             eval_CollectorCls=CpuEvalCollector, **kwargs):
@@ -26,6 +31,11 @@ class AsyncCpuSampler(AsyncParallelSamplerMixin, ParallelSamplerBase):
     ###########################################################################
 
     def initialize(self, affinity):
+        """
+        Runs inside the main sampler process.  Sets process hardware affinity
+        and calls the ``agent.async_cpu()`` initialization.  Then proceeds with
+        usual parallel sampler initialization.
+        """
         p = psutil.Process()
         if affinity.get("set_affinity", True):
             p.cpu_affinity(affinity["master_cpus"])
@@ -42,9 +52,15 @@ class AsyncCpuSampler(AsyncParallelSamplerMixin, ParallelSamplerBase):
         )
 
     def obtain_samples(self, itr, db_idx):
+        """Calls the agent to retrieve new parameter values from the training
+        process, then proceeds with base async parallel method.
+        """
         self.agent.recv_shared_memory()
         return super().obtain_samples(itr, db_idx)
 
     def evaluate_agent(self, itr):
+        """Calls the agent to retrieve new parameter values from the training
+        process, then proceeds with base async parallel method.
+        """
         self.agent.recv_shared_memory()
         return super().evaluate_agent(itr)

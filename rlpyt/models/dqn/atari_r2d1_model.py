@@ -12,7 +12,9 @@ RnnState = namedarraytuple("RnnState", ["h", "c"])
 
 
 class AtariR2d1Model(torch.nn.Module):
-
+    """2D convolutional neural network (for multiple video frames per
+    observation) feeding into an LSTM and MLP output for Q-value outputs for
+    the action set."""
     def __init__(
             self,
             image_shape,
@@ -27,6 +29,8 @@ class AtariR2d1Model(torch.nn.Module):
             strides=None,
             paddings=None,
             ):
+        """Instantiates the neural network according to arguments; network defaults
+        stored within this method."""
         super().__init__()
         self.dueling = dueling
         self.conv = Conv2dHeadModel(
