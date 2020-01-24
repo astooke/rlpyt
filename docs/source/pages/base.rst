@@ -17,12 +17,16 @@ Algorithms
 Environments
 ------------
 
+Environments are expected to input/output numpy arrays.
+
 .. autoclass:: rlpyt.envs.base.Env
     :members: step, reset, action_space, observation_space
 
 
 Agents
 ------
+
+Agents are expected to input/output torch tensors.
 
 .. autoclass:: rlpyt.agents.base.BaseAgent
     :members: __init__, __call__, initialize, make_env_to_model_kwargs, to_device, data_parallel, async_cpu, step, state_dict, load_state_dict, train_mode, sample_mode, eval_mode, sync_shared_memory, send_shared_memory, recv_shared_memory

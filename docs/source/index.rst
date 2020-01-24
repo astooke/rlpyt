@@ -6,6 +6,9 @@
 Welcome to rlpyt's documentation!
 =================================
 
+!! UNDER CONSTRUCTION !!
+
+
 rlpyt includes modular, optimized implementations of common deep RL algorithms in PyTorch, with unified infrastructure supporting all three major families of model-free algorithms: policy gradient, deep-q learning, and q-function policy gradient. It is intended to be a high-throughput code-base for small- to medium-scale research (large-scale meaning like OpenAI Dota with 100's GPUs). A conceptual overview is provided in the white paper (link), and the code (with examples) in the github repository (link).
 
 This documentation aims to explain the intent of the code structure, for the purpose of making it easier to use and modify (it might not detail every keyword argument as in a fixed library).  See the github README for installation instructions and other introductory notes.  
@@ -18,7 +21,22 @@ The sections are organized as...
    :caption: Contents:
 
    pages/base.rst
+   pages/pg.rst
+   pages/dqn.rst
+   pages/qpg.rst
    pages/runner.rst
+   pages/sampler.rst
+   pages/async_sampler.rst
+   pages/collector.rst
+   pages/distribution.rst
+   pages/space.rst
+   pages/model.rst
+   pages/env.rst
+   pages/replay.rst
+   pages/nat.rst
+   pages/util.rst
+   pages/log.rst
+   pages/launch.rst
 
 
 
