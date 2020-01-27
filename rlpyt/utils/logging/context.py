@@ -18,6 +18,28 @@ def get_log_dir(experiment_name):
 
 @contextmanager
 def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none"):
+    """Use as context manager around calls to the runner's ``train()`` method.
+    Sets up the logger directory and filenames.  This function automatically
+    prepends ``log_dir`` with the rlpyt logging directory and the date:
+    `path-to-rlpyt/data/yyyymmdd` (`data/` is in the gitignore), and appends
+    with `/run_{run_ID}` to separate multiple runs of the same settings.
+    Saves hyperparameters provided in ``log_params`` to `params.json`, along
+    with experiment `name` and `run_ID`.
+
+    Input ``snapshot_mode`` refers to how often the logger actually saves the
+    snapshot (e.g. may include agent parameters).  The runner calls on the
+    logger to save the snapshot at every iteration, but the input
+    ``snapshot_mode`` sets how often the logger actually saves (e.g. snapshot
+    may include agent parameters). Possible modes include (but check inside
+    the logger itself):
+        * "none": don't save at all
+        * "last": always save and overwrite the previous
+        * "all": always save and keep each iteration
+        * "gap": save periodically and keep each (will also need to set the gap, not done here) 
+
+    The cleanup operations after the ``yield`` close files but might not be strictly
+    necessary if not launching another training session in the same python process.
+    """
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_log_tabular_only(False)
     log_dir = osp.join(log_dir, f"run_{run_ID}")

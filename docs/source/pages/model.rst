@@ -4,7 +4,7 @@ Model Components
 
 This page documents the implemented neural network components.  These are intended as building blocks for the agent model, but not to be used as standalone models (should probably disambiguate the name from `model`).
 
-Complete models which actually function as the agent model have additional functionality in the ``forward()`` method for handling of leading dimensions of inputs/outputs.  See the documentation for each algorithm to see associated complete models.
+Complete models which actually function as the agent model have additional functionality in the ``forward()`` method for handling of leading dimensions of inputs/outputs.  See ``infer_leading_dims()`` and ``restore_leading_dims`` until utilities, and see the documentation for each algorithm for associated complete models.
 
 .. autoclass:: rlpyt.models.mlp.MlpModel
     :members: forward, output_size

@@ -49,7 +49,7 @@ def np_mp_array(shape, dtype):
 
 
 def torchify_buffer(buffer_):
-    """Convert contents of ``buffer_` from numpy arrays to torch tensors.
+    """Convert contents of ``buffer_`` from numpy arrays to torch tensors.
     ``buffer_`` can be an arbitrary structure of tuples, namedtuples, and
     namedarraytuples, and a new, matching structure will be returned.
     ``None`` fields remain ``None``, and torch tensors are left alone."""
@@ -66,7 +66,7 @@ def torchify_buffer(buffer_):
 
 
 def numpify_buffer(buffer_):
-    """Convert contents of ``buffer_` from torch tensors to numpy arrays.
+    """Convert contents of ``buffer_`` from torch tensors to numpy arrays.
     ``buffer_`` can be an arbitrary structure of tuples, namedtuples, and
     namedarraytuples, and a new, matching structure will be returned.
     ``None`` fields remain ``None``, and numpy arrays are left alone."""

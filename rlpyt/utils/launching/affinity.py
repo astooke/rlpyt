@@ -29,6 +29,12 @@ ABBREVS = [N_GPU, CONTEXTS_PER_GPU, GPU_PER_RUN, N_CPU_CORE,
 # API
 
 def quick_affinity_code(n_parallel=None, use_gpu=True):
+    """Tried to autodetect hardware resources and divide them evenly among learning runs.
+
+    Args:
+        n_parallel (int or None): Can specify the number of concurrent learning runs; if using GPU, leave as ``None`` to use all GPUs, 1 per run
+        use_gpu (bool): self-explanatory
+    """
     if not (use_gpu or n_parallel):
         raise ValueError("Either use_gpu must be True or n_parallel > 0 must be given.")
     import psutil
@@ -58,21 +64,46 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
 def encode_affinity(
         n_cpu_core=1,  # Total number to use on machine (not virtual).
         n_gpu=0,  # Total number to use on machine.
-        cpu_reserved=0,  # Number CPU to reserve per GPU.
         contexts_per_gpu=1,  # e.g. 2 will put two experiments per GPU.
         gpu_per_run=1,  # For multi-GPU optimizaion.
         cpu_per_run=1,  # Specify if not using GPU.
         cpu_per_worker=1,  # Use 1 unless environment is multi-threaded.
-        async_sample=False,  # True if asynchronous sampling / optimization.
-        sample_gpu_per_run=0,  # For asynchronous sampling.
-        optim_sample_share_gpu=False,  # Async sampling, overrides sample_gpu.
+        cpu_reserved=0,  # Number CPU to reserve per GPU.
         hyperthread_offset=None,  # Leave None for auto-detect.
         n_socket=None,  # Leave None for auto-detect.
         run_slot=None,  # Leave None in `run` script, but specified in `train` script.
+        async_sample=False,  # True if asynchronous sampling / optimization.
+        sample_gpu_per_run=0,  # For asynchronous sampling.
+        optim_sample_share_gpu=False,  # Async sampling, overrides sample_gpu.
         alternating=False,  # True for altenating sampler.
         set_affinity=True,  # Everything same except psutil.Process().cpu_affinity(cpus)
         ):
-    """Use in run script to specify computer configuration."""
+    """Encodes the hardware configuration into a string (with meanings defined
+    in this file) which can be passed as a command line argument to call the
+    training script. Use in overall experiments setup script to specify
+    computer and experiment resources into ``run_experiments()``.
+
+    We refer to an "experiment" as an individual learning run, i.e. one set of
+    hyperparameters and which does not interact with other runs.
+
+    Args:
+        n_cpu_core (int): Total number of phyical cores to use on machine (not virtual)
+        n_gpu (int): Total number of GPUs to use on machine
+        contexts_per_gpu (int): How many experiment to share each GPU
+        gpu_per_run (int): How many GPUs to use per experiment (for multi-GPU optimization)
+        cpu_per_run (int): If not using GPU, specify how macores per experiment
+        cpu_per_worker (int): CPU cores per sampler worker; 1 unless environment is multi-threaded
+        cpu_reserved (int): Number of CPUs to reserve per GPU, and not allow sampler to use them
+        hyperthread_offset (int): Typically the number of physical cores, since they are labeled 0-x, and hyperthreads as (x+1)-2x; use 0 to disable hyperthreads, None to auto-detect
+        n_socket (int): Number of CPU sockets in machine; tries to keep CPUs grouped on same socket, and match socket-to-GPU affinity
+        run_slot (int): Which hardware slot to use; leave ``None`` into ``run_experiments()``, but specified for inidividual train script
+        async_sample (bool): True if asynchronous sampling/optimization mode; different affinity structure needed
+        sample_gpu_per_run (int): In asynchronous mode only, number of action-server GPUs per experiment
+        optim_sample_share_gpu (bool): In asynchronous mode only, whether to use same GPU(s) for both training and sampling
+        alternating (bool):  True if using alternating sampler (will make more worker assignments)
+        set_affinity (bool): False to disable runner and sampler from setting cpu affinity via `psutil`, maybe inappropriate in cloud machines.
+
+    """
     affinity_code = f"{n_cpu_core}{N_CPU_CORE}_{n_gpu}{N_GPU}"
     if hyperthread_offset is None:
         hyperthread_offset = get_hyperthread_offset()
@@ -127,7 +158,7 @@ def affinity_from_code(run_slot_affinity_code):
 
 
 def make_affinity(run_slot=0, **kwargs):
-    """Input same kwargs as encode_affinity, returns the AttrDict form."""
+    """Input same kwargs as ``encode_affinity()``, returns the AttrDict form."""
     return affinity_from_code(encode_affinity(run_slot=run_slot, **kwargs))
 
 
