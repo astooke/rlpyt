@@ -4,6 +4,9 @@
 
 ## Deep Reinforcement Learning in PyTorch
 
+*NEW: extended documentation available at [https://rlpyt.readthedocs.io](https://rlpyt.readthedocs.io)  (as of 27 Jan 2020)*
+
+
 Modular, optimized implementations of common deep RL algorithms in PyTorch, with unified infrastructure supporting all three major families of model-free algorithms: policy gradient, deep-q learning, and q-function policy gradient.  Intended to be a high-throughput code-base for small- to medium-scale research (large-scale meaning like OpenAI Dota with 100's GPUs).  Key capabilities/features include:
 
 * Run experiments in serial mode (helpful for debugging during development, or maybe sufficient for experiments).
