@@ -8,7 +8,7 @@ Deep Deterministc Policy Gradient (DDPG)
 ----------------------------------------
 
 .. autoclass:: rlpyt.algos.qpg.ddpg.DDPG
-    :members: __init__, initialize, async_initialize, optim_initialize, initialize_replay_buffer, optimizer_agent, samples_to_buffer, mu_loss, q_loss
+    :members: __init__, initialize, async_initialize, optim_initialize, initialize_replay_buffer, optimize_agent, samples_to_buffer, mu_loss, q_loss
     :show-inheritance:
 
 .. autoclass:: rlpyt.agents.qpg.ddpg_agent.DdpgAgent

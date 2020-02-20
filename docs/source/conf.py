@@ -13,7 +13,10 @@
 import os
 import sys
 # sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../../rlpyt/'))
+# sys.path.insert(0, os.path.abspath('../../rlpyt/'))
+sys.path.insert(0, os.path.abspath('../../'))
+
+print(sys.path)
 
 
 # -- Project information -----------------------------------------------------
@@ -59,4 +62,4 @@ master_doc = 'index'
 
 autodoc_member_order = 'bysource'
 
-autodoc_mock_imports = ['torch', 'numpy', 'psutil', 'opencv', 'atari-py', 'pyprind', 'cv2']
+autodoc_mock_imports = ['torch', 'numpy', 'psutil', 'opencv', 'atari-py', 'pyprind', 'cv2', 'gym']
