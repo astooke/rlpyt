@@ -13,9 +13,9 @@ class CategoricalPgAgent(BaseAgent):
     Agent for policy gradient algorithm using categorical action distribution.
     Same as ``GausssianPgAgent`` and related classes, except uses
     ``Categorical`` distribution, and has a different interface to the model
-    (model here outputs discrete probabilities rather than means and
-    log_stds)...maybe could reorganize those interfaces to reduce to one
-    poligy gradient agent class.
+    (model here outputs discrete probabilities in place of means and log_stds,
+    while both output the value estimate)...NOTE: maybe could reorganize those
+    interfaces to reduce to one poligy gradient agent class.
     """
 
     def __call__(self, observation, prev_action, prev_reward):

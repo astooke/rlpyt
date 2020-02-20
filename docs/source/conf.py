@@ -16,7 +16,7 @@ import sys
 # sys.path.insert(0, os.path.abspath('../../rlpyt/'))
 sys.path.insert(0, os.path.abspath('../../'))
 
-print(sys.path)
+# print(sys.path)
 
 
 # -- Project information -----------------------------------------------------
