@@ -11,7 +11,7 @@ import sys
 from rlpyt.utils.launching.affinity import affinity_from_code
 from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
-from rlpyt.envs.atari.atari_env import AtariEnv
+from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariFfAgent
 from rlpyt.runners.minibatch_rl import MinibatchRl
@@ -34,6 +34,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID):
 
     sampler = GpuSampler(
         EnvCls=AtariEnv,
+        TrajInfoCls=AtariTrajInfo,
         env_kwargs=config["env"],
         CollectorCls=GpuWaitResetCollector,
         batch_T=5,

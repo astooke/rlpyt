@@ -6,7 +6,7 @@ DQN in async mode with CPU parallel sampler.
 
 from rlpyt.utils.launching.affinity import make_affinity
 from rlpyt.samplers.async_.cpu_sampler import AsyncCpuSampler
-from rlpyt.envs.atari.atari_env import AtariEnv
+from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
 from rlpyt.runners.async_rl import AsyncRlEval
@@ -29,6 +29,7 @@ def build_and_train(game="pong", run_ID=0):
 
     sampler = AsyncCpuSampler(
         EnvCls=AtariEnv,
+        TrajInfoCls=AtariTrajInfo,
         env_kwargs=dict(game=game),
         batch_T=5,
         batch_B=8,

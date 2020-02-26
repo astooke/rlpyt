@@ -13,7 +13,7 @@ from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
 from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.alternating_sampler import AlternatingSampler
-from rlpyt.envs.atari.atari_env import AtariEnv
+from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariFfAgent
 from rlpyt.runners.minibatch_rl import MinibatchRl
@@ -40,6 +40,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, sample_mode="serial", 
 
     sampler = Sampler(
         EnvCls=AtariEnv,
+        TrajInfoCls=AtariTrajInfo,
         env_kwargs=dict(game=game),
         batch_T=5,  # 5 time-steps per sampler iteration.
         batch_B=16,  # 16 parallel environments.

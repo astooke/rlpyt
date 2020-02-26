@@ -14,7 +14,7 @@ use rlpyt.utils.logging.context.add_exp_param().
 """
 
 from rlpyt.samplers.serial.sampler import SerialSampler
-from rlpyt.envs.atari.atari_env import AtariEnv
+from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
 from rlpyt.runners.minibatch_rl import MinibatchRlEval
@@ -24,6 +24,7 @@ from rlpyt.utils.logging.context import logger_context
 def build_and_train(game="pong", run_ID=0, cuda_idx=None):
     sampler = SerialSampler(
         EnvCls=AtariEnv,
+        TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
         env_kwargs=dict(game=game),
         eval_env_kwargs=dict(game=game),
         batch_T=4,  # Four time-steps per sampler iteration.

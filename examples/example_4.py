@@ -18,7 +18,7 @@ use of 'valid' mask.
 from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.collectors import (GpuResetCollector,
     GpuWaitResetCollector)
-from rlpyt.envs.atari.atari_env import AtariEnv
+from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariLstmAgent
 from rlpyt.runners.minibatch_rl import MinibatchRl
@@ -32,6 +32,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, mid_batch_reset=False,
 
     sampler = GpuSampler(
         EnvCls=AtariEnv,
+        TrajInfoCls=AtariTrajInfo,
         env_kwargs=dict(game=game, num_img_obs=1),  # Learn on individual frames.
         CollectorCls=Collector,
         batch_T=20,  # Longer sampling/optimization horizon for recurrence.

@@ -10,7 +10,7 @@ should improve the efficiency of the forward/backward passes during training.
 
 from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
-from rlpyt.envs.atari.atari_env import AtariEnv
+from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
 from rlpyt.runners.minibatch_rl import MinibatchRlEval
@@ -25,6 +25,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, n_parallel=2):
     )
     sampler = GpuSampler(
         EnvCls=AtariEnv,
+        TrajInfoCls=AtariTrajInfo,
         env_kwargs=dict(game=game),
         CollectorCls=GpuWaitResetCollector,
         eval_env_kwargs=dict(game=game),
