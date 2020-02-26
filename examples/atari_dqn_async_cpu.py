@@ -6,7 +6,7 @@ DQN in async mode with CPU parallel sampler.
 
 from rlpyt.utils.launching.affinity import make_affinity
 from rlpyt.samplers.async_.cpu_sampler import AsyncCpuSampler
-from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
+from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
 from rlpyt.runners.async_rl import AsyncRlEval

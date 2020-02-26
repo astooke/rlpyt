@@ -18,7 +18,7 @@ Try different affinity inputs to see where the jobs run on the machine.
 from rlpyt.utils.launching.affinity import make_affinity
 from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
-from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
+from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariFfAgent
 from rlpyt.runners.sync_rl import SyncRl

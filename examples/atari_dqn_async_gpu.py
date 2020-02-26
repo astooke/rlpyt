@@ -6,7 +6,7 @@ DQN in asynchronous mode with GPU sampler.
 
 from rlpyt.utils.launching.affinity import make_affinity
 from rlpyt.samplers.async_.gpu_sampler import AsyncGpuSampler
-from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
+from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
 from rlpyt.runners.async_rl import AsyncRlEval

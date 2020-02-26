@@ -14,7 +14,7 @@ use rlpyt.utils.logging.context.add_exp_param().
 """
 
 from rlpyt.samplers.serial.sampler import SerialSampler
-from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
+from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.dqn.dqn import DQN
 from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
 from rlpyt.runners.minibatch_rl import MinibatchRlEval

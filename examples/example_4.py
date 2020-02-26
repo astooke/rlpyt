@@ -18,7 +18,7 @@ use of 'valid' mask.
 from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.gpu.collectors import (GpuResetCollector,
     GpuWaitResetCollector)
-from rlpyt.envs.atari.atari_env import (AtariEnv, AtariTrajInfo)
+from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.atari import AtariLstmAgent
 from rlpyt.runners.minibatch_rl import MinibatchRl
