@@ -112,8 +112,9 @@ class MinibatchRlBase(BaseRunner):
         # Log at least as often as requested (round down itrs):
         log_interval_itrs = max(self.log_interval_steps //
             self.itr_batch_size, 1)
-        # FIXME: To run at least as many steps as requested, round up log interval?
-        n_itr = math.ceil(self.n_steps / self.log_interval_steps) * log_interval_itrs
+        n_itr = self.n_steps // self.itr_batch_size
+        if n_itr % log_interval_itrs > 0:  # Keep going to next log itr.
+            n_itr += log_interval_itrs - (n_itr % log_interval_itrs)
         self.log_interval_itrs = log_interval_itrs
         self.n_itr = n_itr
         logger.log(f"Running {n_itr} iterations of minibatch RL.")
