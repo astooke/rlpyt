@@ -62,7 +62,7 @@ def torchify_buffer(buffer_):
     contents = tuple(torchify_buffer(b) for b in buffer_)
     if type(buffer_) is tuple:  # tuple, namedtuple instantiate differently.
         return contents
-    return type(buffer_)(*contents)
+    return buffer_._make(contents)
 
 
 def numpify_buffer(buffer_):
@@ -79,7 +79,7 @@ def numpify_buffer(buffer_):
     contents = tuple(numpify_buffer(b) for b in buffer_)
     if type(buffer_) is tuple:
         return contents
-    return type(buffer_)(*contents)
+    return buffer_._make(contents)
 
 
 def buffer_to(buffer_, device=None):
@@ -96,7 +96,7 @@ def buffer_to(buffer_, device=None):
     contents = tuple(buffer_to(b, device=device) for b in buffer_)
     if type(buffer_) is tuple:
         return contents
-    return type(buffer_)(*contents)
+    return buffer_._make(contents)
 
 
 def buffer_method(buffer_, method_name, *args, **kwargs):
@@ -112,7 +112,7 @@ def buffer_method(buffer_, method_name, *args, **kwargs):
     contents = tuple(buffer_method(b, method_name, *args, **kwargs) for b in buffer_)
     if type(buffer_) is tuple:
         return contents
-    return type(buffer_)(*contents)
+    return buffer_._make(contents)
 
 
 def buffer_func(buffer_, func, *args, **kwargs):
@@ -125,10 +125,11 @@ def buffer_func(buffer_, func, *args, **kwargs):
         return
     if isinstance(buffer_, (torch.Tensor, np.ndarray)):
         return func(buffer_, *args, **kwargs)
+    # contents = tuple(buffer_func(b, func, *args, **kwargs) for b in buffer_)
     contents = tuple(buffer_func(b, func, *args, **kwargs) for b in buffer_)
     if type(buffer_) is tuple:
         return contents
-    return type(buffer_)(*contents)
+    return buffer_._make(contents)
 
 
 def get_leading_dims(buffer_, n_dim=1):
