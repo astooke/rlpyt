@@ -5,10 +5,12 @@ import ctypes
 import torch
 
 from rlpyt.utils.collections import namedarraytuple_like
+from rlpyt.utils.namedtuple_schema import NamedArrayTupleSchema_like
 # from rlpyt.utils.misc import put
 
 
-def buffer_from_example(example, leading_dims, share_memory=False):
+def buffer_from_example(example, leading_dims, share_memory=False,
+        use_NatSchema=False):
     """Allocates memory and returns it in `namedarraytuple` with same
     structure as ``examples``, which should be a `namedtuple` or
     `namedarraytuple`. Applies the same leading dimensions ``leading_dims`` to
@@ -19,7 +21,10 @@ def buffer_from_example(example, leading_dims, share_memory=False):
     if example is None:
         return
     try:
-        buffer_type = namedarraytuple_like(example)
+        if use_NatSchema:
+            buffer_type = NamedArrayTupleSchema_like(example)
+        else:
+            buffer_type = namedarraytuple_like(example)
     except TypeError:  # example was not a namedtuple or namedarraytuple
         return build_array(example, leading_dims, share_memory)
     return buffer_type(*(buffer_from_example(v, leading_dims, share_memory)
@@ -50,9 +55,10 @@ def np_mp_array(shape, dtype):
 
 def torchify_buffer(buffer_):
     """Convert contents of ``buffer_`` from numpy arrays to torch tensors.
-    ``buffer_`` can be an arbitrary structure of tuples, namedtuples, and
-    namedarraytuples, and a new, matching structure will be returned.
-    ``None`` fields remain ``None``, and torch tensors are left alone."""
+    ``buffer_`` can be an arbitrary structure of tuples, namedtuples,
+    namedarraytuples, NamedTuples, and NamedArrayTuples, and a new, matching
+    structure will be returned. ``None`` fields remain ``None``, and torch
+    tensors are left alone."""
     if buffer_ is None:
         return
     if isinstance(buffer_, np.ndarray):
@@ -67,9 +73,10 @@ def torchify_buffer(buffer_):
 
 def numpify_buffer(buffer_):
     """Convert contents of ``buffer_`` from torch tensors to numpy arrays.
-    ``buffer_`` can be an arbitrary structure of tuples, namedtuples, and
-    namedarraytuples, and a new, matching structure will be returned.
-    ``None`` fields remain ``None``, and numpy arrays are left alone."""
+    ``buffer_`` can be an arbitrary structure of tuples, namedtuples,
+    namedarraytuples, NamedTuples, and NamedArrayTuples, and a new, matching
+    structure will be returned. ``None`` fields remain ``None``, and numpy
+    arrays are left alone."""
     if buffer_ is None:
         return
     if isinstance(buffer_, torch.Tensor):
@@ -85,8 +92,8 @@ def numpify_buffer(buffer_):
 def buffer_to(buffer_, device=None):
     """Send contents of ``buffer_`` to specified device (contents must be
     torch tensors.). ``buffer_`` can be an arbitrary structure of tuples,
-    namedtuples, and namedarraytuples, and a new, matching structure will be
-    returned."""
+    namedtuples, namedarraytuples, NamedTuples and NamedArrayTuples, and a
+    new, matching structure will be returned."""
     if buffer_ is None:
         return
     if isinstance(buffer_, torch.Tensor):
@@ -102,8 +109,9 @@ def buffer_to(buffer_, device=None):
 def buffer_method(buffer_, method_name, *args, **kwargs):
     """Call method ``method_name(*args, **kwargs)`` on all contents of
     ``buffer_``, and return the results. ``buffer_`` can be an arbitrary
-    structure of tuples, namedtuples, and namedarraytuples, and a new,
-    matching structure will be returned.  ``None`` fields remain ``None``.
+    structure of tuples, namedtuples, namedarraytuples, NamedTuples, and
+    NamedArrayTuples, and a new, matching structure will be returned.
+    ``None`` fields remain ``None``.
     """
     if buffer_ is None:
         return
@@ -118,8 +126,9 @@ def buffer_method(buffer_, method_name, *args, **kwargs):
 def buffer_func(buffer_, func, *args, **kwargs):
     """Call function ``func(buf, *args, **kwargs)`` on all contents of
     ``buffer_``, and return the results.  ``buffer_`` can be an arbitrary
-    structure of tuples, namedtuples, and namedarraytuples, and a new,
-    matching structure will be returned.  ``None`` fields remain ``None``.
+    structure of tuples, namedtuples, namedarraytuples, NamedTuples, and
+    NamedArrayTuples, and a new, matching structure will be returned.
+    ``None`` fields remain ``None``.
     """
     if buffer_ is None:
         return

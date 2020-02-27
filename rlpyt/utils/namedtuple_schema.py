@@ -6,6 +6,10 @@
 # definitions.)
 
 
+from rlpyt.utils.collections import (is_namedtuple, is_namedarraytuple,
+    is_namedtuple_class, is_namedarraytuple_class)
+
+
 class NamedTupleSchema:
     """Instances of this class act like a type returned by namedtuple()."""
 
@@ -191,3 +195,22 @@ class NamedArrayTuple(NamedTuple):
         """Iterate ordered (field_name, value) pairs (like OrderedDict)."""
         for k, v in zip(self._fields, self):
             yield k, v
+
+
+def NamedArrayTupleSchema_like(example):
+    """Returns a NamedArrayTupleSchema instance  with the same name and fields
+    as input, which can be a class or instance of namedtuple or
+    namedarraytuple, or an instance of NamedTupleScheme, NamedTuple,
+    NamedArrayTupleSchema, or NamedArrayTuple."""
+    if isinstance(example, NamedArrayTupleSchema):
+        return example
+    elif isinstance(example, (NamedArrayTuple, NamedTuple, NamedTupleSchema)):
+        return NamedArrayTupleSchema(example._typename, example._fields)
+    elif is_namedtuple(example) or is_namedarraytuple(example):
+        return NamedArrayTupleSchema(type(example).__name__, example._fields)
+    elif is_namedtuple_class(example) or is_namedarraytuple_class(example):
+        return NamedArrayTupleSchema(example.__name__, example._fields)
+    else:
+        raise TypeError("Input must be namedtuple or namedarraytuple instance"
+            f" or class, or Named[Array]Tuple[Schema] instance, got "
+            f"{type(example)}.")
