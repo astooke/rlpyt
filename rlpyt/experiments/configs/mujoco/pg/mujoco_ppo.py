@@ -16,10 +16,10 @@ config = dict(
         ratio_clip=0.2,
         normalize_advantage=True,
         linear_lr_schedule=True,
-        bootstrap_timelimit=False,
+        # bootstrap_timelimit=False,
     ),
     env=dict(id="Hopper-v3"),
-    model=dict(),
+    model=dict(normalize_observation=False),
     optim=dict(),
     runner=dict(
         n_steps=1e6,

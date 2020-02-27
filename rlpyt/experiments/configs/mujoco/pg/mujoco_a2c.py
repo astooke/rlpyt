@@ -14,7 +14,7 @@ config = dict(
         normalize_advantage=True,
     ),
     env=dict(id="Hopper-v3"),
-    model=dict(),
+    model=dict(normalize_observation=False),
     optim=dict(),
     runner=dict(
         n_steps=1e6,

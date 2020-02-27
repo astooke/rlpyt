@@ -42,6 +42,9 @@ class A2C(PolicyGradientAlgo):
         """
         Train the agent on input samples, by one gradient step.
         """
+        if hasattr(self.agent, "update_obs_rms"):
+            # NOTE: suboptimal--obs sent to device here and in agent(*inputs).
+            self.agent.update_obs_rms(samples.env.observation)
         self.optimizer.zero_grad()
         loss, entropy, perplexity = self.loss(samples)
         loss.backward()

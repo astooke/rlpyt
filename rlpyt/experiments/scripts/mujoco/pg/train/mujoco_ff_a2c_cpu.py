@@ -2,8 +2,8 @@
 import sys
 
 from rlpyt.utils.launching.affinity import affinity_from_code
-from rlpyt.samplers.cpu.parallel_sampler import CpuParallelSampler
-from rlpyt.samplers.cpu.collectors import ResetCollector
+from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
+from rlpyt.samplers.parallel.cpu.collectors import CpuResetCollector
 from rlpyt.envs.gym import make as gym_make
 from rlpyt.algos.pg.a2c import A2C
 from rlpyt.agents.pg.mujoco import MujocoFfAgent
@@ -20,10 +20,10 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
     variant = load_variant(log_dir)
     config = update_config(config, variant)
 
-    sampler = CpuParallelSampler(
+    sampler = CpuSampler(
         EnvCls=gym_make,
         env_kwargs=config["env"],
-        CollectorCls=ResetCollector,
+        CollectorCls=CpuResetCollector,
         **config["sampler"]
     )
     algo = A2C(optim_kwargs=config["optim"], **config["algo"])

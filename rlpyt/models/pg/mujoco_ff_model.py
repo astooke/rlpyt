@@ -4,6 +4,7 @@ import torch
 
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 from rlpyt.models.mlp import MlpModel
+from rlpyt.models.running_mean_std import RunningMeanStdModel
 
 
 class MujocoFfModel(torch.nn.Module):
@@ -21,6 +22,9 @@ class MujocoFfModel(torch.nn.Module):
             hidden_nonlinearity=torch.nn.Tanh,  # Module form.
             mu_nonlinearity=torch.nn.Tanh,  # Module form.
             init_log_std=0.,
+            normalize_observation=False,
+            norm_obs_clip=10,
+            norm_obs_var_clip=1e-6,
             ):
         """Instantiate neural net modules according to inputs."""
         super().__init__()
@@ -44,6 +48,11 @@ class MujocoFfModel(torch.nn.Module):
             nonlinearity=hidden_nonlinearity,
         )
         self.log_std = torch.nn.Parameter(init_log_std * torch.ones(action_size))
+        if normalize_observation:
+            self.obs_rms = RunningMeanStdModel(observation_shape)
+            self.norm_obs_clip = norm_obs_clip
+            self.norm_obs_var_clip = norm_obs_var_clip
+        self.normalize_observation = normalize_observation
 
     def forward(self, observation, prev_action, prev_reward):
         """
@@ -56,6 +65,13 @@ class MujocoFfModel(torch.nn.Module):
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
         lead_dim, T, B, _ = infer_leading_dims(observation, self._obs_ndim)
 
+        if self.normalize_observation:
+            obs_var = self.obs_rms.var
+            if self.norm_obs_var_clip is not None:
+                obs_var = torch.clamp(obs_var, min=self.norm_obs_var_clip)
+            observation = torch.clamp((observation - self.obs_rms.mean) /
+                obs_var.sqrt(), -self.norm_obs_clip, self.norm_obs_clip)
+
         obs_flat = observation.view(T * B, -1)
         mu = self.mu(obs_flat)
         v = self.v(obs_flat).squeeze(-1)
@@ -65,3 +81,7 @@ class MujocoFfModel(torch.nn.Module):
         mu, log_std, v = restore_leading_dims((mu, log_std, v), lead_dim, T, B)
 
         return mu, log_std, v
+
+    def update_obs_rms(self, observation):
+        if self.normalize_observation:
+            self.obs_rms.update(observation)

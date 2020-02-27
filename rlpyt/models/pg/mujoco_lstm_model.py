@@ -4,6 +4,7 @@ import torch
 
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 from rlpyt.models.mlp import MlpModel
+from rlpyt.models.running_mean_std import RunningMeanStdModel
 from rlpyt.utils.collections import namedarraytuple
 
 RnnState = namedarraytuple("RnnState", ["h", "c"])
@@ -21,6 +22,9 @@ class MujocoLstmModel(torch.nn.Module):
             hidden_sizes=None,  # None for default (see below).
             lstm_size=256,
             nonlinearity=torch.nn.ReLU,
+            normalize_observation=False,
+            norm_obs_clip=10,
+            norm_obs_var_clip=1e-6,
             ):
         super().__init__()
         self._obs_n_dim = len(observation_shape)
@@ -36,6 +40,13 @@ class MujocoLstmModel(torch.nn.Module):
         mlp_output_size = hidden_sizes[-1] if hidden_sizes else mlp_input_size
         self.lstm = torch.nn.LSTM(mlp_output_size + action_size + 1, lstm_size)
         self.head = torch.nn.Linear(lstm_size, action_size * 2 + 1)
+        if normalize_observation:
+            self.obs_rms = RunningMeanStdModel(observation_shape)
+            self.norm_obs_clip = norm_obs_clip
+            self.norm_obs_var_clip = norm_obs_var_clip
+        self.normalize_observation = normalize_observation
+
+
 
     def forward(self, observation, prev_action, prev_reward, init_rnn_state):
         """
@@ -46,14 +57,15 @@ class MujocoLstmModel(torch.nn.Module):
         not given. Used both in sampler and in algorithm (both via the agent).
         Also returns the next RNN state.
         """
-
-
-
-        """Feedforward layers process as [T*B,H]. Return same leading dims as
-        input, can be [T,B], [B], or []."""
-
         # Infer (presence of) leading dimensions: [T,B], [B], or [].
         lead_dim, T, B, _ = infer_leading_dims(observation, self._obs_n_dim)
+
+        if self.normalize_observation:
+            obs_var = self.obs_rms.var
+            if self.norm_obs_var_clip is not None:
+                obs_var = torch.clamp(obs_var, min=self.norm_obs_var_clip)
+            observation = torch.clamp((observation - self.obs_rms.mean) /
+                obs_var.sqrt(), -self.norm_obs_clip, self.norm_obs_clip)
 
         mlp_out = self.mlp(observation.view(T * B, -1))
         lstm_input = torch.cat([
@@ -74,3 +86,7 @@ class MujocoLstmModel(torch.nn.Module):
         next_rnn_state = RnnState(h=hn, c=cn)
 
         return mu, log_std, v, next_rnn_state
+
+    def update_obs_rms(self, observation):
+        if self.normalize_observation:
+            self.obs_rms.update(observation)

@@ -22,6 +22,12 @@ dir_names = ["env_{}".format(*v) for v in values]
 keys = [("env", "id")]
 variant_levels.append(VariantLevel(keys, values, dir_names))
 
+norm_obs = [True]
+values = list(zip(norm_obs))
+dir_names = ["TrueNormObs"]
+keys = [("model", "normalize_observation")]
+variant_levels.append(VariantLevel(keys, values, dir_names))
+
 variants, log_dirs = make_variants(*variant_levels)
 
 run_experiments(
