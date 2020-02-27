@@ -72,6 +72,8 @@ class GymEnvWrapper(Wrapper):
             else:
                 info["timeout"] = False
         info = info_to_nt(info)
+        if isinstance(r, float):
+            r = np.dtype("float32").type(r)  # Scalar float32.
         return EnvStep(obs, r, d, info)
 
     def reset(self):
