@@ -1,9 +1,9 @@
 
 import numpy as np
 from gym.spaces.dict import Dict as GymDict
-from collections import namedtuple
 
 from rlpyt.utils.collections import is_namedtuple_class, is_namedtuple
+from rlpyt.utils.namedtuple_schema import NamedTupleSchema
 from rlpyt.spaces.composite import Composite
 
 
@@ -14,32 +14,34 @@ class GymSpaceWrapper:
     inside the initialization of the environment wrapper for a gym environment.
     """
 
-    def __init__(self, space, null_value=0, name="obs", force_float32=True):
+    def __init__(self, space, null_value=0, name="obs", force_float32=True,
+                 schemas=None):
         """Input ``space`` is a gym space instance.  
         
-        Input ``name`` is used to disambiguate different gym spaces being
-        wrapped, which is necessary if more than one GymDict space is to be
-        wrapped in the same file.  The reason is that the associated
-        namedtuples must be defined in the globals of this file, so they must
-        have distinct names.
+        Input ``name`` governs naming of internal NamedTupleSchemas used to
+        store Gym info.
         """
         self._gym_space = space
         self._base_name = name
         self._null_value = null_value
+        if schemas is None:
+            schemas = {}
+        self._schemas = schemas
         if isinstance(space, GymDict):
-            nt = globals().get(name)
+            nt = self._schemas.get(name)
             if nt is None:
-                nt = namedtuple(name, [k for k in space.spaces.keys()])
-                globals()[name] = nt  # Put at module level for pickle.
+                nt = NamedTupleSchema(name, [k for k in space.spaces.keys()])
+                schemas[name] = nt  # Put at module level for pickle.
             elif not (is_namedtuple_class(nt) and
                     sorted(nt._fields) ==
                     sorted([k for k in space.spaces.keys()])):
-                raise ValueError(f"Name clash in globals: {name}.")
+                raise ValueError(f"Name clash in schemas: {name}.")
             spaces = [GymSpaceWrapper(
                 space=v,
                 null_value=null_value,
                 name="_".join([name, k]),
-                force_float32=force_float32)
+                force_float32=force_float32,
+                schemas=schemas)
                 for k, v in space.spaces.items()]
             self.space = Composite(spaces, nt)
             self._dtype = None
@@ -78,7 +80,7 @@ class GymSpaceWrapper:
         namedtuple, i.e. inside the environment wrapper's ``step()``, for
         observation output to the rlpyt sampler (see helper function in
         file)"""
-        return dict_to_nt(value, name=self._base_name)
+        return dict_to_nt(value, name=self._base_name, schemas=self._schemas)
 
     def revert(self, value):
         """For dictionary space, use to revert namedtuple action into wrapped
@@ -116,11 +118,11 @@ class GymSpaceWrapper:
         return self.space.n
 
 
-def dict_to_nt(value, name):
+def dict_to_nt(value, name, schemas):
     if isinstance(value, dict):
         values = {k: dict_to_nt(v, "_".join([name, k]))
             for k, v in value.items()}
-        return globals()[name](**values)
+        return schemas[name](**values)
     if isinstance(value, np.ndarray) and value.dtype == np.float64:
         return np.asarray(value, dtype=np.float32)
     return value

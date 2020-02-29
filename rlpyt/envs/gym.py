@@ -3,11 +3,11 @@ import numpy as np
 import gym
 from gym import Wrapper
 from gym.wrappers.time_limit import TimeLimit
-from collections import namedtuple
 
 from rlpyt.envs.base import EnvSpaces, EnvStep
 from rlpyt.spaces.gym_wrapper import GymSpaceWrapper
 from rlpyt.utils.collections import is_namedtuple_class
+from rlpyt.utils.namedtuple_schema import NamedTupleSchema
 
 
 class GymEnvWrapper(Wrapper):
@@ -20,7 +20,7 @@ class GymEnvWrapper(Wrapper):
     work, every key that might appear in the gym environments `env_info` at
     any step must appear at the first step after a reset, as the `env_info`
     entries will have sampler memory pre-allocated for them (so they also
-    cannot change dtype or shape).  (see `EnvInfoWrapper`, `build_info_tuples`,
+    cannot change dtype or shape). (see `EnvInfoWrapper`, `build_info_schemas`,
     and `info_to_nt` in file or more help/details)
 
     Warning:
@@ -56,7 +56,20 @@ class GymEnvWrapper(Wrapper):
             null_value=obs_null_value,
             force_float32=force_float32,
         )
-        build_info_tuples(info)
+        self._info_schemas = {}
+        self._build_info_schemas(info)
+
+    def _build_info_schemas(self, info, name="info"):
+        ntc = self._info_schemas.get(name)
+        if ntc is None:
+            self._info_schemas[name] = NamedTupleSchema(
+                name, list(info.keys()))
+        elif not (is_namedtuple_class(ntc) and
+                  sorted(ntc._fields) == sorted(list(info.keys()))):
+            raise ValueError(f"Name clash in schema index: {name}.")
+        for k, v in info.items():
+            if isinstance(v, dict):
+                self._build_info_schemas(v, "_".join([name, k]))
 
     def step(self, action):
         """Reverts the action from rlpyt format to gym format (i.e. if composite-to-
@@ -71,7 +84,7 @@ class GymEnvWrapper(Wrapper):
                 info["timeout"] = info.pop("TimeLimit.truncated")
             else:
                 info["timeout"] = False
-        info = info_to_nt(info)
+        info = info_to_nt(info, self._info_schemas)
         return EnvStep(obs, r, d, info)
 
     def reset(self):
@@ -87,30 +100,13 @@ class GymEnvWrapper(Wrapper):
         )
 
 
-def build_info_tuples(info, name="info"):
-    # Define namedtuples at module level for pickle.
-    # Only place rlpyt uses pickle is in the sampler, when getting the
-    # first examples, to avoid MKL threading issues...can probably turn
-    # that off, (look for subprocess=True --> False), and then might
-    # be able to define these directly within the class.
-    ntc = globals().get(name)  # Define at module level for pickle.
-    if ntc is None:
-        globals()[name] = namedtuple(name, list(info.keys()))
-    elif not (is_namedtuple_class(ntc) and
-            sorted(ntc._fields) == sorted(list(info.keys()))):
-        raise ValueError(f"Name clash in globals: {name}.")
-    for k, v in info.items():
-        if isinstance(v, dict):
-            build_info_tuples(v, "_".join([name, k]))
-
-
-def info_to_nt(value, name="info"):
+def info_to_nt(value, schemas, name="info"):
     if not isinstance(value, dict):
         return value
-    ntc = globals()[name]
+    ntc = schemas[name]
     # Disregard unrecognized keys:
-    values = {k: info_to_nt(v, "_".join([name, k]))
-        for k, v in value.items() if k in ntc._fields}
+    values = {k: info_to_nt(v, schemas, "_".join([name, k]))
+              for k, v in value.items() if k in ntc._fields}
     # Can catch some missing values (doesn't nest):
     values.update({k: 0 for k in ntc._fields if k not in values})
     return ntc(**values)
