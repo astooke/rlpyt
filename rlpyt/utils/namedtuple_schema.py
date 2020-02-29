@@ -8,44 +8,45 @@
 
 from rlpyt.utils.collections import (is_namedtuple, is_namedarraytuple,
     is_namedtuple_class, is_namedarraytuple_class)
+from collections import OrderedDict
+from inspect import Signature as Sig, Parameter as Param
 
 
 class NamedTupleSchema:
     """Instances of this class act like a type returned by namedtuple()."""
 
     def __init__(self, typename, fields):
-        self._typename = typename
-        self._fields = fields
+        if not isinstance(typename, str):
+            raise TypeError(f"type name must be string, not {type(typename)}")
+        fields = tuple(fields)
+        for field in fields:
+            if not isinstance(field, str):
+                raise ValueError(f"field names must be strings: {field}")
+            if field.startswith("_"):
+                raise ValueError(f"field names cannot start with an "
+                                 f"underscore: {field}")
+            if field in ("index", "count"):
+                raise ValueError(f"can't name field 'index' or 'count'")
+        self.__dict__["_typename"] = typename
+        self.__dict__["_fields"] = fields
+        self.__dict__["_signature"] = Sig(Param(field,
+            Param.POSITIONAL_OR_KEYWORD) for field in fields)
 
-    @property
-    def typename(self):
-        return self._typename
+    def __call__(self, *args, **kwargs):
+        """Allows instances to act like `namedtuple` constructors."""
+        args = self._signature.bind(*args, **kwargs).args
+        return self._make(args)
 
-    @property
-    def fields(self):
-        return self._fields
+    def _make(self, iterable):
+        return NamedTuple(self._typename, self._fields, iterable)
 
-    def __call__(self, *values, **kwargs):
-        """Allows instances of `NamedTupleSchema` to act like `namedtuple`
-        constructors."""
-        if kwargs:
-            try:
-                values += tuple(map(kwargs.pop, self._fields[len(values):]))
-            except KeyError as e:
-                raise TypeError(f"Missing argument: '{e.args[0]}'")
-            if kwargs:
-                dup = [f for f in self._fields[:len(values)] if f in kwargs]
-                if dup:
-                    msg = (f"Got multiple values for argument(s): "
-                           f"{str(dup)[1:-1]}")
-                else:
-                    msg = (f"Got unexpected field name(s): "
-                           f"{str(list(kwargs))[1:-1]}")
-                raise ValueError(msg)
-        return self._make(values)
+    def __setattr__(self, name, value):
+        """Make the type-like object immutable."""
+        raise TypeError(f"can't set attributes of '{type(self).__name__}' "
+                        "instance")
 
-    def _make(self, values):
-        return NamedTuple(self._typename, self._fields, values)
+    def __repr__(self):
+        return f"{type(self).__name__}({self._typename!r}, {self._fields!r})"
 
 
 class NamedTuple(tuple):
@@ -69,16 +70,10 @@ class NamedTuple(tuple):
     """
 
     def __new__(cls, typename, fields, values):
-        if len(fields) != len(values):
-            if len(fields) < len(values):
-                msg = (f"__new__() '{typename}' requires {len(fields)}"
-                       f" positional arguments but {len(values)} were given")
-            else:
-                num = len(fields) - len(values)
-                msg = (f"__new__() '{typename}' missing {num} required "
-                       f"positional arguments: {str(fields[-num:])[1:-1]}")
-            raise TypeError(msg)
         result = tuple.__new__(cls, values)
+        if len(fields) != len(result):
+            raise ValueError(f"Expected {len(fields)} arguments, got "
+                             f"{len(result)}")
         result.__dict__["_typename"] = typename
         result.__dict__["_fields"] = fields
         return result
@@ -93,17 +88,13 @@ class NamedTuple(tuple):
 
     def __setattr__(self, name, value):
         """Make the object immutable, like a tuple."""
-        if hasattr(self, name):
-            msg = "can't set attribute"
-        else:
-            msg = f"'{self._typename}' object has no attribute '{name}'"
-        raise AttributeError(msg)
+        raise AttributeError(f"can't set attributes of "
+                             f"'{type(self).__name__}' instance")
 
-    def _make(self, values):
+    def _make(self, iterable):
         """Make a new object of same typename and fields from a sequence or
         iterable."""
-        return self.__new__(self.__class__, self._typename, self._fields,
-                            values)
+        return type(self)(self._typename, self._fields, iterable)
 
     def _replace(self, **kwargs):
         """Return a new object of same typename and fields, replacing specified
@@ -115,8 +106,8 @@ class NamedTuple(tuple):
         return result
 
     def _asdict(self):
-        """Return a new dictionary which maps field names to their values."""
-        return dict(zip(self._fields, self))
+        """Return an ordered dictionary mapping field names to their values."""
+        return OrderedDict(zip(self._fields, self))
 
     def __getnewargs__(self):
         """Returns typename, fields, and values as plain tuple. Used by copy
@@ -124,8 +115,7 @@ class NamedTuple(tuple):
         return self._typename, self._fields, tuple(self)
 
     def __repr__(self):
-        """Return a nicely formatted representation string showing the
-        typename."""
+        """Return a nicely formatted string showing the typename."""
         return self._typename + '(' + ', '.join(f'{name}={value}'
             for name, value in zip(self._fields, self)) + ')'
 
@@ -143,8 +133,8 @@ class NamedArrayTupleSchema(NamedTupleSchema):
             if name in RESERVED_NAMES:
                 raise ValueError(f"Disallowed field name: '{name}'")
 
-    def _make(self, values):
-        return NamedArrayTuple(self._typename, self._fields, values)
+    def _make(self, iterable):
+        return NamedArrayTuple(self._typename, self._fields, iterable)
 
 
 class NamedArrayTuple(NamedTuple):
