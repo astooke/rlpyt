@@ -5,9 +5,8 @@ from gym import Wrapper
 from gym.wrappers.time_limit import TimeLimit
 
 from rlpyt.envs.base import EnvSpaces, EnvStep
-from rlpyt.spaces.gym_wrapper import GymSpaceWrapper
-from rlpyt.utils.collections import is_namedtuple_class
-from rlpyt.utils.namedtuple_schema import NamedTupleSchema
+from rlpyt.spaces.gym_wrapper_schema import GymSpaceWrapper
+from rlpyt.utils.collections import NamedTupleSchema
 
 
 class GymEnvWrapper(Wrapper):
@@ -64,7 +63,7 @@ class GymEnvWrapper(Wrapper):
         if ntc is None:
             self._info_schemas[name] = NamedTupleSchema(
                 name, list(info.keys()))
-        elif not (is_namedtuple_class(ntc) and
+        elif not (isinstance(ntc, NamedTupleSchema) and
                   sorted(ntc._fields) == sorted(list(info.keys()))):
             raise ValueError(f"Name clash in schema index: {name}.")
         for k, v in info.items():

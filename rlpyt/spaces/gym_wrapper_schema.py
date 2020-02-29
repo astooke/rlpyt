@@ -2,8 +2,7 @@
 import numpy as np
 from gym.spaces.dict import Dict as GymDict
 
-from rlpyt.utils.collections import is_namedtuple_class, is_namedtuple
-from rlpyt.utils.namedtuple_schema import NamedTupleSchema
+from rlpyt.utils.collections import NamedTupleSchema, NamedTuple
 from rlpyt.spaces.composite import Composite
 
 
@@ -32,7 +31,7 @@ class GymSpaceWrapper:
             if nt is None:
                 nt = NamedTupleSchema(name, [k for k in space.spaces.keys()])
                 schemas[name] = nt  # Put at module level for pickle.
-            elif not (is_namedtuple_class(nt) and
+            elif not (isinstance(nt, NamedTupleSchema) and
                     sorted(nt._fields) ==
                     sorted([k for k in space.spaces.keys()])):
                 raise ValueError(f"Name clash in schemas: {name}.")
@@ -129,6 +128,6 @@ def dict_to_nt(value, name, schemas):
 
 
 def nt_to_dict(value):
-    if is_namedtuple(value):
+    if isinstance(value, NamedTuple):
         return {k: nt_to_dict(v) for k, v in zip(value._fields, value)}
     return value

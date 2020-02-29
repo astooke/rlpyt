@@ -4,9 +4,8 @@ import multiprocessing as mp
 import ctypes
 import torch
 
-from rlpyt.utils.collections import namedarraytuple_like
-from rlpyt.utils.namedtuple_schema import NamedArrayTupleSchema_like
-# from rlpyt.utils.misc import put
+from rlpyt.utils.collections import (namedarraytuple_like,
+    NamedArrayTupleSchema_like)
 
 
 def buffer_from_example(example, leading_dims, share_memory=False,
@@ -17,6 +16,10 @@ def buffer_from_example(example, leading_dims, share_memory=False,
     every entry, and otherwise matches their shapes and dtypes. The examples
     should have no leading dimensions.  ``None`` fields will stay ``None``.
     Optionally allocate on OS shared memory. Uses ``build_array()``.
+    
+    New: can use NamedArrayTuple types by the `use_NatSchema` flag, which
+    may be easier for pickling/unpickling when using spawn instead
+    of fork.
     """
     if example is None:
         return
