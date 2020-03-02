@@ -33,7 +33,8 @@ def buffer_from_example(example, leading_dims, share_memory=False,
             buffer_type = namedarraytuple_like(example)
     except TypeError:  # example was not a namedtuple or namedarraytuple
         return build_array(example, leading_dims, share_memory)
-    return buffer_type(*(buffer_from_example(v, leading_dims, share_memory)
+    return buffer_type(*(buffer_from_example(v, leading_dims,
+        share_memory=share_memory, use_NatSchema=use_NatSchema)
         for v in example))
 
 
