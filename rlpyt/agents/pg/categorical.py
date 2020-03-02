@@ -14,8 +14,7 @@ class CategoricalPgAgent(BaseAgent):
     Same as ``GausssianPgAgent`` and related classes, except uses
     ``Categorical`` distribution, and has a different interface to the model
     (model here outputs discrete probabilities in place of means and log_stds,
-    while both output the value estimate)...NOTE: maybe could reorganize those
-    interfaces to reduce to one poligy gradient agent class.
+    while both output the value estimate).
     """
 
     def __call__(self, observation, prev_action, prev_reward):

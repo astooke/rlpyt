@@ -53,8 +53,8 @@ class AlternatingSamplerBase(GpuSamplerBase):
             self.eval_agent_inputs_pair = (self.eval_agent_inputs[:eval_half_B],
                 self.eval_agent_inputs[eval_half_B:])
         if "bootstrap_value" in self.samples_np.agent:
-            self.bootstrap_value_pair = (self.samples_np.agent.bootstrap_value[:half_B],
-                self.samples_np.agent.bootstrap_value[half_B:])
+            self.bootstrap_value_pair = (self.samples_np.agent.bootstrap_value[0, :half_B],
+                self.samples_np.agent.bootstrap_value[0, half_B:])  # (leading dim T=1)
 
     def _get_n_envs_list(self, affinity=None, n_worker=None, B=None):
         if affinity is not None:
