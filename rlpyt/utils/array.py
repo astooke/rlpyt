@@ -48,7 +48,7 @@ def infer_leading_dims(array, dim):
     where found.
     """
     assert array.ndim in (dim, dim + 1, dim + 2)
-    shape = array.shape[-dim:]
+    shape = array.shape[len(array.shape) - dim:]
     T = B = 1
     has_T = has_B = False
     if array.ndim == dim + 2:

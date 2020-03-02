@@ -1,7 +1,6 @@
 import sys
 import time
 import os
-import errno
 import shlex
 import pydoc
 import inspect
@@ -32,13 +31,7 @@ def colorize(string, color, bold=False, highlight=False):
 
 
 def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
+    os.makedirs(path, exist_ok=True)
 
 
 def log(s):  # , send_telegram=False):

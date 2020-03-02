@@ -4,12 +4,12 @@ import multiprocessing as mp
 import ctypes
 import torch
 
-from rlpyt.utils.collections import (namedarraytuple_like,
-    NamedArrayTupleSchema_like)
+from rlpyt.utils.collections import (NamedArrayTuple, namedarraytuple_like,
+    NamedArrayTupleSchema_like, NamedTuple)
 
 
 def buffer_from_example(example, leading_dims, share_memory=False,
-        use_NatSchema=False):
+        use_NatSchema=None):
     """Allocates memory and returns it in `namedarraytuple` with same
     structure as ``examples``, which should be a `namedtuple` or
     `namedarraytuple`. Applies the same leading dimensions ``leading_dims`` to
@@ -19,10 +19,13 @@ def buffer_from_example(example, leading_dims, share_memory=False,
     
     New: can use NamedArrayTuple types by the `use_NatSchema` flag, which
     may be easier for pickling/unpickling when using spawn instead
-    of fork.
+    of fork. If use_NatSchema is None, the type of ``example`` will be used to
+    infer what type to return (this is the default)
     """
     if example is None:
         return
+    if use_NatSchema is None:
+        use_NatSchema = isinstance(example, (NamedTuple, NamedArrayTuple))
     try:
         if use_NatSchema:
             buffer_type = NamedArrayTupleSchema_like(example)
@@ -50,10 +53,67 @@ def build_array(example, leading_dims, share_memory=False):
 
 def np_mp_array(shape, dtype):
     """Allocate a numpy array on OS shared memory."""
+    if mp.get_start_method() == "spawn":
+        return np_mp_array_spawn(shape, dtype)
     size = int(np.prod(shape))
     nbytes = size * np.dtype(dtype).itemsize
     mp_array = mp.RawArray(ctypes.c_char, nbytes)
     return np.frombuffer(mp_array, dtype=dtype, count=size).reshape(shape)
+
+
+class np_mp_array_spawn(np.ndarray):
+    """Shared ndarray for use with multiprocessing's 'spawn' start method.
+
+    This array can be shared between processes by passing it to a `Process`
+    init function (or similar). Note that this can only be shared _on process
+    startup_; it can't be passed through, e.g., a queue at runtime. Also it
+    cannot be pickled outside of multiprocessing's internals."""
+    _shmem = None
+
+    def __new__(cls, shape, dtype=None, buffer=None, offset=None, strides=None,
+                order=None):
+        # init buffer
+        if buffer is None:
+            assert offset is None
+            assert strides is None
+            size = int(np.prod(shape))
+            nbytes = size * np.dtype(dtype).itemsize
+            # this is the part that can be passed between processes
+            shmem = mp.RawArray(ctypes.c_char, nbytes)
+            offset = 0
+        elif isinstance(buffer, ctypes.Array):
+            # restoring from a pickle
+            shmem = buffer
+        else:
+            raise ValueError(
+                f"{cls.__name__} does not support specifying custom "
+                f" buffers, but was given {buffer!r}")
+
+        # init array
+        obj = np.ndarray.__new__(cls, shape, dtype=dtype, buffer=shmem,
+                                 offset=offset, strides=strides, order=order)
+        obj._shmem = shmem
+
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is not None:
+            self._shmem = obj._shmem
+
+    def __reduce__(self):
+        # credit to https://stackoverflow.com/a/53534485 for awful/wonderful
+        # __array_interface__ hack
+        absolute_offset = self.__array_interface__['data'][0]
+        base_address = ctypes.addressof(self._shmem)
+        offset = absolute_offset - base_address
+        assert offset <= len(self._shmem), (offset, len(self._shmem))
+        order = 'FC'[self.flags['C_CONTIGUOUS']]
+        # buffer should get pickled by np
+        assert self._shmem is not None, \
+            "somehow this lost its _shmem reference"
+        newargs = (self.shape, self.dtype, self._shmem, offset, self.strides,
+                   order)
+        return (type(self), newargs)
 
 
 def torchify_buffer(buffer_):
