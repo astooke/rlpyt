@@ -136,19 +136,7 @@ class R2D1(DQN):
         # (next batch), and in async case workers must do it.
         itr = itr if sampler_itr is None else sampler_itr  # Async uses sampler_itr
         if samples is not None:
-            samples_to_buffer = SamplesToBuffer(
-                observation=samples.env.observation,
-                action=samples.agent.action,
-                reward=samples.env.reward,
-                done=samples.env.done,
-            )
-            if self.store_rnn_state_interval > 0:
-                samples_to_buffer = SamplesToBufferRnn(*samples_to_buffer,
-                    prev_rnn_state=samples.agent.agent_info.prev_rnn_state)
-            if self.input_priorities:
-                priorities = self.compute_input_priorities(samples)
-                samples_to_buffer = PrioritiesSamplesToBuffer(
-                    priorities=priorities, samples=samples)
+            samples_to_buffer = self.samples_to_buffer(samples)
             self.replay_buffer.append_samples(samples_to_buffer)
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
         if itr < self.min_itr_learn:
