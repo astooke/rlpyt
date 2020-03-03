@@ -1,9 +1,8 @@
-
-from contextlib import contextmanager
 import datetime
+import json
 import os
 import os.path as osp
-import json
+from contextlib import contextmanager
 
 from rlpyt.utils.logging import logger
 
@@ -17,14 +16,16 @@ def get_log_dir(experiment_name):
 
 
 @contextmanager
-def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none"):
+def logger_context(
+    log_dir, run_ID, name, log_params=None, snapshot_mode="none", override_prefix=False
+):
     """Use as context manager around calls to the runner's ``train()`` method.
-    Sets up the logger directory and filenames.  This function automatically
-    prepends ``log_dir`` with the rlpyt logging directory and the date:
-    `path-to-rlpyt/data/yyyymmdd` (`data/` is in the gitignore), and appends
-    with `/run_{run_ID}` to separate multiple runs of the same settings.
-    Saves hyperparameters provided in ``log_params`` to `params.json`, along
-    with experiment `name` and `run_ID`.
+    Sets up the logger directory and filenames.  Unless override_prefix is True,
+    this function automatically prepends ``log_dir`` with the rlpyt logging 
+    directory and the date: `path-to-rlpyt/data/yyyymmdd` (`data/` is in the
+    gitignore), and appends with `/run_{run_ID}` to separate multiple runs of
+    the same settings. Saves hyperparameters provided in ``log_params`` to
+    `params.json`, along with experiment `name` and `run_ID`.
 
     Input ``snapshot_mode`` refers to how often the logger actually saves the
     snapshot (e.g. may include agent parameters).  The runner calls on the
@@ -44,7 +45,7 @@ def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none")
     logger.set_log_tabular_only(False)
     log_dir = osp.join(log_dir, f"run_{run_ID}")
     exp_dir = osp.abspath(log_dir)
-    if LOG_DIR != osp.commonpath([exp_dir, LOG_DIR]):
+    if LOG_DIR != osp.commonpath([exp_dir, LOG_DIR]) and not override_prefix:
         print(f"logger_context received log_dir outside of {LOG_DIR}: "
             f"prepending by {LOG_DIR}/local/<yyyymmdd>/")
         exp_dir = get_log_dir(log_dir)
@@ -77,7 +78,6 @@ def add_exp_param(param_name, param_val, exp_dir=None, overwrite=False):
     reflecting a combination of settings."""
     if exp_dir is None:
         exp_dir = os.getcwd()
-    # exp_folders = get_immediate_subdirectories(exp_dir)
     for sub_dir in os.walk(exp_dir):
         if "params.json" in sub_dir[2]:
             update_param = True
@@ -97,8 +97,3 @@ def add_exp_param(param_name, param_val, exp_dir=None, overwrite=False):
                 params[param_name] = param_val
                 with open(params_f, "w") as f:
                     json.dump(params, f)
-
-
-# def get_immediate_subdirectories(a_dir):
-#     return [osp.join(a_dir, name) for name in os.listdir(a_dir)
-#             if osp.isdir(osp.join(a_dir, name))]
