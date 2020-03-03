@@ -6,7 +6,11 @@ from rlpyt.utils.misc import zeros
 
 
 def discount_return(reward, done, bootstrap_value, discount, return_dest=None):
-    """Time-major inputs, optional other dimensions: [T], [T,B], etc."""
+    """Time-major inputs, optional other dimensions: [T], [T,B], etc. Computes
+    discounted sum of future rewards from each time-step to the end of the
+    batch, including bootstrapping value.  Sum resets where `done` is 1.
+    Optionally, writes to buffer `return_dest`, if provided.  Operations
+    vectorized across all trailing dimensions after the first [T,]."""
     return_ = return_dest if return_dest is not None else zeros(
         reward.shape, dtype=reward.dtype)
     nd = 1 - done
@@ -19,7 +23,9 @@ def discount_return(reward, done, bootstrap_value, discount, return_dest=None):
 
 def generalized_advantage_estimation(reward, value, done, bootstrap_value,
         discount, gae_lambda, advantage_dest=None, return_dest=None):
-    """Time-major inputs, optional other dimensions: [T], [T,B], etc."""
+    """Time-major inputs, optional other dimensions: [T], [T,B], etc.  Similar
+    to `discount_return()` but using Generalized Advantage Estimation to
+    compute advantages and returns."""
     advantage = advantage_dest if advantage_dest is not None else zeros(
         reward.shape, dtype=reward.dtype)
     return_ = return_dest if return_dest is not None else zeros(
@@ -60,7 +66,13 @@ def generalized_advantage_estimation(reward, value, done, bootstrap_value,
 
 def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
         done_n_dest=None, do_truncated=False):
-    """Time-major inputs, optional other dimension: [T], [T,B], etc."""
+    """Time-major inputs, optional other dimension: [T], [T,B], etc.  Computes
+    n-step discounted returns within the timeframe of the of given rewards. If
+    `do_truncated==False`, then only compute at time-steps with full n-step
+    future rewards are provided (i.e. not at last n-steps--output shape will
+    change!).  Returns n-step returns as well as n-step done signals, which is
+    True if `done=True` at any future time before the n-step target bootstrap
+    would apply (bootstrap in the algo, not here)."""
     rlen = reward.shape[0]
     if not do_truncated:
         rlen -= (n_step - 1)
@@ -90,6 +102,10 @@ def discount_return_n_step(reward, done, n_step, discount, return_dest=None,
 
 
 def valid_from_done(done):
+    """Returns a float mask which is zero for all time-steps after a
+    `done=True` is signaled.  This function operates on the leading dimension
+    of `done`, assumed to correspond to time [T,...], other dimensions are
+    preserved."""
     done = done.type(torch.float)
     valid = torch.ones_like(done)
     valid[1:] = 1 - torch.clamp(torch.cumsum(done[:-1], dim=0), max=1)
@@ -101,9 +117,9 @@ def valid_from_done(done):
 
 def discount_return_tl(reward, done, bootstrap_value, discount, timeout, value,
         return_dest=None):
-    """Like discount_return(), above, except uses bootstrapping where 'done' is due
-    to env horizon time-limit (tl=Time-Limit).  Should not train on samples where
-    timeout=True."""
+    """Like discount_return(), above, except uses bootstrapping where 'done'
+    is due to env horizon time-limit (tl=Time-Limit).  (In the algo, should
+    not train on samples where `timeout=True`.)"""
     return_ = return_dest if return_dest is not None else zeros(
         reward.shape, dtype=reward.dtype)
     assert all(done[timeout])  # Anywhere timeout, was done (timeout is bool dtype).
@@ -123,7 +139,8 @@ def generalized_advantage_estimation_tl(reward, value, done, bootstrap_value,
         discount, gae_lambda, timeout, advantage_dest=None, return_dest=None):
     """Like generalized_advantage_estimation(), above, except uses
     bootstrapping where 'done' is due to env horizon time-limit
-    (tl=Time-Limit).  Should not train on samples where timeout=True."""
+    (tl=Time-Limit).  (In the algo, should not train on samples where
+    `timeout=True`.)"""
     advantage = advantage_dest if advantage_dest is not None else zeros(
         reward.shape, dtype=reward.dtype)
     return_ = return_dest if return_dest is not None else zeros(

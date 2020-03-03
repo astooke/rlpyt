@@ -80,6 +80,20 @@ Buffers
 
 .. autofunction:: rlpyt.utils.buffer.get_leading_dims
 
+Algorithms
+----------
+
+.. autofunction:: rlpyt.algos.utils.discount_return
+
+.. autofunction:: rlpyt.algos.utils.generalized_advantage_estimation
+
+.. autofunction:: rlpyt.algos.utils.discount_return_n_step
+
+.. autofunction:: rlpyt.algos.utils.valid_from_done
+
+.. autofunction:: rlpyt.algos.utils.discount_return_tl
+
+.. autofunction:: rlpyt.algos.utils.generalized_advantage_estimation_tl
 
 Synchronize
 -----------
