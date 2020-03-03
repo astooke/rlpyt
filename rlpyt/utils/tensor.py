@@ -64,7 +64,7 @@ def infer_leading_dims(tensor, dim):
     else:
         T = 1
         B = 1 if lead_dim == 0 else tensor.shape[0]
-    shape = tensor.shape[-dim:]
+    shape = tensor.shape[lead_dim:]
     return lead_dim, T, B, shape
 
 
