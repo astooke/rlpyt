@@ -260,6 +260,7 @@ class NamedTupleSchema:
         return self._make(args)
 
     def _make(self, iterable):
+        """Allows instances to act like `namedtuple` constructors."""
         return NamedTuple(self._typename, self._fields, iterable)
 
     def __setattr__(self, name, value):

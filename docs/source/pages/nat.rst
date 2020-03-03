@@ -16,3 +16,18 @@ Named Array Tuples
 .. autofunction:: rlpyt.utils.collections.is_namedarraytuple
 
 .. autofunction:: rlpyt.utils.collections.namedarraytuple_like
+
+.. autoclass:: rlpyt.utils.collections.NamedTupleSchema
+    :members: __call__, _make
+
+.. autoclass:: rlpyt.utils.collections.NamedTuple
+    :members: __getattr__, _make, _replace, _asdict
+    :show-inheritance:
+
+.. autoclass:: rlpyt.utils.collections.NamedArrayTupleSchema
+    :show-inheritance:
+
+.. autoclass:: rlpyt.utils.collections.NamedArrayTuple
+    :show-inheritance:
+
+.. autofunction:: rlpyt.utils.collections.NamedArrayTuple_like
