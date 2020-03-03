@@ -49,7 +49,7 @@ class NStepTimeLimitBuffer(NStepReturnBuffer):
         else:
             idxs = np.arange(t - nm1, t - nm1 + T) % T
             to_idxs = np.arange(t, t + T) % T
-        self.samples_timeout_n[idxs] = (self.done_n[idxs] *
+        self.samples_timeout_n[idxs] = (self.samples_done_n[idxs] *
             self.samples.timeout[to_idxs])
 
 
