@@ -4,6 +4,7 @@ import datetime
 import os
 import os.path as osp
 import json
+from torch.utils.tensorboard.writer import SummaryWriter
 
 from rlpyt.utils.logging import logger
 
@@ -31,6 +32,7 @@ def logger_context(log_dir, run_ID, name, log_params=None, snapshot_mode="none")
     params_log_file = osp.join(exp_dir, "params.json")
 
     logger.set_snapshot_dir(exp_dir)
+    logger.set_tf_summary_writer(SummaryWriter(exp_dir))
     logger.add_text_output(text_log_file)
     logger.add_tabular_output(tabular_log_file)
     logger.push_prefix(f"{name}_{run_ID} ")
