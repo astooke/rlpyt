@@ -227,9 +227,9 @@ class AttrDict(dict):
 
 ############################################################################
 # Classes for creating objects which closely follow the interfaces for
-# namedtuple and namedarraytuple types and instances, except without
-# defining a new class for each type.  (May be easier to use with regards
-# to pickling or dynamically creating types, by avoiding module-level
+# namedtuple and namedarraytuple types and instances, except without defining
+# a new class for each type.  (May be easier to use with regards to pickling
+# under spawn, or dynamically creating types, by avoiding module-level
 # definitions.)
 ############################################################################
 
@@ -282,14 +282,16 @@ class NamedTuple(tuple):
 
 
     Implementation differences from `namedtuple`:
-    -The individual fields don't show up in dir(obj), but they do still show up
-     as `hasattr(obj, field) => True`, because of __getattr__().
-    -These objects have a __dict__ (by ommitting __slots__ = ()), intended to
-     hold only the typename and list of field names, which are now instance
-     attributes instead of class attributes.
-    -Since property(itemgetter(i)) only works on classes, __getattr__() is
-     modified instead to look for field names.
-    -Attempts to enforce call signatures are included, might not exactly match.
+
+    * The individual fields don't show up in `dir(obj)`, but they do still
+      show up as `hasattr(obj, field) => True`, because of `__getattr__()`.
+    * These objects have a `__dict__` (by ommitting `__slots__ = ()`),
+      intended to hold only the typename and list of field names, which are
+      now instance attributes instead of class attributes.
+    * Since `property(itemgetter(i))` only works on classes, `__getattr__()`
+      is modified instead to look for field names.
+    * Attempts to enforce call signatures are included, might not exactly
+      match.
     """
 
     def __new__(cls, typename, fields, values):
@@ -410,7 +412,7 @@ class NamedArrayTuple(NamedTuple):
 def NamedArrayTupleSchema_like(example):
     """Returns a NamedArrayTupleSchema instance  with the same name and fields
     as input, which can be a class or instance of namedtuple or
-    namedarraytuple, or an instance of NamedTupleScheme, NamedTuple,
+    namedarraytuple, or an instance of NamedTupleSchema, NamedTuple,
     NamedArrayTupleSchema, or NamedArrayTuple."""
     if isinstance(example, NamedArrayTupleSchema):
         return example

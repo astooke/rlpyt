@@ -17,6 +17,11 @@ Named Array Tuples
 
 .. autofunction:: rlpyt.utils.collections.namedarraytuple_like
 
+Alternative Implementation
+--------------------------
+
+Classes for creating objects which closely follow the interfaces for namedtuple and namedarraytuple types and instances, except without defining a new class for each type.  (May be easier to use with regards to pickling under spawn, or dynamically creating types, by avoiding module-level definitions.
+
 .. autoclass:: rlpyt.utils.collections.NamedTupleSchema
     :members: __call__, _make
 
@@ -30,4 +35,4 @@ Named Array Tuples
 .. autoclass:: rlpyt.utils.collections.NamedArrayTuple
     :show-inheritance:
 
-.. autofunction:: rlpyt.utils.collections.NamedArrayTuple_like
+.. autofunction:: rlpyt.utils.collections.NamedArrayTupleSchema_like
