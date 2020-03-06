@@ -47,6 +47,8 @@ _tf_summary_writer = None
 _disabled = False
 _tabular_disabled = False
 
+_iteration = 0
+
 
 def disable():
     global _disabled
@@ -66,6 +68,11 @@ def enable():
 def enable_tabular():
     global _tabular_disabled
     _tabular_disabled = False
+
+
+def set_iteration(iteration):
+    global _iteration
+    _iteration = iteration
 
 
 def _add_output(file_name, arr, fds, mode='a'):
@@ -171,9 +178,11 @@ def set_log_tabular_only(log_tabular_only):
 def get_log_tabular_only():
     return _log_tabular_only
 
+
 def set_disable_prefix(disable_prefix):
     global _disable_prefix
     _disable_prefix = disable_prefix
+
 
 def get_disable_prefix():
     return _disable_prefix
@@ -202,6 +211,8 @@ def log(s, with_prefix=True, with_timestamp=True, color=None):
 def record_tabular(key, val, *args, **kwargs):
     # if not _disabled and not _tabular_disabled:
     _tabular.append((_tabular_prefix_str + str(key), str(val)))
+    if _tf_summary_writer is not None:
+        _tf_summary_writer.add_scalar(key, val, _iteration)
 
 
 def push_tabular_prefix(key):
@@ -440,14 +451,14 @@ def record_tabular_misc_stat(key, values, placement='back'):
         prefix = key
         suffix = ""
     if len(values) > 0:
-        record_tabular(prefix + "Average" + suffix, np.average(values))
-        record_tabular(prefix + "Std" + suffix, np.std(values))
-        record_tabular(prefix + "Median" + suffix, np.median(values))
-        record_tabular(prefix + "Min" + suffix, np.min(values))
-        record_tabular(prefix + "Max" + suffix, np.max(values))
+        record_tabular(prefix + "/Average" + suffix, np.average(values))
+        record_tabular(prefix + "/Std" + suffix, np.std(values))
+        record_tabular(prefix + "/Median" + suffix, np.median(values))
+        record_tabular(prefix + "/Min" + suffix, np.min(values))
+        record_tabular(prefix + "/Max" + suffix, np.max(values))
     else:
-        record_tabular(prefix + "Average" + suffix, np.nan)
-        record_tabular(prefix + "Std" + suffix, np.nan)
-        record_tabular(prefix + "Median" + suffix, np.nan)
-        record_tabular(prefix + "Min" + suffix, np.nan)
-        record_tabular(prefix + "Max" + suffix, np.nan)
+        record_tabular(prefix + "/Average" + suffix, np.nan)
+        record_tabular(prefix + "/Std" + suffix, np.nan)
+        record_tabular(prefix + "/Median" + suffix, np.nan)
+        record_tabular(prefix + "/Min" + suffix, np.nan)
+        record_tabular(prefix + "/Max" + suffix, np.nan)

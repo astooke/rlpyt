@@ -251,6 +251,7 @@ class MinibatchRl(MinibatchRlBase):
         """
         n_itr = self.startup()
         for itr in range(n_itr):
+            logger.set_iteration(itr)
             with logger.prefix(f"itr #{itr} "):
                 self.agent.sample_mode(itr)  # Might not be this agent sampling.
                 samples, traj_infos = self.sampler.obtain_samples(itr)
@@ -301,6 +302,7 @@ class MinibatchRlEval(MinibatchRlBase):
             eval_traj_infos, eval_time = self.evaluate_agent(0)
             self.log_diagnostics(0, eval_traj_infos, eval_time)
         for itr in range(n_itr):
+            logger.set_iteration(itr)
             with logger.prefix(f"itr #{itr} "):
                 self.agent.sample_mode(itr)
                 samples, traj_infos = self.sampler.obtain_samples(itr)
