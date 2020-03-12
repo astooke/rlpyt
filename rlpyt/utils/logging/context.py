@@ -3,7 +3,10 @@ import json
 import os
 import os.path as osp
 from contextlib import contextmanager
-from torch.utils.tensorboard.writer import SummaryWriter
+try:
+    from torch.utils.tensorboard.writer import SummaryWriter
+except ImportError:
+    print("Unable to import tensorboard SummaryWriter, proceeding without.")
 
 from rlpyt.utils.logging import logger
 
