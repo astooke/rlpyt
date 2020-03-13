@@ -262,7 +262,8 @@ def build_gpu_affinity(slt, gpu, cpu, cxg=1, cpw=1, hto=None, res=0, skt=1,
     cpr = cpu // n_ctx
     if cxg > 1:
         slt = (slt % gpu) * cxg + slt // gpu  # Spread over GPUs first.
-    affinity = build_cpu_affinity(slt, cpu, cpr, cpw, hto, res, skt, alt, saf)
+    affinity = build_cpu_affinity(slt, cpu, cpr,
+        cpw=cpw, hto=hto, res=res, skt=skt, gpu=0, alt=alt, saf=saf)
     affinity["cuda_idx"] = slt // cxg
     return affinity
 
