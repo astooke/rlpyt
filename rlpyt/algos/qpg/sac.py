@@ -314,3 +314,4 @@ class SAC(RlAlgorithm):
         self.alpha_optimizer.load_state_dict(state_dict["alpha_optimizer"])
         with torch.no_grad():
             self._log_alpha[:] = state_dict["log_alpha"]
+            self._alpha = torch.exp(self._log_alpha.detach())
