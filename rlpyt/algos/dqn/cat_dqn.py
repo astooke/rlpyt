@@ -27,8 +27,9 @@ class CategoricalDQN(DQN):
         self.agent.give_V_min_max(self.V_min, self.V_max)
 
     def async_initialize(self, *args, **kwargs):
-        super().async_initialize(*args, **kwargs)
+        buffer = super().async_initialize(*args, **kwargs)
         self.agent.give_V_min_max(self.V_min, self.V_max)
+        return buffer
 
     def loss(self, samples):
         """
