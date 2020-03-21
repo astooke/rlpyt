@@ -60,11 +60,12 @@ class GymEnvWrapper(Wrapper):
 
     def _build_info_schemas(self, info, name="info"):
         ntc = self._info_schemas.get(name)
+        info_keys = [str(k).replace(".", "_") for k in info.keys()]
         if ntc is None:
             self._info_schemas[name] = NamedTupleSchema(
-                name, list(info.keys()))
+                name, list(info_keys))
         elif not (isinstance(ntc, NamedTupleSchema) and
-                  sorted(ntc._fields) == sorted(list(info.keys()))):
+                  sorted(ntc._fields) == sorted(info_keys)):
             raise ValueError(f"Name clash in schema index: {name}.")
         for k, v in info.items():
             if isinstance(v, dict):
