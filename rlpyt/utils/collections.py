@@ -2,7 +2,7 @@
 import sys
 from collections import namedtuple, OrderedDict
 from inspect import Signature as Sig, Parameter as Param
-
+import string
 
 RESERVED_NAMES = ("get", "items")
 
@@ -240,7 +240,21 @@ class NamedTupleSchema:
     def __init__(self, typename, fields):
         if not isinstance(typename, str):
             raise TypeError(f"type name must be string, not {type(typename)}")
+
+        if isinstance(fields, str):
+            spaces = any([whitespace in fields for whitespace in string.whitespace])
+            commas = "," in fields
+            if spaces and commas:
+                raise ValueError(f"Single string fields={fields} cannot have both spaces and commas.")
+            elif spaces:
+                fields = fields.split()
+            elif commas:
+                fields = fields.split(",")
+            else:
+                # If there are neither spaces nor commas, then there is only one field.
+                fields = (fields,)
         fields = tuple(fields)
+
         for field in fields:
             if not isinstance(field, str):
                 raise ValueError(f"field names must be strings: {field}")
