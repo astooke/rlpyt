@@ -23,7 +23,16 @@ def log_num_launched(exp_dir, n, total):
         f.write(f"Experiments launched so far: {n} out of {total}.\n")
 
 
-def launch_experiment(script, run_slot, affinity_code, log_dir, variant, run_ID, args):
+def launch_experiment(
+    script,
+    run_slot,
+    affinity_code,
+    log_dir,
+    variant,
+    run_ID,
+    args,
+    python_executable=None,
+):
     """Launches one learning run using ``subprocess.Popen()`` to call the
     python script.  Calls the script as:
     ``python {script} {slot_affinity_code} {log_dir} {run_ID} {*args}``
@@ -43,7 +52,8 @@ def launch_experiment(script, run_slot, affinity_code, log_dir, variant, run_ID,
         cpus = ()
     if cpus:
         call_list += ["taskset", "-c", cpus]  # PyTorch obeys better than just psutil.
-    call_list += ["python", script, slot_affinity_code, log_dir, str(run_ID)]
+    py = python_executable if python_executable else sys.executable or "python"
+    call_list += [py, script, slot_affinity_code, log_dir, str(run_ID)]
     call_list += [str(a) for a in args]
     save_variant(variant, log_dir)
     print("\ncall string:\n", " ".join(call_list))
