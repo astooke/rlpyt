@@ -2,8 +2,8 @@
 import sys
 
 from rlpyt.utils.launching.affinity import affinity_from_code
-from rlpyt.samplers.gpu.sampler import GpuSampler
-from rlpyt.samplers.gpu.collectors import GpuWaitResetCollector
+from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
+from rlpyt.samplers.parallel.gpu.collectors import GpuWaitResetCollector
 from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.algos.dqn.cat_dqn import CategoricalDQN
 from rlpyt.agents.dqn.atari.atari_catdqn_agent import AtariCatDqnAgent
