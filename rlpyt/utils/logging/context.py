@@ -70,7 +70,7 @@ def logger_context(
     log_params["name"] = name
     log_params["run_ID"] = run_ID
     with open(params_log_file, "w") as f:
-        json.dump(log_params, f)
+        json.dump(log_params, f, default=lambda o: type(o).__name__)
 
     yield
 
@@ -103,4 +103,4 @@ def add_exp_param(param_name, param_val, exp_dir=None, overwrite=False):
                 os.remove(params_f)
                 params[param_name] = param_val
                 with open(params_f, "w") as f:
-                    json.dump(params, f)
+                    json.dump(params, f, default=lambda o: type(o).__name__)
