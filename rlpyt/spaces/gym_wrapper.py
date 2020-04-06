@@ -115,6 +115,9 @@ class GymSpaceWrapper:
     def n(self):
         return self.space.n
 
+    def seed(self, seed=None):
+        return self.space.seed(seed=seed)
+
 
 def dict_to_nt(value, name):
     if isinstance(value, dict):
