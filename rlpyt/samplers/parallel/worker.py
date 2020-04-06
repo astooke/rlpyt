@@ -5,7 +5,7 @@ import torch
 
 from rlpyt.utils.collections import AttrDict
 from rlpyt.utils.logging import logger
-from rlpyt.utils.seed import set_seed
+from rlpyt.utils.seed import set_seed, set_envs_seeds
 
 
 def initialize_worker(rank, seed=None, cpu=None, torch_threads=None):
@@ -48,6 +48,8 @@ def sampling_process(common_kwargs, worker_kwargs):
     c, w = AttrDict(**common_kwargs), AttrDict(**worker_kwargs)
     initialize_worker(w.rank, w.seed, w.cpus, c.torch_threads)
     envs = [c.EnvCls(**c.env_kwargs) for _ in range(w.n_envs)]
+    set_envs_seeds(envs, w.seed)
+
     collector = c.CollectorCls(
         rank=w.rank,
         envs=envs,
@@ -65,6 +67,7 @@ def sampling_process(common_kwargs, worker_kwargs):
 
     if c.get("eval_n_envs", 0) > 0:
         eval_envs = [c.EnvCls(**c.eval_env_kwargs) for _ in range(c.eval_n_envs)]
+        set_envs_seeds(eval_envs, w.seed)
         eval_collector = c.eval_CollectorCls(
             rank=w.rank,
             envs=eval_envs,

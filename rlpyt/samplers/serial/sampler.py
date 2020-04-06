@@ -4,7 +4,7 @@ from rlpyt.samplers.buffer import build_samples_buffer
 from rlpyt.utils.logging import logger
 from rlpyt.samplers.parallel.cpu.collectors import CpuResetCollector
 from rlpyt.samplers.serial.collectors import SerialEvalCollector
-from rlpyt.utils.seed import make_seed
+from rlpyt.utils.seed import set_envs_seeds
 
 
 class SerialSampler(BaseSampler):
@@ -43,15 +43,7 @@ class SerialSampler(BaseSampler):
         B = self.batch_spec.B
         envs = [self.EnvCls(**self.env_kwargs) for _ in range(B)]
 
-        if seed is None:
-            seed = make_seed()
-        for i, env in enumerate(envs):
-            if hasattr(env, "seed"):
-                env.seed(seed + i)
-            if hasattr(env.action_space, "seed"):
-                env.action_space.seed(seed + i)
-            if hasattr(env.observation_space, "seed"):
-                env.observation_space.seed(seed + i)
+        set_envs_seeds(envs, seed)  # Random seed made in runner.
 
         global_B = B * world_size
         env_ranks = list(range(rank * B, (rank + 1) * B))
@@ -76,6 +68,7 @@ class SerialSampler(BaseSampler):
         if self.eval_n_envs > 0:  # May do evaluation.
             eval_envs = [self.EnvCls(**self.eval_env_kwargs)
                 for _ in range(self.eval_n_envs)]
+            set_envs_seeds(eval_envs, seed)
             eval_CollectorCls = self.eval_CollectorCls or SerialEvalCollector
             self.eval_collector = eval_CollectorCls(
                 envs=eval_envs,
