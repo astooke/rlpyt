@@ -1,6 +1,6 @@
 
 
-from rlpyt.samplers.collections import BatchSpec, TrajInfo
+from rlpyt.samplers.collections import BatchSpec, TrajInfo, Samples
 from rlpyt.utils.quick_args import save__init__args
 
 

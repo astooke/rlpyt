@@ -1,10 +1,26 @@
-from distutils.core import setup
-from setuptools import find_packages
+import setuptools
 
-setup(
+INSTALL_REQUIRES = [
+    'numpy',
+    'torch',
+    'gym',
+]
+TEST_REQUIRES = [
+    # testing and coverage
+    'pytest', 'coverage', 'pytest-cov',
+    # unmandatory dependencies of the package itself
+    'atari_py', 'opencv-python', 'psutil', 'pyprind',
+]
+
+setuptools.setup(
     name='rlpyt',
     version='0.1.1dev',
-    packages=find_packages(),
+    packages=setuptools.find_packages(),
     license='MIT License',
     long_description=open('README.md').read(),
+    install_requires=INSTALL_REQUIRES,
+    extras_require={
+        'test': TEST_REQUIRES + INSTALL_REQUIRES,
+    },
+
 )
