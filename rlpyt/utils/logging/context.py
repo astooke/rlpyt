@@ -13,9 +13,11 @@ from rlpyt.utils.logging import logger
 LOG_DIR = osp.abspath(osp.join(osp.dirname(__file__), '../../../data'))
 
 
-def get_log_dir(experiment_name):
-    yyyymmdd = datetime.datetime.today().strftime("%Y%m%d")
-    log_dir = osp.join(LOG_DIR, "local", yyyymmdd, experiment_name)
+def get_log_dir(experiment_name, root_log_dir=None, date=True):
+    yyyymmdd_hhmmss = datetime.datetime.today().strftime("%Y%m%d-%H%M%S")
+    yyyymmdd, hhmmss = yyyymmdd_hhmmss.split("-")
+    root_log_dir = LOG_DIR if root_log_dir is None else root_log_dir
+    log_dir = osp.join(root_log_dir, "local", yyyymmdd, hhmmss, experiment_name)
     return log_dir
 
 
@@ -25,12 +27,13 @@ def logger_context(
     use_summary_writer=False,
 ):
     """Use as context manager around calls to the runner's ``train()`` method.
-    Sets up the logger directory and filenames.  Unless override_prefix is True,
-    this function automatically prepends ``log_dir`` with the rlpyt logging 
-    directory and the date: `path-to-rlpyt/data/yyyymmdd` (`data/` is in the
-    gitignore), and appends with `/run_{run_ID}` to separate multiple runs of
-    the same settings. Saves hyperparameters provided in ``log_params`` to
-    `params.json`, along with experiment `name` and `run_ID`.
+    Sets up the logger directory and filenames.  Unless override_prefix is
+    True, this function automatically prepends ``log_dir`` with the rlpyt
+    logging directory and the date: `path-to-rlpyt/data/yyyymmdd/hhmmss`
+    (`data/` is in the gitignore), and appends with `/run_{run_ID}` to
+    separate multiple runs of the same settings. Saves hyperparameters
+    provided in ``log_params`` to `params.json`, along with experiment `name`
+    and `run_ID`.
 
     Input ``snapshot_mode`` refers to how often the logger actually saves the
     snapshot (e.g. may include agent parameters).  The runner calls on the
@@ -43,8 +46,9 @@ def logger_context(
         * "all": always save and keep each iteration
         * "gap": save periodically and keep each (will also need to set the gap, not done here) 
 
-    The cleanup operations after the ``yield`` close files but might not be strictly
-    necessary if not launching another training session in the same python process.
+    The cleanup operations after the ``yield`` close files but might not be
+    strictly necessary if not launching another training session in the same
+    python process.
     """
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_log_tabular_only(False)
@@ -52,7 +56,7 @@ def logger_context(
     exp_dir = osp.abspath(log_dir)
     if LOG_DIR != osp.commonpath([exp_dir, LOG_DIR]) and not override_prefix:
         print(f"logger_context received log_dir outside of {LOG_DIR}: "
-            f"prepending by {LOG_DIR}/local/<yyyymmdd>/")
+            f"prepending by {LOG_DIR}/local/<yyyymmdd>/<hhmmss>/")
         exp_dir = get_log_dir(log_dir)
     tabular_log_file = osp.join(exp_dir, "progress.csv")
     text_log_file = osp.join(exp_dir, "debug.log")
