@@ -3,13 +3,12 @@ import setuptools
 INSTALL_REQUIRES = [
     'numpy',
     'torch',
-    'gym',
 ]
 TEST_REQUIRES = [
     # testing and coverage
     'pytest', 'coverage', 'pytest-cov',
     # unmandatory dependencies of the package itself
-    'atari_py', 'opencv-python', 'psutil', 'pyprind',
+    'atari_py', 'opencv-python', 'psutil', 'pyprind', 'gym',
 ]
 
 setuptools.setup(
