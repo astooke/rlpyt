@@ -443,15 +443,15 @@ def log_variant(log_file, variant_data):
         json.dump(variant_json, f, indent=2, sort_keys=True, cls=MyEncoder)
 
 
-def record_tabular_misc_stat(key, values, placement='back', group_slash=False):
+def record_tabular_misc_stat(key, values, placement='back'):
     if placement == 'front':
         prefix = ""
         suffix = key
     else:
         prefix = key
         suffix = ""
-        if group_slash:
-            prefix += "/"
+        if _tf_summary_writer is not None:
+            prefix += "/"  # Group stats together in Tensorboard.
     if len(values) > 0:
         record_tabular(prefix + "Average" + suffix, np.average(values))
         record_tabular(prefix + "Std" + suffix, np.std(values))
