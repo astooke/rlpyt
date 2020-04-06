@@ -1,8 +1,8 @@
 <img align="right" width="205" height="109" src="/images/bair_logo.png">
 
 # rlpyt
-[![tests](https://github.com/juliusfrost/rlpyt/workflows/tests/badge.svg)](https://github.com/juliusfrost/rlpyt/actions)
-[![codecov](https://codecov.io/gh/juliusfrost/rlpyt/graph/badge.svg)](https://codecov.io/gh/juliusfrost/rlpyt)
+[![tests](https://github.com/astooke/rlpyt/workflows/tests/badge.svg)](https://github.com/astooke/rlpyt/actions)
+[![codecov](https://codecov.io/gh/astooke/rlpyt/graph/badge.svg)](https://codecov.io/gh/astooke/rlpyt)
 [![Docs](https://readthedocs.org/projects/rlpyt/badge/?version=latest&style=flat)](https://rlpyt.readthedocs.io/en/latest/)
 [![GitHub license](https://img.shields.io/github/license/astooke/rlpyt)](https://github.com/astooke/rlpyt/blob/master/LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/astooke/rlpyt)](https://github.com/astooke/rlpyt/issues)
