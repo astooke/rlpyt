@@ -334,7 +334,7 @@ class AsyncRlBase(BaseRunner):
             v.extend(new_v if isinstance(new_v, list) else [new_v])
         self.pbar.update((sampler_itr + 1) % self.log_interval_itrs)
 
-    def log_diagnostics(self, itr, sampler_itr, throttle_time):
+    def log_diagnostics(self, itr, sampler_itr, throttle_time, prefix='Diagnostics/'):
         self.pbar.stop()
         self.save_itr_snapshot(itr, sampler_itr)
         new_time = time.time()
@@ -358,19 +358,20 @@ class AsyncRlBase(BaseRunner):
         cum_replay_ratio = (self.algo.update_counter * self.algo.batch_size *
             self.world_size / max(1, cum_steps))
 
-        logger.record_tabular('Iteration', itr)
-        logger.record_tabular('SamplerIteration', sampler_itr)
-        logger.record_tabular('CumTime (s)', new_time - self._start_time)
-        logger.record_tabular('CumSteps', cum_steps)
-        logger.record_tabular('CumUpdates', self.algo.update_counter)
-        logger.record_tabular('ReplayRatio', replay_ratio)
-        logger.record_tabular('CumReplayRatio', cum_replay_ratio)
-        logger.record_tabular('StepsPerSecond', samples_per_second)
-        if self._eval:
-            logger.record_tabular('NonEvalSamplesPerSecond', non_eval_samples_per_second)
-        logger.record_tabular('UpdatesPerSecond', updates_per_second)
-        logger.record_tabular('OptThrottle', (time_elapsed - throttle_time) /
-            time_elapsed)
+        with logger.tabular_prefix(prefix):
+            logger.record_tabular('Iteration', itr)
+            logger.record_tabular('SamplerIteration', sampler_itr)
+            logger.record_tabular('CumTime (s)', new_time - self._start_time)
+            logger.record_tabular('CumSteps', cum_steps)
+            logger.record_tabular('CumUpdates', self.algo.update_counter)
+            logger.record_tabular('ReplayRatio', replay_ratio)
+            logger.record_tabular('CumReplayRatio', cum_replay_ratio)
+            logger.record_tabular('StepsPerSecond', samples_per_second)
+            if self._eval:
+                logger.record_tabular('NonEvalSamplesPerSecond', non_eval_samples_per_second)
+            logger.record_tabular('UpdatesPerSecond', updates_per_second)
+            logger.record_tabular('OptThrottle', (time_elapsed - throttle_time) /
+                time_elapsed)
 
         self._log_infos()
         self._last_time = new_time
@@ -420,12 +421,13 @@ class AsyncRl(AsyncRlBase):
         self._new_completed_trajs += len(traj_infos)
         super().store_diagnostics(itr, sampler_itr, traj_infos, opt_info)
 
-    def log_diagnostics(self, itr, sampler_itr, throttle_time):
-        logger.record_tabular('CumCompletedTrajs', self._cum_completed_trajs)
-        logger.record_tabular('NewCompletedTrajs', self._new_completed_trajs)
-        logger.record_tabular('StepsInTrajWindow',
-            sum(info["Length"] for info in self._traj_infos))
-        super().log_diagnostics(itr, sampler_itr, throttle_time)
+    def log_diagnostics(self, itr, sampler_itr, throttle_time, prefix='Diagnostics/'):
+        with logger.tabular_prefix(prefix):
+            logger.record_tabular('CumCompletedTrajs', self._cum_completed_trajs)
+            logger.record_tabular('NewCompletedTrajs', self._new_completed_trajs)
+            logger.record_tabular('StepsInTrajWindow',
+                sum(info["Length"] for info in self._traj_infos))
+        super().log_diagnostics(itr, sampler_itr, throttle_time, prefix=prefix)
         self._new_completed_trajs = 0
 
 
@@ -442,14 +444,15 @@ class AsyncRlEval(AsyncRlBase):
         super().initialize_logging()
         self.pbar = ProgBarCounter(self.log_interval_itrs)
 
-    def log_diagnostics(self, itr, sampler_itr, throttle_time):
+    def log_diagnostics(self, itr, sampler_itr, throttle_time, prefix='Diagnostics/'):
         if not self._traj_infos:
             logger.log("WARNING: had no complete trajectories in eval.")
         steps_in_eval = sum([info["Length"] for info in self._traj_infos])
-        logger.record_tabular('StepsInEval', steps_in_eval)
-        logger.record_tabular('TrajsInEval', len(self._traj_infos))
-        logger.record_tabular('CumEvalTime', self.ctrl.eval_time.value)
-        super().log_diagnostics(itr, sampler_itr, throttle_time)
+        with logger.tabular_prefix(prefix):
+            logger.record_tabular('StepsInEval', steps_in_eval)
+            logger.record_tabular('TrajsInEval', len(self._traj_infos))
+            logger.record_tabular('CumEvalTime', self.ctrl.eval_time.value)
+        super().log_diagnostics(itr, sampler_itr, throttle_time, prefix=prefix)
         self._traj_infos = list()  # Clear after each eval.
 
 

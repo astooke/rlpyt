@@ -210,7 +210,8 @@ def log(s, with_prefix=True, with_timestamp=True, color=None):
 
 def record_tabular(key, val, *args, **kwargs):
     # if not _disabled and not _tabular_disabled:
-    _tabular.append((_tabular_prefix_str + str(key), str(val)))
+    key = _tabular_prefix_str + str(key)
+    _tabular.append((key, str(val)))
     if _tf_summary_writer is not None:
         _tf_summary_writer.add_scalar(key, val, _iteration)
 
