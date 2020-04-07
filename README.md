@@ -61,7 +61,7 @@ This is also intended to support environments with multi-modal observations or a
 
 ## Future Developments.
 
-Overall the code is stable, but might still develop, changes may occur.  Open to suggestions/contributions for other established algorithms to add or other developments to support more use cases.
+Overall the code is stable, but might still develop, changes may occur.  Open to suggestions/contributions for other established algorithms to add or other developments to support more use cases--please see our simple [contribution guidelines](CONTRIBUTING.md).
 
 
 
