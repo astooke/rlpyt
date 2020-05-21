@@ -153,6 +153,11 @@ class DQN(RlAlgorithm):
         else:
             ReplayCls = (AsyncUniformReplayFrameBuffer if async_ else
                 UniformReplayFrameBuffer)
+        if self.ReplayBufferCls is not None:
+            ReplayCls = self.ReplayBufferCls
+            logger.log(f"WARNING: ignoring internal selection logic and using"
+                f" input replay buffer class: {ReplayCls} -- compatibility not"
+                " guaranteed.")
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):

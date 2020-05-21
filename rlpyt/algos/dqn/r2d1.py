@@ -61,6 +61,7 @@ class R2D1(DQN):
             input_priorities=True,
             input_priority_shift=None,
             value_scale_eps=1e-3,  # 1e-3 (Steven).
+            ReplayBufferCls=None,  # leave None to select by above options
             updates_per_sync=1,  # For async mode only.
             ):
         """Saves input arguments.
@@ -118,6 +119,11 @@ class R2D1(DQN):
         else:
             ReplayCls = (AsyncUniformSequenceReplayFrameBuffer if async_
                 else UniformSequenceReplayFrameBuffer)
+        if self.ReplayBufferCls is not None:
+            ReplayCls = self.ReplayBufferCls
+            logger.log(f"WARNING: ignoring internal selection logic and using"
+                f" input replay buffer class: {ReplayCls} -- compatibility not"
+                " guaranteed.")
         self.replay_buffer = ReplayCls(**replay_kwargs)
         return self.replay_buffer
 

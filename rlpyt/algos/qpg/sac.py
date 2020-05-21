@@ -55,6 +55,7 @@ class SAC(RlAlgorithm):
             n_step_return=1,
             updates_per_sync=1,  # For async mode only.
             bootstrap_timelimit=True,
+            ReplayBufferCls=None,  # Leave None to select by above options.
             ):
         """Save input arguments."""
         if optim_kwargs is None:
@@ -143,6 +144,11 @@ class SAC(RlAlgorithm):
             B=batch_spec.B,
             n_step_return=self.n_step_return,
         )
+        if self.ReplayBufferCls is not None:
+            ReplayCls = self.ReplayBufferCls
+            logger.log(f"WARNING: ignoring internal selection logic and using"
+                f" input replay buffer class: {ReplayCls} -- compatibility not"
+                " guaranteed.")
         self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
