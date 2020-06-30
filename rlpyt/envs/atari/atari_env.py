@@ -70,6 +70,7 @@ class AtariEnv(Env):
                  num_img_obs=4,  # Number of (past) frames in observation (>=1).
                  clip_reward=True,
                  episodic_lives=True,
+                 fire_on_reset=False,
                  max_start_noops=30,
                  repeat_action_probability=0.,
                  horizon=27000,
@@ -108,6 +109,8 @@ class AtariEnv(Env):
         self._life_reset()
         for _ in range(np.random.randint(0, self._max_start_noops + 1)):
             self.ale.act(0)
+        if self._fire_on_reset:
+            self.fire_and_up()
         self._update_obs()  # (don't bother to populate any frame history)
         self._step_counter = 0
         return self.get_obs()
@@ -174,12 +177,15 @@ class AtariEnv(Env):
 
     def _life_reset(self):
         self.ale.act(0)  # (advance from lost life state)
+        self._lives = self.ale.lives()
+        
+    def fire_and_up(self):
         if self._has_fire:
             # TODO: for sticky actions, make sure fire is actually pressed
             self.ale.act(1)  # (e.g. needed in Breakout, not sure what others)
         if self._has_up:
             self.ale.act(2)  # (not sure if this is necessary, saw it somewhere)
-        self._lives = self.ale.lives()
+
 
     ###########################################################################
     # Properties
