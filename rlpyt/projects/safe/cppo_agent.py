@@ -52,7 +52,7 @@ class CppoLstmAgent(MujocoLstmAgent):
 
     def __init__(
             self,
-            ModelCls=CppoSharedModel,  # I think can just swap in CppoConv
+            ModelCls=CppoModel,  # I think can just swap in CppoConv
             model_kwargs=None,
             initial_model_state_dict=None,
             ):
