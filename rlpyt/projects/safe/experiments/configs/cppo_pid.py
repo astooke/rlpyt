@@ -73,36 +73,4 @@ config = dict(
     ),
 )
 
-configs["FF_old"] = config
-
-config = copy.deepcopy(configs["FF_old"])
-config["model"]["lstm_size"] = 512
-config["model"]["lstm_skip"] = True
-config["sampler"]["batch_B"] = 104
-config["sampler"]["batch_T"] = 128
-config["algo"]["learning_rate"] = 3e-4
-config["algo"]["epochs"] = 8
-configs["LSTM_old"] = config
-
-config = copy.deepcopy(configs["LSTM_old"])
-config["runner"]["n_steps"] = 25e6
-config["algo"]["learning_rate"] = 1e-4
-config["algo"]["use_pid"] = True
-config["algo"]["pid_Ki"] = 1
-config["algo"]["pid_Kp"] = 0
-config["algo"]["pid_Kd"] = 0
-config["algo"]["pid_delta_p_ema_alpha"] = 0.95
-config["algo"]["penalty_init"] = 0
-config["algo"]["cost_scale"] = 10
-config["algo"]["cost_value_loss_coeff"] = 0.5
-config["model"]["normalize_observation"] = True
-config["algo"]["sum_norm"] = True
-config["algo"]["diff_norm"] = False
-configs["LSTM_got"] = config
-
-config = copy.deepcopy(configs["LSTM_got"])
-config["algo"]["ep_cost_ema_alpha"] = 0.9
-config["algo"]["lagrange_quadratic_penalty"] = True
-config["algo"]["quadratic_penalty_coeff"] = 1
-configs["LSTM_quadpen"] = config
-
+configs["LSTM"] = config
