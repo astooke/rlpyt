@@ -1,7 +1,7 @@
 import multiprocessing as mp
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.parallel import DistributedDataParallelCPU as DDPC
+# from torch.nn.parallel import DistributedDataParallelCPU as DDPC  # Deprecated
 
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.collections import namedarraytuple
@@ -125,14 +125,15 @@ class BaseAgent:
 
         Typically called in the runner during startup.
         """
-        if self.device.type == "cpu":
-            self.model = DDPC(self.model)
-            logger.log("Initialized DistributedDataParallelCPU agent model.")
-        else:
-            self.model = DDP(self.model,
-                device_ids=[self.device.index], output_device=self.device.index)
-            logger.log("Initialized DistributedDataParallel agent model on "
-                f"device {self.device}.")
+        device_id = self.device.index  # None if cpu, else cuda index.
+        self.model = DDP(
+            self.model,
+            device_ids=None if device_id is None else [device_id],  # 1 GPU.
+            output_device=device_id,
+        )
+        logger.log("Initialized DistributedDataParallel agent model on "
+            f"device {self.device}.")
+        return device_id
 
     def async_cpu(self, share_memory=True):
         """Used in async runner only; creates a new model instance to be used

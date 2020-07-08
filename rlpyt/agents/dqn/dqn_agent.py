@@ -1,7 +1,7 @@
 
 import torch
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.parallel import DistributedDataParallelCPU as DDPC
+# from torch.nn.parallel import DistributedDataParallel as DDP
+# from torch.nn.parallel import DistributedDataParallelCPU as DDPC  # Deprecated
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.agents.dqn.epsilon_greedy import EpsilonGreedyAgentMixin

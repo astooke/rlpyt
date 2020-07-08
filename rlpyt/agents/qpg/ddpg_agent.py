@@ -1,7 +1,7 @@
 
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.parallel import DistributedDataParallelCPU as DDPC
+# from torch.nn.parallel import DistributedDataParallelCPU as DDPC  # Deprecated
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.utils.quick_args import save__init__args
@@ -69,11 +69,13 @@ class DdpgAgent(BaseAgent):
         self.target_q_model.to(self.device)
 
     def data_parallel(self):
-        super().data_parallel()  # Takes care of self.model.
-        if self.device.type == "cpu":
-            self.q_model = DDPC(self.q_model)
-        else:
-            self.q_model = DDP(self.q_model)
+        device_id = super().data_parallel()  # Takes care of self.model.
+        self.q_model = DDP(
+            self.q_model,
+            device_ids=None if device_id is None else [device_id],  # 1 GPU.
+            output_device=device_id,
+        )
+        return device_id
 
     def make_env_to_model_kwargs(self, env_spaces):
         assert len(env_spaces.action.shape) == 1

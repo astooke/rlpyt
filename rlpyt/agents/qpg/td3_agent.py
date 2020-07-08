@@ -1,6 +1,6 @@
 
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.parallel import DistributedDataParallelCPU as DDPC
+# from torch.nn.parallel import DistributedDataParallelCPU as DDPC  # Deprecated.
 
 from rlpyt.agents.qpg.ddpg_agent import DdpgAgent
 from rlpyt.utils.buffer import buffer_to
@@ -49,11 +49,13 @@ class Td3Agent(DdpgAgent):
         self.target_q2_model.to(self.device)
 
     def data_parallel(self):
-        super().data_parallel()
-        if self.device.type == "cpu":
-            self.q2_model = DDPC(self.q2_model)
-        else:
-            self.q2_model = DDP(self.q2_model)
+        device_id = super().data_parallel()
+        self.q2_model = DDP(
+            self.q2_model,
+            device_ids=None if device_id is None else [device_id],  # 1 GPU.
+            output_device=device_id,
+        )
+        return device_id
 
     def give_min_itr_learn(self, min_itr_learn):
         self.min_itr_learn = min_itr_learn  # From algo.

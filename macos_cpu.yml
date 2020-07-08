@@ -3,7 +3,7 @@ channels:
 - pytorch
 dependencies:
 - python=3.7
-- pytorch
+- pytorch=1.5.1
 - numpy
 - psutil
 - opencv  # atari.

@@ -13,7 +13,7 @@ TEST_REQUIRES = [
 
 setuptools.setup(
     name='rlpyt',
-    version='0.1.1dev',
+    version='0.1.2',
     packages=setuptools.find_packages(),
     license='MIT License',
     long_description=open('README.md').read(),

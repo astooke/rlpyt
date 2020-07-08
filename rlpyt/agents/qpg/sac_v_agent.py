@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from collections import namedtuple
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.nn.parallel import DistributedDataParallelCPU as DDPC
+# from torch.nn.parallel import DistributedDataParallelCPU as DDPC  # Deprecated
 
 from rlpyt.agents.base import BaseAgent, AgentStep
 from rlpyt.models.qpg.mlp import QofMuMlpModel, VMlpModel, PiMlpModel
@@ -79,11 +79,23 @@ class SacAgent(BaseAgent):
         self.target_v_model.to(self.device)
 
     def data_parallel(self):
-        super().data_parallel
-        DDP_WRAP = DDPC if self.device.type == "cpu" else DDP
-        self.q1_model = DDP_WRAP(self.q1_model)
-        self.q2_model = DDP_WRAP(self.q2_model)
-        self.v_model = DDP_WRAP(self.v_model)
+        device_id = super().data_parallel
+        self.q1_model = DDP(
+            self.q1_model,
+            device_ids=None if device_id is None else [device_id],  # 1 GPU.
+            output_device=device_id,
+        )
+        self.q2_model = DDP(
+            self.q2_model,
+            device_ids=None if device_id is None else [device_id],  # 1 GPU.
+            output_device=device_id,
+        )
+        self.v_model = DDP(
+            self.v_model,
+            device_ids=None if device_id is None else [device_id],  # 1 GPU.
+            output_device=device_id,
+        )
+        return device_id
 
     def give_min_itr_learn(self, min_itr_learn):
         self.min_itr_learn = min_itr_learn  # From algo.

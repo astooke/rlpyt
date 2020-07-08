@@ -3,8 +3,8 @@ channels:
 - pytorch
 dependencies:
 - python=3.7
-- pytorch=1.2
-- cudatoolkit=10.
+- pytorch=1.5.1
+- cudatoolkit=10.2
 - numpy
 - psutil
 - opencv  # atari.
