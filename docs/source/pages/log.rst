@@ -7,3 +7,5 @@ The logger is nearly a direct copy from `rllab`, which implemented it as a modul
 .. autofunction:: rlpyt.utils.logging.context.logger_context
 
 .. autofunction:: rlpyt.utils.logging.context.add_exp_param
+
+.. autofunction:: rlpyt.utils.logging.context.check_progress

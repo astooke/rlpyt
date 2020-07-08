@@ -109,8 +109,8 @@ class SacAgent(BaseAgent):
         """Compute twin target Q-values for state/observation and input
         action.""" 
         model_inputs = buffer_to((observation, prev_action,
-        prev_reward, action), device=self.device)
-        target_q1 =self.target_q1_model(*model_inputs)
+            prev_reward, action), device=self.device)
+        target_q1 = self.target_q1_model(*model_inputs)
         target_q2 = self.target_q2_model(*model_inputs)
         return target_q1.cpu(), target_q2.cpu()
 

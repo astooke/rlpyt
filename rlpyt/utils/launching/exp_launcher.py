@@ -25,22 +25,30 @@ def log_num_launched(exp_dir, n, total):
 
 
 def launch_experiment(
-    script,
-    run_slot,
-    affinity_code,
-    log_dir,
-    variant,
-    run_ID,
-    args,
-    python_executable=None,
-):
+        script,
+        run_slot,
+        affinity_code,
+        log_dir,
+        variant,
+        run_ID,
+        args,
+        python_executable=None,
+        set_egl_device=False,
+    ):
     """Launches one learning run using ``subprocess.Popen()`` to call the
     python script.  Calls the script as:
     ``python {script} {slot_affinity_code} {log_dir} {run_ID} {*args}``
+
     If ``affinity_code["all_cpus"]`` is provided, then the call is prepended
     with ``tasket -c ..`` and the listed cpus (this is the most sure way to
     keep the run limited to these CPU cores).  Also saves the `variant` file.
     Returns the process handle, which can be monitored.
+   
+    Use ``set_egl_device=True`` to set an environment variable
+    ``EGL_DEVICE_ID`` equal to the same value as the cuda index for the
+    algorithm.  For example, can use with DMControl environment modified
+    to look for this environment variable when selecting a GPU for headless
+    rendering.
     """
     slot_affinity_code = prepend_run_slot(run_slot, affinity_code)
     affinity = affinity_from_code(slot_affinity_code)
@@ -58,12 +66,20 @@ def launch_experiment(
     call_list += [str(a) for a in args]
     save_variant(variant, log_dir)
     print("\ncall string:\n", " ".join(call_list))
-    p = subprocess.Popen(call_list)
+    if set_egl_device and affinity.get("cuda_idx", None) is not None:
+        egl_device_id = str(affinity["cuda_idx"])
+        egl_env = os.environ.copy()
+        egl_env["EGL_DEVICE_ID"] = egl_device_id
+        print(f"Assigning EGL_DEVICE_ID={egl_device_id}")
+        p = subprocess.Popen(call_list, env=egl_env)
+    else:
+        p = subprocess.Popen(call_list)
     return p
 
 
 def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
-        variants, log_dirs, common_args=None, runs_args=None):
+        variants, log_dirs, common_args=None, runs_args=None,
+        set_egl_device=False):
     """Call in a script to run a set of experiments locally on a machine.  Uses
     the ``launch_experiment()`` function for each individual run, which is a 
     call to the ``script`` file.  The number of experiments to run at the same
@@ -106,6 +122,7 @@ def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
                             variant=variant,
                             run_ID=run_ID,
                             args=common_args + run_args,
+                            set_egl_device=set_egl_device,
                         )
                         launched = True
                         num_launched += 1

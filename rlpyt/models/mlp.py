@@ -15,13 +15,15 @@ class MlpModel(torch.nn.Module):
     def __init__(
             self,
             input_size,
-            hidden_sizes,  # Can be empty list for none.
+            hidden_sizes,  # Can be empty list or None for none.
             output_size=None,  # if None, last layer has nonlinearity applied.
             nonlinearity=torch.nn.ReLU,  # Module, not Functional.
             ):
         super().__init__()
         if isinstance(hidden_sizes, int):
             hidden_sizes = [hidden_sizes]
+        elif hidden_sizes is None:
+            hidden_sizes = []
         hidden_layers = [torch.nn.Linear(n_in, n_out) for n_in, n_out in
             zip([input_size] + hidden_sizes[:-1], hidden_sizes)]
         sequence = list()

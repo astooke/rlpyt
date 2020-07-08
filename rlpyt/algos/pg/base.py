@@ -35,6 +35,8 @@ class PolicyGradientAlgo(RlAlgorithm):
         self.n_itr = n_itr
         self.batch_spec = batch_spec
         self.mid_batch_reset = mid_batch_reset
+        self.rank = rank
+        self.world_size = world_size
 
     def process_returns(self, samples):
         """

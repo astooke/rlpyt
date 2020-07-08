@@ -105,6 +105,24 @@ def add_exp_param(param_name, param_val, exp_dir=None, overwrite=False):
                         update_param = False
             if update_param:
                 os.remove(params_f)
-                params[param_name] = param_val
+                if param_name in params and isinstance(params[param_name], dict) and isinstance(param_val, dict):
+                    print(f"Param {param_name} is a dict and so is val, just updating.")
+                    params[param_name].update(param_val)
+                else:
+                    params[param_name] = param_val
                 with open(params_f, "w") as f:
                     json.dump(params, f, default=lambda o: type(o).__name__)
+
+
+def check_progress(exp_dir=None):
+    """Print to stdout the number of lines in all ``progress.csv`` files in
+    the directory.  Call like:
+     ``python -c 'from rlpyt.util.logging.context import check_progress;
+     check_progress('path_to_dir')``
+    """
+    if exp_dir is None:
+        exp_dir = os.getcwd()
+    for sub_dir in os.walk(exp_dir):
+        if "progress.csv" in sub_dir[2]:
+            progress_f = osp.join(sub_dir[0], "progress.csv")
+            os.system(f"wc -l {progress_f}")

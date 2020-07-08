@@ -54,6 +54,6 @@ class FrameBufferMixin:
         if t == 0:  # Starting: write early frames
             for f in range(fm1):
                 self.samples_frames[f] = samples.observation[0, :, f]
-        elif self.t < t:  # Wrapped: copy duplicate frames.
+        elif self.t < t and fm1 > 0:  # Wrapped: copy any duplicate frames.
             self.samples_frames[:fm1] = self.samples_frames[-fm1:]
         return T, idxs

@@ -104,27 +104,27 @@ class SumTree:
         the tree to each sampled leaf node. Returns `T_idxs` and `B_idxs`, and sample
         priorities."""
         self._sampled_unique = unique
-        random_values = np.random.rand(int(n*1 if unique else n))
-        tree_idxes, scaled_random_values = self.find(random_values)
+        random_values = np.random.rand(int(n * 1 if unique else n))
+        tree_idxs, scaled_random_values = self.find(random_values)
         if unique:
             i = 0
             while i < 100:
-                tree_idxes, unique_idx = np.unique(tree_idxes, return_index=True)
+                tree_idxs, unique_idx = np.unique(tree_idxs, return_index=True)
                 scaled_random_values = scaled_random_values[unique_idx]
-                if len(tree_idxes) < n:
-                    new_idxes, new_values = self.find(np.random.rand(2 * (n - len(tree_idxes))))
-                    tree_idxes = np.concatenate([tree_idxes, new_idxes])
+                if len(tree_idxs) < n:
+                    new_idxs, new_values = self.find(np.random.rand(2 * (n - len(tree_idxs))))
+                    tree_idxs = np.concatenate([tree_idxs, new_idxs])
                     scaled_random_values = np.concatenate([scaled_random_values, new_values])
                 else:
                     break
                 i += 1
-            if len(tree_idxes) < n:
+            if len(tree_idxs) < n:
                 raise RuntimeError("After 100 tries, unable to get unique indexes.")
-            tree_idxes = tree_idxes[:n]
+            tree_idxs = tree_idxs[:n]
 
-        priorities = self.tree[tree_idxes]
-        self.prev_tree_idxs = tree_idxes
-        T_idxs, B_idxs = np.divmod(tree_idxes - self.low_idx, self.B)
+        priorities = self.tree[tree_idxs]
+        self.prev_tree_idxs = tree_idxs
+        T_idxs, B_idxs = np.divmod(tree_idxs - self.low_idx, self.B)
         return (T_idxs, B_idxs), priorities
 
     def update_batch_priorities(self, priorities):

@@ -22,7 +22,7 @@ class PrioritizedReplay:
     """
 
     def __init__(self, alpha=0.6, beta=0.4, default_priority=1, unique=False,
-            input_priorities=False, **kwargs):
+            input_priorities=False, input_priority_shift=0, **kwargs):
         super().__init__(**kwargs)
         save__init__args(locals())
         self.init_priority_tree()
@@ -37,6 +37,7 @@ class PrioritizedReplay:
             off_forward=self.off_forward,
             default_value=self.default_priority ** self.alpha,
             enable_input_priorities=self.input_priorities,
+            input_priority_shift=self.input_priority_shift,
         )
 
     def set_beta(self, beta):

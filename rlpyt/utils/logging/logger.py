@@ -341,6 +341,11 @@ def save_itr_params(itr, params):
                 file_name = osp.join(get_snapshot_dir(), 'itr_%d.pkl' % itr)
             else:
                 return
+        elif _snapshot_mode == "last+gap":
+            if itr == 0 or (itr + 1) % _snapshot_gap == 0:
+                file_name = osp.join(get_snapshot_dir(), 'itr_%d.pkl' % itr)
+                torch.save(params, file_name)
+            file_name = osp.join(get_snapshot_dir(), 'params.pkl')
         elif _snapshot_mode == 'none':
             return
         else:

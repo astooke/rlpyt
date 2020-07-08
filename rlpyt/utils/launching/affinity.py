@@ -28,7 +28,7 @@ ABBREVS = [N_GPU, CONTEXTS_PER_GPU, GPU_PER_RUN, N_CPU_CORE,
 
 # API
 
-def quick_affinity_code(n_parallel=None, use_gpu=True):
+def quick_affinity_code(n_parallel=None, use_gpu=True, contexts_per_gpu=1):
     """Tried to autodetect hardware resources and divide them evenly among learning runs.
 
     Args:
@@ -38,7 +38,8 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
     if not (use_gpu or n_parallel):
         raise ValueError("Either use_gpu must be True or n_parallel > 0 must be given.")
     import psutil
-    n_cpu_core = psutil.cpu_count(logical=False)
+    # n_cpu_core = psutil.cpu_count(logical=False)  # sometimes gives bad results
+    n_cpu_core = psutil.cpu_count() // 2  # assume hyperthreads will be counted
     if use_gpu:
         import torch
         n_gpu = torch.cuda.device_count()
@@ -47,8 +48,10 @@ def quick_affinity_code(n_parallel=None, use_gpu=True):
     if n_gpu > 0:
         if n_parallel is not None:
             n_gpu = min(n_parallel, n_gpu)
-        n_cpu_core = (n_cpu_core // n_gpu) * n_gpu  # Same for all.
-        return encode_affinity(n_cpu_core=n_cpu_core, n_gpu=n_gpu)
+        n_runs = n_gpu * contexts_per_gpu
+        n_cpu_core = (n_cpu_core // n_runs) * n_runs  # Same for all.
+        return encode_affinity(n_cpu_core=n_cpu_core, n_gpu=n_gpu,
+            contexts_per_gpu=contexts_per_gpu)
     else:
         if not n_parallel:
             raise ValueError(
