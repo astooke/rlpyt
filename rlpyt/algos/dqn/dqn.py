@@ -181,7 +181,7 @@ class DQN(RlAlgorithm):
             if self.prioritized_replay:
                 self.replay_buffer.update_batch_priorities(td_abs_errors)
             opt_info.loss.append(loss.item())
-            opt_info.gradNorm.append(grad_norm)
+            opt_info.gradNorm.append(torch.tensor(grad_norm).item())  # backwards compatible
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())  # Downsample.
             self.update_counter += 1
             if self.update_counter % self.target_update_interval == 0:

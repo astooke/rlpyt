@@ -104,7 +104,7 @@ class PPO(PolicyGradientAlgo):
                 self.optimizer.step()
 
                 opt_info.loss.append(loss.item())
-                opt_info.gradNorm.append(grad_norm)
+                opt_info.gradNorm.append(torch.tensor(grad_norm).item())  # backwards compatible
                 opt_info.entropy.append(entropy.item())
                 opt_info.perplexity.append(perplexity.item())
                 self.update_counter += 1

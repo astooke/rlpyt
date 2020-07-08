@@ -159,7 +159,7 @@ class DDPG(RlAlgorithm):
                 self.agent.q_parameters(), self.clip_grad_norm)
             self.q_optimizer.step()
             opt_info.qLoss.append(q_loss.item())
-            opt_info.qGradNorm.append(q_grad_norm)
+            opt_info.qGradNorm.append(torch.tensor(q_grad_norm).item())  # backwards compatible
             self.update_counter += 1
             if self.update_counter % self.policy_update_interval == 0:
                 self.mu_optimizer.zero_grad()
@@ -169,7 +169,7 @@ class DDPG(RlAlgorithm):
                     self.agent.mu_parameters(), self.clip_grad_norm)
                 self.mu_optimizer.step()
                 opt_info.muLoss.append(mu_loss.item())
-                opt_info.muGradNorm.append(mu_grad_norm)
+                opt_info.muGradNorm.append(torch.tensor(mu_grad_norm).item())  # backwards compatible
             if self.update_counter % self.target_update_interval == 0:
                 self.agent.update_target(self.target_update_tau)
         return opt_info

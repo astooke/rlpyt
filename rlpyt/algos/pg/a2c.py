@@ -53,7 +53,7 @@ class A2C(PolicyGradientAlgo):
         self.optimizer.step()
         opt_info = OptInfo(
             loss=loss.item(),
-            gradNorm=grad_norm,
+            gradNorm=torch.tensor(grad_norm).item(),  # backwards compatible,
             entropy=entropy.item(),
             perplexity=perplexity.item(),
         )

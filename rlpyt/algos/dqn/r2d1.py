@@ -158,7 +158,7 @@ class R2D1(DQN):
             if self.prioritized_replay:
                 self.replay_buffer.update_batch_priorities(priorities)
             opt_info.loss.append(loss.item())
-            opt_info.gradNorm.append(grad_norm)
+            opt_info.gradNorm.append(torch.tensor(grad_norm).item())  # backwards compatible
             opt_info.tdAbsErr.extend(td_abs_errors[::8].numpy())
             opt_info.priority.extend(priorities)
             self.update_counter += 1
