@@ -2,7 +2,7 @@
 
 Versioning updates and major additional components will be listed here.  Lots of little additions might not make this list.
 
-## 07 July 2020  rlpyt version 0.1.2
+## 07 July 2020 -- rlpyt version 0.1.2
 
 * Previous rlpyt version 0.1.1dev
 * Updates for PyTorch 1.5.1 (from 1.2)
