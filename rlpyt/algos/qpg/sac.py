@@ -43,6 +43,7 @@ class SAC(RlAlgorithm):
             target_update_tau=0.005,  # tau=1 for hard update.
             target_update_interval=1,  # 1000 for hard update, 1 for soft.
             learning_rate=3e-4,
+            fixed_alpha=None, # None for adaptive alpha, float for any fixed value
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             initial_optim_state_dict=None,  # for all of them.
@@ -109,10 +110,15 @@ class SAC(RlAlgorithm):
             lr=self.learning_rate, **self.optim_kwargs)
         self.q2_optimizer = self.OptimCls(self.agent.q2_parameters(),
             lr=self.learning_rate, **self.optim_kwargs)
-        self._log_alpha = torch.zeros(1, requires_grad=True)
-        self._alpha = torch.exp(self._log_alpha.detach())
-        self.alpha_optimizer = self.OptimCls((self._log_alpha,),
-            lr=self.learning_rate, **self.optim_kwargs)
+        if self.fixed_alpha is None:
+            self._log_alpha = torch.zeros(1, requires_grad=True)
+            self._alpha = torch.exp(self._log_alpha.detach())
+            self.alpha_optimizer = self.OptimCls((self._log_alpha,),
+                lr=self.learning_rate, **self.optim_kwargs)
+        else:
+            self._log_alpha = torch.tensor([np.log(self.fixed_alpha)])
+            self._alpha = torch.tensor([self.fixed_alpha])
+            self.alpha_optimizer = None
         if self.target_entropy == "auto":
             self.target_entropy = -np.prod(self.agent.env_spaces.action.shape)
         if self.initial_optim_state_dict is not None:
@@ -268,7 +274,7 @@ class SAC(RlAlgorithm):
         #         0.5 * pi_mean ** 2 + 0.5 * pi_log_std ** 2, dim=-1)
         pi_loss = valid_mean(pi_losses, valid)
 
-        if self.target_entropy is not None:
+        if self.target_entropy is not None and self.fixed_alpha is None:
             alpha_losses = - self._log_alpha * (log_pi.detach() + self.target_entropy)
             alpha_loss = valid_mean(alpha_losses, valid)
         else:
@@ -309,7 +315,7 @@ class SAC(RlAlgorithm):
             pi_optimizer=self.pi_optimizer.state_dict(),
             q1_optimizer=self.q1_optimizer.state_dict(),
             q2_optimizer=self.q2_optimizer.state_dict(),
-            alpha_optimizer=self.alpha_optimizer.state_dict(),
+            alpha_optimizer=self.alpha_optimizer.state_dict() if self.alpha_optimizer else None,
             log_alpha=self._log_alpha.detach().item(),
         )
 
@@ -317,7 +323,8 @@ class SAC(RlAlgorithm):
         self.pi_optimizer.load_state_dict(state_dict["pi_optimizer"])
         self.q1_optimizer.load_state_dict(state_dict["q1_optimizer"])
         self.q2_optimizer.load_state_dict(state_dict["q2_optimizer"])
-        self.alpha_optimizer.load_state_dict(state_dict["alpha_optimizer"])
+        if self.alpha_optimizer is not None and state_dict["alpha_optimizer"] is not None:
+            self.alpha_optimizer.load_state_dict(state_dict["alpha_optimizer"])
         with torch.no_grad():
             self._log_alpha[:] = state_dict["log_alpha"]
             self._alpha = torch.exp(self._log_alpha.detach())
