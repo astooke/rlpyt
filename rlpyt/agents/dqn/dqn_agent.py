@@ -33,11 +33,15 @@ class DqnAgent(EpsilonGreedyAgentMixin, BaseAgent):
         """Along with standard initialization, creates vector-valued epsilon
         for exploration, if applicable, with a different epsilon for each
         environment instance."""
+        _initial_model_state_dict = self.initial_model_state_dict
+        self.initial_model_state_dict = None  # don't let base agent try to initialize model
         super().initialize(env_spaces, share_memory,
             global_B=global_B, env_ranks=env_ranks)
         self.target_model = self.ModelCls(**self.env_model_kwargs,
             **self.model_kwargs)
-        self.target_model.load_state_dict(self.model.state_dict())
+        if _initial_model_state_dict is not None:
+            self.model.load_state_dict(_initial_model_state_dict['model'])
+            self.target_model.load_state_dict(_initial_model_state_dict['model'])
         self.distribution = EpsilonGreedy(dim=env_spaces.action.n)
         if env_ranks is not None:
             self.make_vec_eps(global_B, env_ranks)
